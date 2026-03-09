@@ -13,8 +13,10 @@ import {
   Send, LayoutDashboard, Settings, Brain
 } from "lucide-react"
 import Link from "next/link"
-import { useLanguage } from "@/lib/i18n"
+import { useLanguage, translations } from "@/lib/i18n"
 import type { ShopLocation, Competitor } from "./overview-map"
+
+type TFunc = (category: keyof typeof translations, key: string) => string
 
 const OverviewMap = dynamic(() => import("./overview-map"), {
   ssr: false,
@@ -300,7 +302,7 @@ function CompetitorPanel({
   aiLoading: boolean
   onClose: () => void
   onAnalyze: () => void
-  t: (category: string, key: string) => string
+  t: TFunc
 }) {
   const cat = t("admin", categoryMap[competitor.category] || "catRestaurant")
 
@@ -438,7 +440,7 @@ function SidebarChat({
   scrollRef: React.RefObject<HTMLDivElement | null>
   onInputChange: (v: string) => void
   onSend: (customInput?: string) => void
-  t: (category: string, key: string) => string
+  t: TFunc
 }) {
   const chatQuickPrompts = [
     { label: t("admin", "birthdayCustomers"), prompt: "Find all customers with upcoming birthdays and create personalized messages" },
