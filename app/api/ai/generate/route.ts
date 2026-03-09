@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimitResponse } from "@/lib/rate-limit";
 import { getVoucherLink, getPointsLink, getMenuLink } from "@/lib/pwa-links";
+import { aiCallWithTools } from "@/lib/ai-tools";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
@@ -291,7 +292,7 @@ ${newCustomers.map(c => `- ${c.name} (${c.phone}) | Joined: ${new Date(c.joinDat
 ## OUTPUT RULES
 
 ### Language
-Respond in the same language as the user's message. Chinese → Chinese. Malay → Malay. Otherwise English.
+You MUST respond in ${userLang === "zh" ? "Chinese (简体中文)" : userLang === "ms" ? "Bahasa Melayu" : "English"}. All analysis, headings, and explanations must be in this language. WhatsApp messages for customers should also be written in this language.
 
 ### WhatsApp Message Format
 When generating messages for customers, ALWAYS include this JSON block at the end:
@@ -330,15 +331,29 @@ For business questions, structure your answer as:
 3. **Trend Analysis** — What direction things are moving
 4. **Action Items** — 2-3 specific things the admin should do NOW
 
+## TOOLS YOU CAN USE
+You have access to these tools. Use them when the admin's question needs external or uploaded data:
+- **web_search** — Search the internet for real-time competitor info, promotions, market trends, prices
+- **scrape_url** — Read any webpage content (competitor site, GrabFood, FoodPanda, social media)
+- **search_knowledge_base** — Search files the admin uploaded (competitor menus, reports, images, documents)
+
+**When to use tools:**
+- Admin asks about competitors → use web_search and/or search_knowledge_base
+- Admin asks about market trends → use web_search
+- Admin mentions a specific URL → use scrape_url
+- Admin references uploaded data → use search_knowledge_base
+- You can chain multiple tools if needed
+
 ## BEHAVIOR
 - Be proactive — always suggest WHO to message and WHY with marketing rationale
 - Think like a CMO — every recommendation should tie back to revenue or retention
 - When multiple customers match, list ALL with personalized messages for each
 - Never give generic advice — always reference specific customers and their data
-- If data is insufficient, say what's missing and suggest how to collect it`;
+- If data is insufficient, say what's missing and suggest how to collect it
+- When using tools, briefly mention what data source you used (e.g. "Based on web search..." or "From your uploaded files...")`;
 
 
-    // Generate response using AI
+    // Generate response using AI with tool calling
     let generatedMessage = "";
     let customerActions: any[] = [];
 
@@ -363,43 +378,25 @@ For business questions, structure your answer as:
         content: goal,
       });
 
-      const chatEndpoint = `${OPENAI_BASE_URL}/chat/completions`
-      const aiResponse = await fetch(chatEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: AI_MODEL,
-          messages: chatMessages,
-          max_tokens: 2000,
-          temperature: 0.8,
-          presence_penalty: 0.4,
-          frequency_penalty: 0.3,
-        }),
+      const result = await aiCallWithTools({
+        messages: chatMessages,
+        maxRounds: 4,
+        temperature: 0.8,
+        maxTokens: 2500,
       });
 
-      if (!aiResponse.ok) {
-        const errText = await aiResponse.text();
-        throw new Error(`AI API error ${aiResponse.status}: ${errText}`);
+      generatedMessage = result.content || "Sorry, I couldn't generate a response. Please try again.";
+      if (result.toolsUsed.length > 0) {
+        console.log(`[AI Generate] Tools used: ${result.toolsUsed.join(", ")}`);
       }
-
-      const rawText = await aiResponse.text();
-      let data: any;
-      try { data = JSON.parse(rawText); } catch { data = rawText; }
-      generatedMessage = (typeof data === "string" ? data : data.choices?.[0]?.message?.content) || "Sorry, I couldn't generate a response. Please try again.";
 
       // Extract customer_actions from response
       const actionsMatch = generatedMessage.match(/```customer_actions\n([\s\S]*?)\n```/);
       if (actionsMatch) {
         try {
           customerActions = JSON.parse(actionsMatch[1]);
-          // Remove the JSON block from displayed message
           generatedMessage = generatedMessage.replace(/```customer_actions\n[\s\S]*?\n```/, "").trim();
-        } catch {
-          // Invalid JSON - ignore
-        }
+        } catch {}
       }
 
     } catch (openaiError: any) {

@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Parse body ───────────────────────────────────────────────────
-    const { question } = await request.json()
+    const { question, language: userLang } = await request.json()
     if (!question) {
       return NextResponse.json(
         { error: "Please provide a question" },
@@ -363,7 +363,7 @@ Structure every response as:
 - **⚡ Action Items:** 2-3 immediate steps to take
 
 ## RULES
-- Match the user's language (Chinese → Chinese, Malay → Malay, else English)
+- You MUST respond in ${userLang === "zh" ? "Chinese (简体中文)" : userLang === "ms" ? "Bahasa Melayu" : "English"}. All headings, analysis, and action items must be in this language.
 - Be specific — never say "revenue is good", say "revenue is RM X, up Y% from last month"
 - For F&B context: mention peak hours, popular items, seasonal trends when relevant
 - If data is insufficient for a confident answer, say what's missing and suggest how to collect it

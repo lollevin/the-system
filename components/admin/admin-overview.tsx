@@ -10,7 +10,7 @@ import {
   Loader2, MapPin, UtensilsCrossed, Users, Gift, Bot,
   RefreshCw, Store, X, Phone, Globe, Clock, ChefHat,
   ExternalLink, Sparkles, Navigation2, MessageSquare,
-  Send, LayoutDashboard, Settings
+  Send, LayoutDashboard, Settings, Brain
 } from "lucide-react"
 import Link from "next/link"
 import { useLanguage } from "@/lib/i18n"
@@ -37,6 +37,7 @@ function useSidebarItems() {
     { href: "/admin/referrals", icon: <Users className="h-5 w-5" />, label: t("admin", "shareAndEarn"), desc: t("admin", "referralProgram"), color: "bg-blue-500/10 text-blue-600" },
     { href: "/admin/customers", icon: <Store className="h-5 w-5" />, label: t("admin", "staffManagement"), desc: t("admin", "teamManagement"), color: "bg-green-500/10 text-green-600" },
     { href: "/admin/customer-list", icon: <Users className="h-5 w-5" />, label: t("admin", "customers"), desc: t("admin", "memberDatabase"), color: "bg-teal-500/10 text-teal-600" },
+    { href: "/admin/knowledge-base", icon: <Brain className="h-5 w-5" />, label: t("admin", "knowledgeBase"), desc: t("admin", "kbNavDesc"), color: "bg-indigo-500/10 text-indigo-600" },
     { href: "/admin/settings", icon: <Settings className="h-5 w-5" />, label: t("common", "settings"), desc: t("admin", "shopAndLocation"), color: "bg-rose-500/10 text-rose-600" },
   ]
 }
@@ -133,6 +134,7 @@ export function AdminOverview() {
           address: selectedCompetitor.address,
           category: selectedCompetitor.category,
           website: selectedCompetitor.website,
+          language,
         }),
       })
       const data = await res.json()

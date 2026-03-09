@@ -1,9 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { rateLimitResponse } from "@/lib/rate-limit"
 import { NextResponse } from "next/server"
-
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY
-const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
+import { aiCallWithTools } from "@/lib/ai-tools"
 
 export const maxDuration = 60
 
@@ -17,11 +15,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY
   if (!OPENAI_API_KEY) {
     return NextResponse.json({ error: "AI API key not configured" }, { status: 500 })
   }
 
-  let body: { name: string; address?: string; category?: string; website?: string }
+  let body: { name: string; address?: string; category?: string; website?: string; language?: string }
   try {
     body = await request.json()
   } catch {
@@ -32,61 +31,49 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "name is required" }, { status: 400 })
   }
 
-  const chatEndpoint = `${OPENAI_BASE_URL}/chat/completions`
+  const langInstruction = body.language === "zh"
+    ? "Chinese (简体中文)"
+    : body.language === "ms"
+    ? "Bahasa Melayu"
+    : "English"
 
   try {
-    const aiResponse = await fetch(chatEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+    const messages = [
+      {
+        role: "system",
+        content: `You are JP&Co's Senior Competitive Intelligence Analyst — powered by 302.AI. You specialize in F&B market analysis in the Klang Valley, Malaysia. JP&Co is a trendy casual dining restaurant in SS2, Petaling Jaya serving burgers, cakes, and artisan coffee with an AI-powered loyalty system.
+
+You MUST reply in ${langInstruction}. Be specific, data-driven, and provide tactics JP&Co can execute immediately.
+
+## TOOLS
+You have access to these tools — USE THEM to get real data:
+- **web_search** — Search the internet for this competitor's real promotions, reviews, menu, social media
+- **scrape_url** — Read their website or food delivery pages for actual menu items and prices
+- **search_knowledge_base** — Check if admin uploaded any data about this competitor
+
+ALWAYS use web_search first to find real current information about the competitor before writing your analysis. This gives much better results than guessing.`,
       },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are JP&Co's Senior Competitive Intelligence Analyst — powered by 302.AI. You specialize in F&B market analysis in the Klang Valley, Malaysia. JP&Co is a trendy casual dining restaurant in SS2, Petaling Jaya serving burgers, cakes, and artisan coffee with an AI-powered loyalty system. Analyze competitors with actionable marketing intelligence. Always reply in English. Be specific, data-driven, and provide tactics JP&Co can execute immediately.",
-          },
-          {
-            role: "user",
-            content: buildPrompt(body.name, body.category, body.address, body.website),
-          },
-        ],
-        max_tokens: 1500,
-        temperature: 0.7,
-        presence_penalty: 0.4,
-        frequency_penalty: 0.3,
-      }),
+      {
+        role: "user",
+        content: buildPrompt(body.name, body.category, body.address, body.website),
+      },
+    ]
+
+    const result = await aiCallWithTools({
+      messages,
+      maxRounds: 3,
+      temperature: 0.7,
+      maxTokens: 2000,
     })
 
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text()
-      console.error("[Competitor Analyze] AI error:", aiResponse.status, errText.slice(0, 500))
-      return NextResponse.json(
-        { error: "AI analysis failed", detail: errText.slice(0, 200) },
-        { status: 502 },
-      )
+    const analysis = result.content?.trim() || ""
+
+    if (!analysis) {
+      return NextResponse.json({ error: "Empty AI response" }, { status: 502 })
     }
 
-    const rawText = await aiResponse.text()
-    let data: any
-    try {
-      data = JSON.parse(rawText)
-    } catch {
-      data = rawText
-    }
-
-    const analysis: string =
-      (typeof data === "string" ? data : data.choices?.[0]?.message?.content) ||
-      ""
-
-    if (!analysis || analysis.trim().length === 0) {
-      console.error("[Competitor Analyze] Empty. Raw length:", rawText.length, "preview:", rawText.slice(0, 300))
-      return NextResponse.json({ error: "Empty AI response", detail: rawText.slice(0, 200) }, { status: 502 })
-    }
-
-    return NextResponse.json({ analysis: analysis.trim() })
+    console.log(`[Competitor Analyze] Tools used: ${result.toolsUsed.join(", ") || "none"}`)
+    return NextResponse.json({ analysis })
   } catch (err: any) {
     console.error("[Competitor Analyze] Error:", err.message)
     return NextResponse.json({ error: "Failed to analyze competitor", detail: err.message }, { status: 500 })
@@ -101,24 +88,23 @@ function buildPrompt(name: string, category?: string, address?: string, website?
   if (website) parts.push(`Website: ${website}`)
 
   parts.push(`
-Provide this competitive intelligence report:
+First, use web_search to find real information about "${name}" (promotions, menu, reviews, social media). Then provide this competitive intelligence report:
 
-**🏪 Business Profile:** 2-3 sentences — what they sell, their positioning, target demographic, and price range.
+**Business Profile:** 2-3 sentences — what they sell, positioning, target demographic, price range.
 
-**📣 Marketing & Promotions:** Known or likely promotions, loyalty programs, social media activity, delivery platforms (GrabFood, FoodPanda), and marketing channels they use.
+**Marketing & Promotions:** Their ACTUAL current promotions (from web search), loyalty programs, social media, delivery platforms.
 
-**⭐ Strengths:** What they do well that JP&Co should be aware of (menu, ambiance, pricing, location advantage).
+**Strengths:** What they do well that JP&Co should be aware of.
 
-**⚠️ Weaknesses:** Gaps or areas where JP&Co has a clear advantage.
+**Weaknesses:** Gaps or areas where JP&Co has a clear advantage.
 
-**🎯 Threat Level:** Low / Medium / High — with a one-sentence justification comparing their offering to JP&Co's casual dining + loyalty + AI marketing edge.
+**Threat Level:** Low / Medium / High — with justification.
 
-**💡 Counter-Strategy:** 2-3 specific, actionable tactics JP&Co should execute to win customers from this competitor. Think: targeted offers, menu positioning, social media campaigns, or loyalty program advantages.
+**Counter-Strategy:** 2-3 specific, actionable tactics JP&Co should execute.
 
-**📊 Opportunity Score:** Rate 1-10 how much JP&Co can gain from actively competing with this business.
+**Opportunity Score:** Rate 1-10 how much JP&Co can gain from actively competing.
 
-Be specific to the Malaysian F&B market. Reference real platforms (GrabFood, Instagram, TikTok, Google Reviews) when relevant.`)
-
+Be specific to the Malaysian F&B market. Reference real platforms (GrabFood, Instagram, TikTok, Google Reviews).`)
 
   return parts.join("\n")
 }

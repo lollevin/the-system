@@ -97,7 +97,7 @@ export function AICustomerAnalyzer() {
   const [editVoucherType, setEditVoucherType] = useState<"percentage" | "fixed">("percentage")
   
   const supabase = createClient()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
 
   useEffect(() => {
     loadCustomers()
@@ -284,6 +284,7 @@ Requirements:
 - Include specific data points from this customer's profile
 - ONLY output the WhatsApp message text, nothing else
 - Make this message feel truly personal to THIS specific customer`,
+          language,
           requestId: `${customer.id}-${Date.now()}`
         }),
       })

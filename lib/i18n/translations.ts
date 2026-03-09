@@ -535,6 +535,21 @@ export const translations = {
       ms: "Hai! Saya Pembantu AI JP&Co. Tanya saya apa sahaja tentang pemasaran, pelanggan, hasil atau strategi."
     },
 
+    // Knowledge Base
+    knowledgeBase: { en: "Knowledge Base", zh: "知识库", ms: "Pangkalan Pengetahuan" },
+    kbDesc: { en: "Upload files for AI to learn from — competitor data, reports, images, documents", zh: "上传文件让 AI 学习 — 竞争对手资料、报告、图片、文档", ms: "Muat naik fail untuk AI belajar — data pesaing, laporan, gambar, dokumen" },
+    kbNavDesc: { en: "AI learning files", zh: "AI 学习资料", ms: "Fail pembelajaran AI" },
+    kbFilesReady: { en: "files ready", zh: "个文件就绪", ms: "fail sedia" },
+    kbDragDrop: { en: "Drag & drop files here or click to browse", zh: "拖放文件到此处或点击浏览", ms: "Seret & lepas fail di sini atau klik untuk semak imbas" },
+    kbSupportedTypes: { en: "PDF, Images, Excel, CSV, Word, Text — max 50MB", zh: "PDF、图片、Excel、CSV、Word、文本 — 最大 50MB", ms: "PDF, Gambar, Excel, CSV, Word, Teks — maks 50MB" },
+    kbUploading: { en: "Uploading & processing...", zh: "上传和处理中...", ms: "Memuat naik & memproses..." },
+    kbReady: { en: "Ready", zh: "就绪", ms: "Sedia" },
+    kbProcessing: { en: "Processing", zh: "处理中", ms: "Memproses" },
+    kbFailed: { en: "Failed", zh: "失败", ms: "Gagal" },
+    kbEmpty: { en: "No files uploaded yet", zh: "尚未上传文件", ms: "Tiada fail dimuat naik lagi" },
+    kbEmptyHint: { en: "Upload competitor menus, market reports, or any data for AI to use", zh: "上传竞争对手菜单、市场报告或任何数据供 AI 使用", ms: "Muat naik menu pesaing, laporan pasaran atau sebarang data untuk AI gunakan" },
+    kbUploadedFiles: { en: "Uploaded Files", zh: "已上传文件", ms: "Fail Dimuat Naik" },
+
     // Overview / Dashboard components
     trafficAndSales: { en: "Traffic & Sales", zh: "流量和销售", ms: "Trafik & Jualan" },
     trafficAndSalesDesc: { en: "Admin monitoring - Customer visits & revenue", zh: "管理监控 - 客户访问和收入", ms: "Pemantauan admin - Lawatan pelanggan & hasil" },
