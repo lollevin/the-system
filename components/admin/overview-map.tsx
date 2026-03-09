@@ -78,7 +78,7 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
 
       const map = L.map(mapRef.current!, {
         center: [shopLocation.lat, shopLocation.lng],
-        zoom: 15,
+        zoom: 16,
         scrollWheelZoom: true,
         zoomControl: false,
       })
