@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         messages: [
           {
             role: "system",
-            content: "You are a marketing analyst for JP&Co, a casual dining restaurant in SS2, Petaling Jaya, Malaysia. Provide concise competitor analysis based on your knowledge. Reply in English.",
+            content: "You are JP&Co's Senior Competitive Intelligence Analyst — powered by 302.AI. You specialize in F&B market analysis in the Klang Valley, Malaysia. JP&Co is a trendy casual dining restaurant in SS2, Petaling Jaya serving burgers, cakes, and artisan coffee with an AI-powered loyalty system. Analyze competitors with actionable marketing intelligence. Always reply in English. Be specific, data-driven, and provide tactics JP&Co can execute immediately.",
           },
           {
             role: "user",
@@ -101,19 +101,24 @@ function buildPrompt(name: string, category?: string, address?: string, website?
   if (website) parts.push(`Website: ${website}`)
 
   parts.push(`
-Provide this analysis:
+Provide this competitive intelligence report:
 
-**Summary:** 2-3 sentences about what this business is and what they offer.
+**🏪 Business Profile:** 2-3 sentences — what they sell, their positioning, target demographic, and price range.
 
-**Marketing & Promos:** Any known promotions, loyalty programs, or marketing strategies typical for this type of business.
+**📣 Marketing & Promotions:** Known or likely promotions, loyalty programs, social media activity, delivery platforms (GrabFood, FoodPanda), and marketing channels they use.
 
-**Online Presence:** Likely social media presence and review platforms.
+**⭐ Strengths:** What they do well that JP&Co should be aware of (menu, ambiance, pricing, location advantage).
 
-**Threat Level:** Low / Medium / High (compared to JP&Co, a casual dining restaurant)
+**⚠️ Weaknesses:** Gaps or areas where JP&Co has a clear advantage.
 
-**Recommendation:** One specific tip for JP&Co to compete with this business.
+**🎯 Threat Level:** Low / Medium / High — with a one-sentence justification comparing their offering to JP&Co's casual dining + loyalty + AI marketing edge.
 
-Be concise and practical.`)
+**💡 Counter-Strategy:** 2-3 specific, actionable tactics JP&Co should execute to win customers from this competitor. Think: targeted offers, menu positioning, social media campaigns, or loyalty program advantages.
+
+**📊 Opportunity Score:** Rate 1-10 how much JP&Co can gain from actively competing with this business.
+
+Be specific to the Malaysian F&B market. Reference real platforms (GrabFood, Instagram, TikTok, Google Reviews) when relevant.`)
+
 
   return parts.join("\n")
 }
