@@ -223,3 +223,134 @@
 .pulse-dot {
   animation: pulseDot 2s ease-in-out infinite;
 }
+
+/* ========== Map Marker Styles ========== */
+
+/* JP&Co shop marker */
+.shop-marker-main { z-index: 1000 !important; }
+.shop-marker-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+.shop-pulse-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.2);
+  animation: shopPulse 2.5s ease-in-out infinite;
+}
+.shop-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border: 3px solid white;
+  box-shadow: 0 3px 12px rgba(34, 197, 94, 0.4), 0 0 0 2px rgba(34, 197, 94, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  position: relative;
+}
+.shop-label {
+  margin-top: 3px;
+  background: rgba(34, 197, 94, 0.95);
+  color: white;
+  padding: 1px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  z-index: 2;
+  position: relative;
+}
+@keyframes shopPulse {
+  0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.6; }
+  50% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+}
+
+/* Competitor markers */
+.competitor-marker-main { transition: z-index 0.2s; }
+.c-marker-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.c-marker-wrapper:hover {
+  transform: scale(1.15);
+  z-index: 999 !important;
+}
+.c-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: all 0.25s ease;
+}
+.c-marker-wrapper:hover .c-dot {
+  width: 22px;
+  height: 22px;
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.4);
+}
+.c-label {
+  margin-top: 2px;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 600;
+  white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: all 0.2s ease;
+  pointer-events: none;
+}
+.c-marker-wrapper:hover .c-label {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Selected competitor */
+.c-marker-selected {
+  transform: scale(1.25) !important;
+  z-index: 998 !important;
+}
+.c-marker-selected .c-dot {
+  width: 24px !important;
+  height: 24px !important;
+  border: 3px solid #8b6f47 !important;
+  box-shadow: 0 0 0 3px rgba(139, 111, 71, 0.25), 0 3px 12px rgba(220, 38, 38, 0.35) !important;
+}
+.c-marker-selected .c-label {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+  background: rgba(139, 111, 71, 0.9) !important;
+}
+
+/* Slide-in animation for detail panel */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in-left {
+  animation: slideInLeft 0.25s ease-out;
+}
+
+/* Override leaflet popup styles */
+.leaflet-container { font-family: inherit; }

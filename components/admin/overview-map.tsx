@@ -45,22 +45,21 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
   onSelectRef.current = onSelectCompetitor
 
   const highlightMarker = useCallback((competitor: Competitor | null) => {
-    if (!mapInstanceRef.current) return
     markersRef.current.forEach(({ marker, competitor: c }) => {
       const isSelected = competitor && c.name === competitor.name && c.lat === competitor.lat
       const el = marker.getElement?.()
       if (el) {
-        const dot = el.querySelector("div")
-        if (dot) {
-          dot.style.width = isSelected ? "28px" : "22px"
-          dot.style.height = isSelected ? "28px" : "22px"
-          dot.style.border = isSelected ? "3px solid #8b6f47" : "2px solid white"
-          dot.style.boxShadow = isSelected ? "0 0 12px rgba(139,111,71,0.5)" : "0 2px 4px rgba(0,0,0,0.3)"
-          dot.style.zIndex = isSelected ? "1000" : "1"
+        const wrapper = el.querySelector(".c-marker-wrapper")
+        if (wrapper) {
+          if (isSelected) {
+            wrapper.classList.add("c-marker-selected")
+          } else {
+            wrapper.classList.remove("c-marker-selected")
+          }
         }
       }
     })
-    if (competitor) {
+    if (competitor && mapInstanceRef.current) {
       mapInstanceRef.current.flyTo([competitor.lat, competitor.lng], 16, { duration: 0.5 })
     }
   }, [])
@@ -76,17 +75,15 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
       const L = (await import("leaflet")).default
 
       delete (L.Icon.Default.prototype as any)._getIconUrl
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      })
 
       const map = L.map(mapRef.current!, {
         center: [shopLocation.lat, shopLocation.lng],
         zoom: 14,
         scrollWheelZoom: true,
+        zoomControl: false,
       })
+
+      L.control.zoom({ position: "bottomright" }).addTo(map)
 
       L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
@@ -98,42 +95,54 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
         radius: shopLocation.radius_km * 1000,
         color: "#8b6f47",
         fillColor: "#8b6f47",
-        fillOpacity: 0.08,
+        fillOpacity: 0.06,
         weight: 2,
-        dashArray: "6 4",
+        dashArray: "8 6",
       }).addTo(map)
 
+      const kmLabel = L.divIcon({
+        className: "km-label",
+        html: `<div style="background:rgba(139,111,71,0.9);color:white;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.2);">${shopLocation.radius_km} km</div>`,
+        iconSize: [60, 20],
+        iconAnchor: [30, 10],
+      })
+      const edgeLat = shopLocation.lat + (shopLocation.radius_km / 111.32) * 0.7
+      const edgeLng = shopLocation.lng + (shopLocation.radius_km / (111.32 * Math.cos(shopLocation.lat * Math.PI / 180))) * 0.7
+      L.marker([edgeLat, edgeLng], { icon: kmLabel, interactive: false }).addTo(map)
+
       const shopIcon = L.divIcon({
-        className: "shop-marker",
-        html: `<div style="background:#8b6f47;width:32px;height:32px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M3 21V9l9-6 9 6v12H3z"/></svg>
+        className: "shop-marker-main",
+        html: `<div class="shop-marker-wrapper">
+          <div class="shop-pulse-ring"></div>
+          <div class="shop-dot">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M3 21V9l9-6 9 6v12H3z"/></svg>
+          </div>
+          <div class="shop-label">${shopLocation.name}</div>
         </div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
-        popupAnchor: [0, -16],
+        iconSize: [40, 56],
+        iconAnchor: [20, 28],
       })
 
-      L.marker([shopLocation.lat, shopLocation.lng], { icon: shopIcon })
-        .addTo(map)
-        .bindPopup(`<div style="font-weight:600;font-size:14px;">${shopLocation.name}</div><div style="color:#666;font-size:12px;">Your Shop</div>`)
+      L.marker([shopLocation.lat, shopLocation.lng], { icon: shopIcon, zIndexOffset: 1000 }).addTo(map)
 
       const newMarkers: any[] = []
       competitors.forEach((c) => {
         const color = categoryColors[c.category] || "#dc2626"
         const icon = L.divIcon({
-          className: "competitor-marker",
-          html: `<div style="background:${color};width:22px;height:22px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);cursor:pointer;transition:all 0.2s;"></div>`,
-          iconSize: [22, 22],
-          iconAnchor: [11, 11],
+          className: "competitor-marker-main",
+          html: `<div class="c-marker-wrapper" data-name="${c.name}">
+            <div class="c-dot" style="background:${color};"></div>
+            <div class="c-label">${c.name}</div>
+          </div>`,
+          iconSize: [20, 32],
+          iconAnchor: [10, 16],
         })
 
-        const marker = L.marker([c.lat, c.lng], { icon })
-          .addTo(map)
-
-        marker.on("click", () => {
+        const marker = L.marker([c.lat, c.lng], { icon }).addTo(map)
+        marker.on("click", (e: any) => {
+          L.DomEvent.stopPropagation(e)
           onSelectRef.current?.(c)
         })
-
         newMarkers.push({ marker, competitor: c })
       })
       markersRef.current = newMarkers
@@ -158,7 +167,7 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
   }, [shopLocation, competitors])
 
   return (
-    <div className="h-full w-full overflow-hidden bg-card">
+    <div className="h-full w-full overflow-hidden">
       <div ref={mapRef} className="h-full w-full" />
     </div>
   )
