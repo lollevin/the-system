@@ -60,6 +60,7 @@ const categoryMap: Record<string, string> = {
 export function AdminOverview() {
   const { t, language } = useLanguage()
   const sidebarItems = useSidebarItems()
+
   const [shopLocation, setShopLocation] = useState<ShopLocation>({
     lat: 3.1073, lng: 101.6268, name: "JP&Co", radius_km: 5,
   })
@@ -69,7 +70,8 @@ export function AdminOverview() {
   const [selectedCompetitor, setSelectedCompetitor] = useState<Competitor | null>(null)
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
-  const [sidebarMode, setSidebarMode] = useState<"nav" | "chat">("nav")
+
+  const [viewMode, setViewMode] = useState<"overview" | "chat">("overview")
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInited, setChatInited] = useState(false)
   const [chatInput, setChatInput] = useState("")
@@ -174,6 +176,14 @@ export function AdminOverview() {
     }
   }
 
+  const chatQuickPrompts = [
+    { label: t("admin", "birthdayCustomers"), prompt: "Find all customers with upcoming birthdays and create personalized messages" },
+    { label: t("admin", "wakeUpDormant"), prompt: "Show dormant customers (30+ days inactive) and create comeback offers" },
+    { label: t("admin", "vipExclusive"), prompt: "Create a special VIP exclusive offer for top spending customers" },
+    { label: t("admin", "revenueReport"), prompt: "How much revenue today and this month? Compare with last month." },
+    { label: t("admin", "customerHealth"), prompt: "Customer health report - active vs dormant, trends?" },
+  ]
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -189,78 +199,92 @@ export function AdminOverview() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-56px)] -mx-4 sm:-mx-6 lg:-mx-8 -mt-4 -mb-4 lg:-mb-4">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-5 h-11 border-b border-border/50 bg-background/80 backdrop-blur-sm shrink-0">
-        <div className="flex items-center gap-3">
-          <h1 className="text-sm font-bold text-foreground">{shopLocation.name}</h1>
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500 inline-block" />{stats.restaurants}</span>
-            <span className="text-border">|</span>
-            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500 inline-block" />{stats.cafes}</span>
-            <span className="text-border">|</span>
-            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500 inline-block" />{stats.fastFood}</span>
-            <span className="text-border">|</span>
-            <span>{competitors.length} {t("admin", "total")}</span>
+    <div className="flex flex-col h-[calc(100vh-56px)] -mx-4 sm:-mx-6 lg:-mx-8 -mt-4 -mb-4 lg:-mb-4 relative overflow-hidden">
+
+      {/* ========== OVERVIEW VIEW ========== */}
+      <div
+        className={`absolute inset-0 flex flex-col view-transition ${
+          viewMode === "chat"
+            ? "view-overview-out"
+            : "view-overview-in"
+        }`}
+      >
+        {/* Top bar — 毛玻璃 (frosted glass) */}
+        <div className="flex items-center justify-between px-5 h-11 border-b border-white/20 bg-background/60 backdrop-blur-xl shrink-0 z-10">
+          <div className="flex items-center gap-3">
+            <h1 className="text-sm font-bold text-foreground">{shopLocation.name}</h1>
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500 inline-block" />{stats.restaurants}</span>
+              <span className="text-border">|</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500 inline-block" />{stats.cafes}</span>
+              <span className="text-border">|</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500 inline-block" />{stats.fastFood}</span>
+              <span className="text-border">|</span>
+              <span>{competitors.length} {t("admin", "total")}</span>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
+              disabled={competitorLoading}
+              className="h-7 px-2 text-xs"
+            >
+              <RefreshCw className={`h-3 w-3 ${competitorLoading ? "animate-spin" : ""}`} />
+            </Button>
           </div>
           <Button
             size="sm"
-            variant="ghost"
-            onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
-            disabled={competitorLoading}
-            className="h-7 px-2 text-xs"
+            className="h-8 shadow-md bg-[#8b6f47] hover:bg-[#7a5f3a] text-white gap-1.5"
+            onClick={() => setViewMode("chat")}
           >
-            <RefreshCw className={`h-3 w-3 ${competitorLoading ? "animate-spin" : ""}`} />
+            <MessageSquare className="h-3.5 w-3.5" />{t("admin", "aiChatBtn")}
           </Button>
         </div>
-        <Button
-          size="sm"
-          className={`h-8 shadow-md ${sidebarMode === "nav" ? "bg-[#8b6f47] hover:bg-[#7a5f3a] text-white" : "bg-foreground/10 hover:bg-foreground/15 text-foreground"}`}
-          onClick={() => setSidebarMode(prev => prev === "nav" ? "chat" : "nav")}
-        >
-          {sidebarMode === "nav" ? (
-            <><MessageSquare className="h-3.5 w-3.5 mr-1.5" />{t("admin", "aiChatBtn")}</>
-          ) : (
-            <><LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />{t("admin", "overview")}</>
-          )}
-        </Button>
-      </div>
 
-      {/* Main area: Map + right sidebar */}
-      <div className="flex flex-1 min-h-0">
-        {/* Detail panel (Google Maps-style) */}
-        {selectedCompetitor && (
-          <div className="w-[340px] shrink-0 border-r border-border/50 bg-background overflow-y-auto animate-slide-in-left">
-            <CompetitorPanel
-              competitor={selectedCompetitor}
-              shopLocation={shopLocation}
-              aiAnalysis={aiAnalysis}
-              aiLoading={aiLoading}
-              onClose={() => handleSelectCompetitor(null)}
-              onAnalyze={handleAnalyze}
-              t={t}
-            />
-          </div>
-        )}
-
-        {/* Map */}
-        <div className="flex-1 min-w-0 relative">
-          <OverviewMap
-            shopLocation={shopLocation}
-            competitors={competitors}
-            selectedCompetitor={selectedCompetitor}
-            onSelectCompetitor={handleSelectCompetitor}
-          />
-          {!selectedCompetitor && !competitorLoading && competitors.length > 0 && (
-            <div className="absolute bottom-3 left-3 bg-background/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs text-muted-foreground border border-border/50 shadow-sm">
-              {t("admin", "clickRedDot")}
+        {/* Main area: Map + right sidebar */}
+        <div className="flex flex-1 min-h-0">
+          {/* Detail panel (Google Maps-style) */}
+          {selectedCompetitor && (
+            <div className="w-[340px] shrink-0 border-r border-border/50 bg-background overflow-y-auto animate-slide-in-left">
+              <CompetitorPanel
+                competitor={selectedCompetitor}
+                shopLocation={shopLocation}
+                aiAnalysis={aiAnalysis}
+                aiLoading={aiLoading}
+                onClose={() => handleSelectCompetitor(null)}
+                onAnalyze={handleAnalyze}
+                t={t}
+              />
             </div>
           )}
-        </div>
 
-        {/* Right sidebar - toggleable nav / AI chat */}
-        <div className={`hidden lg:flex shrink-0 flex-col border-l border-border/50 bg-background/50 backdrop-blur-sm transition-all duration-300 ${sidebarMode === "chat" ? "w-[380px]" : "w-[200px]"}`}>
-          {sidebarMode === "nav" ? (
+          {/* Map */}
+          <div className="flex-1 min-w-0 relative">
+            <OverviewMap
+              shopLocation={shopLocation}
+              competitors={competitors}
+              selectedCompetitor={selectedCompetitor}
+              onSelectCompetitor={handleSelectCompetitor}
+            />
+            {!selectedCompetitor && !competitorLoading && competitors.length > 0 && (
+              <div className="absolute bottom-3 left-3 bg-background/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs text-muted-foreground border border-border/50 shadow-sm">
+                {t("admin", "clickRedDot")}
+              </div>
+            )}
+
+            {/* Two-line grip handle — between map and sidebar */}
+            <button
+              onClick={() => setViewMode("chat")}
+              className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 flex-col items-center gap-[3px] px-1.5 py-4 rounded-l-lg bg-background/70 backdrop-blur-sm border border-r-0 border-border/40 hover:bg-[#8b6f47]/10 transition-all group cursor-pointer"
+              title={t("admin", "aiChatBtn")}
+            >
+              <div className="w-[3px] h-5 rounded-full bg-foreground/20 group-hover:bg-[#8b6f47]/60 transition-colors" />
+              <div className="w-[3px] h-5 rounded-full bg-foreground/15 group-hover:bg-[#8b6f47]/40 transition-colors" />
+            </button>
+          </div>
+
+          {/* Right sidebar — navigation */}
+          <div className="hidden lg:flex shrink-0 w-[200px] flex-col border-l border-border/50 bg-background/50 backdrop-blur-sm">
             <div className="p-3 space-y-1 overflow-y-auto flex-1">
               {sidebarItems.map((item) => (
                 <Link key={item.href} href={item.href}>
@@ -276,22 +300,141 @@ export function AdminOverview() {
                 </Link>
               ))}
             </div>
-          ) : (
-            <SidebarChat
-              messages={chatMessages}
-              input={chatInput}
-              loading={chatLoading}
-              scrollRef={chatScrollRef}
-              onInputChange={setChatInput}
-              onSend={handleChatSend}
-              t={t}
-            />
-          )}
+          </div>
+        </div>
+      </div>
+
+      {/* ========== FULL-SCREEN AI CHAT — 专场 ========== */}
+      <div
+        className={`absolute inset-0 flex flex-col view-transition z-10 ${
+          viewMode === "chat"
+            ? "view-chat-in"
+            : "view-chat-out"
+        }`}
+        style={{ background: "linear-gradient(180deg, var(--background) 0%, var(--background) 92%, rgba(139,111,71,0.04) 100%)" }}
+      >
+        {/* Two-line handle — drag affordance at top center */}
+        <div className="flex justify-center pt-2.5 pb-1 shrink-0">
+          <button
+            onClick={() => setViewMode("overview")}
+            className="group flex flex-col items-center gap-[3px] px-8 py-1.5 rounded-xl transition-all hover:bg-foreground/5 active:scale-95"
+            title={t("admin", "overview")}
+          >
+            <div className="w-10 h-[3px] rounded-full bg-foreground/20 group-hover:bg-[#8b6f47] transition-colors duration-300" />
+            <div className="w-6 h-[3px] rounded-full bg-foreground/12 group-hover:bg-[#8b6f47]/60 transition-colors duration-300" />
+          </button>
+        </div>
+
+        {/* Chat header */}
+        <div className="shrink-0 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto flex items-center justify-between py-2">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#8b6f47] to-[#6d563a] flex items-center justify-center shadow-lg shadow-[#8b6f47]/20">
+                <Bot className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="text-base font-bold leading-tight">{t("admin", "jpcoAi")}</p>
+                <p className="text-xs text-muted-foreground">{t("admin", "marketingAndInsights")}</p>
+              </div>
+              <Badge variant="outline" className="text-[10px] h-5 ml-1">302.AI</Badge>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setViewMode("overview")}
+              className="h-8 text-xs gap-1.5"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              {t("admin", "overview")}
+            </Button>
+          </div>
+        </div>
+
+        <div className="border-t border-border/20 shrink-0" />
+
+        {/* Chat body — centered */}
+        <div className="flex-1 min-h-0 px-4 sm:px-6 lg:px-8 overflow-hidden">
+          <div className="max-w-3xl mx-auto h-full flex flex-col">
+            {/* Quick prompts when fresh */}
+            {chatMessages.length <= 1 && (
+              <div className="py-5 flex flex-wrap gap-2 justify-center shrink-0 stagger-children">
+                {chatQuickPrompts.map((p, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleChatSend(p.prompt)}
+                    disabled={chatLoading}
+                    className="text-xs px-4 py-2.5 rounded-full bg-[#8b6f47]/10 text-[#8b6f47] hover:bg-[#8b6f47]/20 border border-[#8b6f47]/10 transition-all hover:shadow-sm active:scale-95 disabled:opacity-50"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Messages */}
+            <ScrollArea className="flex-1 py-4" ref={chatScrollRef}>
+              <div className="space-y-4">
+                {chatMessages.map((m) => (
+                  <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                      m.role === "user"
+                        ? "bg-[#8b6f47] text-white shadow-md shadow-[#8b6f47]/15"
+                        : "bg-muted/40 border border-border/30"
+                    }`}>
+                      {m.role === "assistant" && (
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <Bot className="h-3.5 w-3.5 text-[#8b6f47]" />
+                          <span className="text-[10px] text-muted-foreground font-medium">JP&Co AI</span>
+                        </div>
+                      )}
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
+                      <p className={`text-[9px] mt-1.5 ${m.role === "user" ? "text-white/40" : "text-muted-foreground/40"}`}>
+                        {m.timestamp.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted/40 border border-border/30 rounded-2xl px-4 py-3 flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-[#8b6f47]" />
+                      <span className="text-sm text-muted-foreground">{t("admin", "thinking")}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        </div>
+
+        {/* Input area */}
+        <div className="shrink-0 border-t border-border/20 bg-background/80 backdrop-blur-sm">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
+            <form onSubmit={(e) => { e.preventDefault(); handleChatSend() }} className="flex gap-2.5">
+              <Input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder={t("admin", "askAboutMarketing")}
+                className="flex-1 h-11 text-sm rounded-xl border-border/40 focus-visible:ring-[#8b6f47]/30"
+                disabled={chatLoading}
+              />
+              <Button
+                type="submit"
+                size="icon"
+                disabled={!chatInput.trim() || chatLoading}
+                className="h-11 w-11 rounded-xl bg-[#8b6f47] hover:bg-[#7a5f3a] shrink-0 shadow-md shadow-[#8b6f47]/20"
+              >
+                {chatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
   )
 }
+
+/* ====== Sub-components (unchanged) ====== */
 
 function CompetitorPanel({
   competitor, shopLocation, aiAnalysis, aiLoading, onClose, onAnalyze, t,
@@ -315,7 +458,6 @@ function CompetitorPanel({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/30">
         <div className="p-4 pb-2">
           <div className="flex items-start justify-between">
@@ -331,8 +473,6 @@ function CompetitorPanel({
             </Button>
           </div>
         </div>
-
-        {/* Quick actions */}
         <div className="flex items-center gap-1 px-3 pb-3">
           <QuickAction icon={<Navigation2 className="h-3.5 w-3.5" />} label={t("admin", "directions")} onClick={openDirections} />
           <QuickAction icon={<ExternalLink className="h-3.5 w-3.5" />} label={t("admin", "maps")} onClick={openGoogleMaps} />
@@ -345,7 +485,6 @@ function CompetitorPanel({
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-4 space-y-1">
           {competitor.address && <InfoRow icon={<MapPin className="h-4 w-4" />} text={competitor.address} />}
@@ -364,7 +503,6 @@ function CompetitorPanel({
           )}
         </div>
 
-        {/* AI section */}
         <div className="border-t border-border/30 p-4">
           <div className="flex items-center gap-1.5 mb-3">
             <Sparkles className="h-4 w-4 text-[#8b6f47]" />
@@ -430,110 +568,3 @@ function InfoRow({ icon, text, href }: { icon: React.ReactNode; text: string; hr
   )
   return href ? <a href={href} target="_blank" rel="noopener noreferrer" className="block">{inner}</a> : inner
 }
-
-function SidebarChat({
-  messages, input, loading, scrollRef, onInputChange, onSend, t,
-}: {
-  messages: ChatMessage[]
-  input: string
-  loading: boolean
-  scrollRef: React.RefObject<HTMLDivElement | null>
-  onInputChange: (v: string) => void
-  onSend: (customInput?: string) => void
-  t: TFunc
-}) {
-  const chatQuickPrompts = [
-    { label: t("admin", "birthdayCustomers"), prompt: "Find all customers with upcoming birthdays and create personalized messages" },
-    { label: t("admin", "wakeUpDormant"), prompt: "Show dormant customers (30+ days inactive) and create comeback offers" },
-    { label: t("admin", "vipExclusive"), prompt: "Create a special VIP exclusive offer for top spending customers" },
-    { label: t("admin", "revenueReport"), prompt: "How much revenue today and this month? Compare with last month." },
-    { label: t("admin", "customerHealth"), prompt: "Customer health report - active vs dormant, trends?" },
-  ]
-  return (
-    <div className="flex flex-col h-full">
-      {/* Chat header */}
-      <div className="px-4 py-3 border-b border-border/30 bg-background/80">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-[#8b6f47] flex items-center justify-center">
-            <Bot className="h-4 w-4 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold leading-tight">{t("admin", "jpcoAi")}</p>
-            <p className="text-[10px] text-muted-foreground leading-none">{t("admin", "marketingAndInsights")}</p>
-          </div>
-          <Badge variant="outline" className="text-[9px] h-4 ml-auto">302.AI</Badge>
-        </div>
-      </div>
-
-      {/* Quick prompts */}
-      {messages.length <= 1 && (
-        <div className="px-3 py-2 border-b border-border/20 flex flex-wrap gap-1.5">
-          {chatQuickPrompts.map((p, i) => (
-            <button
-              key={i}
-              onClick={() => onSend(p.prompt)}
-              disabled={loading}
-              className="text-[11px] px-2.5 py-1.5 rounded-full bg-[#8b6f47]/10 text-[#8b6f47] hover:bg-[#8b6f47]/20 transition-colors disabled:opacity-50"
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Messages */}
-      <ScrollArea className="flex-1 px-3 py-3" ref={scrollRef}>
-        <div className="space-y-3">
-          {messages.map((m) => (
-            <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${
-                m.role === "user"
-                  ? "bg-[#8b6f47] text-white"
-                  : "bg-muted/60"
-              }`}>
-                {m.role === "assistant" && (
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Bot className="h-3 w-3 text-[#8b6f47]" />
-                    <span className="text-[10px] text-muted-foreground font-medium">AI</span>
-                  </div>
-                )}
-                <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{m.content}</p>
-                <p className="text-[9px] opacity-40 mt-1">
-                  {m.timestamp.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-            </div>
-          ))}
-          {loading && (
-            <div className="flex justify-start">
-              <div className="bg-muted/60 rounded-2xl px-3.5 py-2.5 flex items-center gap-2">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#8b6f47]" />
-                <span className="text-xs text-muted-foreground">{t("admin", "thinking")}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-
-      {/* Input */}
-      <div className="p-3 border-t border-border/30 bg-background/80">
-        <form
-          onSubmit={(e) => { e.preventDefault(); onSend() }}
-          className="flex gap-2"
-        >
-          <Input
-            value={input}
-            onChange={(e) => onInputChange(e.target.value)}
-            placeholder={t("admin", "askAboutMarketing")}
-            className="flex-1 h-9 text-sm"
-            disabled={loading}
-          />
-          <Button type="submit" size="icon" disabled={!input.trim() || loading} className="h-9 w-9 bg-[#8b6f47] hover:bg-[#7a5f3a] shrink-0">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </form>
-      </div>
-    </div>
-  )
-}
-
