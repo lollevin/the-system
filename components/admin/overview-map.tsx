@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useCallback } from "react"
 import "leaflet/dist/leaflet.css"
 
 export interface Competitor {
@@ -27,7 +27,8 @@ export interface ShopLocation {
 interface OverviewMapProps {
   shopLocation: ShopLocation
   competitors: Competitor[]
-  onAnalyze?: (competitor: Competitor) => void
+  selectedCompetitor?: Competitor | null
+  onSelectCompetitor?: (competitor: Competitor | null) => void
 }
 
 const categoryColors: Record<string, string> = {
@@ -36,32 +37,37 @@ const categoryColors: Record<string, string> = {
   fast_food: "#ea580c",
 }
 
-function buildPopupHtml(c: Competitor, idx: number): string {
-  const cat = c.category === "fast_food" ? "Fast Food" : c.category.charAt(0).toUpperCase() + c.category.slice(1)
-  const color = categoryColors[c.category] || "#dc2626"
-  let html = `<div style="min-width:240px;max-width:300px;font-family:system-ui,sans-serif;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <div style="background:${color};color:white;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:500;">${cat}</div>
-      <span style="font-size:11px;color:#888;">${c.distance_km.toFixed(2)} km</span>
-    </div>
-    <div style="font-weight:700;font-size:16px;color:#1a1a1a;margin-bottom:4px;">${c.name}</div>`
-
-  if (c.cuisine) html += `<div style="font-size:12px;color:#666;margin-bottom:4px;">${c.cuisine}</div>`
-  if (c.address) html += `<div style="font-size:12px;color:#888;margin-bottom:4px;">${c.address}</div>`
-  if (c.phone) html += `<div style="font-size:12px;color:#888;">${c.phone}</div>`
-  if (c.opening_hours) html += `<div style="font-size:11px;color:#888;margin-top:2px;">${c.opening_hours}</div>`
-  if (c.website) html += `<div style="margin-top:4px;"><a href="${c.website}" target="_blank" style="font-size:12px;color:#2563eb;text-decoration:none;">${c.website.replace(/^https?:\/\//, "").slice(0, 35)}</a></div>`
-
-  html += `<div style="margin-top:10px;border-top:1px solid #eee;padding-top:10px;">
-    <button id="analyze-btn-${idx}" style="width:100%;padding:8px 12px;background:#8b6f47;color:white;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;">AI Analyze Marketing</button>
-    <div id="analyze-result-${idx}" style="margin-top:8px;display:none;"></div>
-  </div></div>`
-  return html
-}
-
-export default function OverviewMap({ shopLocation, competitors, onAnalyze }: OverviewMapProps) {
+export default function OverviewMap({ shopLocation, competitors, selectedCompetitor, onSelectCompetitor }: OverviewMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
+  const markersRef = useRef<any[]>([])
+  const onSelectRef = useRef(onSelectCompetitor)
+  onSelectRef.current = onSelectCompetitor
+
+  const highlightMarker = useCallback((competitor: Competitor | null) => {
+    if (!mapInstanceRef.current) return
+    markersRef.current.forEach(({ marker, competitor: c }) => {
+      const isSelected = competitor && c.name === competitor.name && c.lat === competitor.lat
+      const el = marker.getElement?.()
+      if (el) {
+        const dot = el.querySelector("div")
+        if (dot) {
+          dot.style.width = isSelected ? "28px" : "22px"
+          dot.style.height = isSelected ? "28px" : "22px"
+          dot.style.border = isSelected ? "3px solid #8b6f47" : "2px solid white"
+          dot.style.boxShadow = isSelected ? "0 0 12px rgba(139,111,71,0.5)" : "0 2px 4px rgba(0,0,0,0.3)"
+          dot.style.zIndex = isSelected ? "1000" : "1"
+        }
+      }
+    })
+    if (competitor) {
+      mapInstanceRef.current.flyTo([competitor.lat, competitor.lng], 16, { duration: 0.5 })
+    }
+  }, [])
+
+  useEffect(() => {
+    highlightMarker(selectedCompetitor || null)
+  }, [selectedCompetitor, highlightMarker])
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return
@@ -111,68 +117,32 @@ export default function OverviewMap({ shopLocation, competitors, onAnalyze }: Ov
         .addTo(map)
         .bindPopup(`<div style="font-weight:600;font-size:14px;">${shopLocation.name}</div><div style="color:#666;font-size:12px;">Your Shop</div>`)
 
-      const competitorIcon = L.divIcon({
-        className: "competitor-marker",
-        html: `<div style="background:#dc2626;width:22px;height:22px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);"></div>`,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
-        popupAnchor: [0, -11],
-      })
-
-      competitors.forEach((c, idx) => {
-        const marker = L.marker([c.lat, c.lng], { icon: competitorIcon })
-          .addTo(map)
-          .bindPopup(buildPopupHtml(c, idx), { maxWidth: 320, className: "competitor-popup" })
-
-        marker.on("popupopen", () => {
-          const btn = document.getElementById(`analyze-btn-${idx}`)
-          const resultDiv = document.getElementById(`analyze-result-${idx}`)
-          if (btn && resultDiv) {
-            btn.onclick = async () => {
-              btn.textContent = "Analyzing..."
-              btn.setAttribute("disabled", "true")
-              btn.style.opacity = "0.7"
-              resultDiv.style.display = "block"
-              resultDiv.innerHTML = '<div style="text-align:center;color:#888;font-size:12px;">Loading AI analysis...</div>'
-
-              if (onAnalyze) {
-                onAnalyze(c)
-              }
-
-              try {
-                const res = await fetch("/api/admin/competitor-analyze", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    name: c.name,
-                    address: c.address,
-                    category: c.category,
-                    website: c.website,
-                  }),
-                })
-                const data = await res.json()
-                if (data.analysis) {
-                  const formatted = data.analysis
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\n/g, '<br>')
-                  resultDiv.innerHTML = `<div style="font-size:12px;line-height:1.5;color:#333;max-height:300px;overflow-y:auto;">${formatted}</div>`
-                } else {
-                  const errMsg = data.detail || data.error || "Unknown error"
-                  resultDiv.innerHTML = `<div style="color:#dc2626;font-size:12px;">Error: ${errMsg}</div>`
-                }
-              } catch {
-                resultDiv.innerHTML = '<div style="color:#dc2626;font-size:12px;">Network error. Try again.</div>'
-              }
-              btn.textContent = "Re-analyze"
-              btn.removeAttribute("disabled")
-              btn.style.opacity = "1"
-            }
-          }
+      const newMarkers: any[] = []
+      competitors.forEach((c) => {
+        const color = categoryColors[c.category] || "#dc2626"
+        const icon = L.divIcon({
+          className: "competitor-marker",
+          html: `<div style="background:${color};width:22px;height:22px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);cursor:pointer;transition:all 0.2s;"></div>`,
+          iconSize: [22, 22],
+          iconAnchor: [11, 11],
         })
+
+        const marker = L.marker([c.lat, c.lng], { icon })
+          .addTo(map)
+
+        marker.on("click", () => {
+          onSelectRef.current?.(c)
+        })
+
+        newMarkers.push({ marker, competitor: c })
+      })
+      markersRef.current = newMarkers
+
+      map.on("click", () => {
+        onSelectRef.current?.(null)
       })
 
       mapInstanceRef.current = map
-
       setTimeout(() => map.invalidateSize(), 100)
     }
 
@@ -183,11 +153,12 @@ export default function OverviewMap({ shopLocation, competitors, onAnalyze }: Ov
         mapInstanceRef.current.remove()
         mapInstanceRef.current = null
       }
+      markersRef.current = []
     }
   }, [shopLocation, competitors])
 
   return (
-    <div className="h-[500px] w-full overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm">
+    <div className="h-full w-full overflow-hidden bg-card">
       <div ref={mapRef} className="h-full w-full" />
     </div>
   )

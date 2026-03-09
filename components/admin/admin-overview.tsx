@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
   Loader2, MapPin, UtensilsCrossed, Users, Gift, Bot,
-  ChevronRight, RefreshCw, Store, Navigation
+  ChevronRight, RefreshCw, Store, Navigation, X, Phone,
+  Globe, Clock, ChefHat, ExternalLink, Sparkles, Navigation2
 } from "lucide-react"
 import Link from "next/link"
 import type { ShopLocation, Competitor } from "./overview-map"
@@ -15,7 +16,7 @@ import type { ShopLocation, Competitor } from "./overview-map"
 const OverviewMap = dynamic(() => import("./overview-map"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[500px] w-full items-center justify-center rounded-xl border border-border/50 bg-card">
+    <div className="flex h-full w-full items-center justify-center bg-card">
       <div className="flex flex-col items-center gap-2 text-muted-foreground">
         <Loader2 className="h-8 w-8 animate-spin" />
         <span className="text-sm">Loading map...</span>
@@ -62,6 +63,18 @@ const quickNavItems = [
   },
 ]
 
+const categoryLabels: Record<string, string> = {
+  restaurant: "Restaurant",
+  cafe: "Cafe",
+  fast_food: "Fast Food",
+}
+
+const categoryIcons: Record<string, string> = {
+  restaurant: "🍽️",
+  cafe: "☕",
+  fast_food: "🍔",
+}
+
 export function AdminOverview() {
   const [shopLocation, setShopLocation] = useState<ShopLocation>({
     lat: 3.1073, lng: 101.6268, name: "JP&Co", radius_km: 5,
@@ -69,6 +82,9 @@ export function AdminOverview() {
   const [competitors, setCompetitors] = useState<Competitor[]>([])
   const [loading, setLoading] = useState(true)
   const [competitorLoading, setCompetitorLoading] = useState(false)
+  const [selectedCompetitor, setSelectedCompetitor] = useState<Competitor | null>(null)
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
 
   useEffect(() => { fetchShopSettings() }, [])
 
@@ -100,6 +116,51 @@ export function AdminOverview() {
     } finally {
       setCompetitorLoading(false)
     }
+  }
+
+  const handleSelectCompetitor = (c: Competitor | null) => {
+    setSelectedCompetitor(c)
+    setAiAnalysis(null)
+    setAiLoading(false)
+  }
+
+  const handleAnalyze = async () => {
+    if (!selectedCompetitor) return
+    setAiLoading(true)
+    setAiAnalysis(null)
+    try {
+      const res = await fetch("/api/admin/competitor-analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: selectedCompetitor.name,
+          address: selectedCompetitor.address,
+          category: selectedCompetitor.category,
+          website: selectedCompetitor.website,
+        }),
+      })
+      const data = await res.json()
+      if (data.analysis) {
+        setAiAnalysis(data.analysis)
+      } else {
+        setAiAnalysis(`Error: ${data.detail || data.error || "Analysis failed"}`)
+      }
+    } catch {
+      setAiAnalysis("Network error. Please try again.")
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const openGoogleMaps = (c: Competitor) => {
+    window.open(`https://www.google.com/maps/search/${encodeURIComponent(c.name)}/@${c.lat},${c.lng},17z`, "_blank")
+  }
+
+  const openDirections = (c: Competitor) => {
+    window.open(
+      `https://www.google.com/maps/dir/${shopLocation.lat},${shopLocation.lng}/${c.lat},${c.lng}`,
+      "_blank"
+    )
   }
 
   if (loading) {
@@ -146,10 +207,35 @@ export function AdminOverview() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-0">
-            <OverviewMap shopLocation={shopLocation} competitors={competitors} />
+          <CardContent className="p-0 relative">
+            <div className="flex h-[520px]">
+              {/* Google Maps-style detail panel */}
+              {selectedCompetitor && (
+                <div className="w-[360px] shrink-0 border-r border-border/50 bg-background overflow-y-auto">
+                  <CompetitorDetailPanel
+                    competitor={selectedCompetitor}
+                    shopLocation={shopLocation}
+                    aiAnalysis={aiAnalysis}
+                    aiLoading={aiLoading}
+                    onClose={() => handleSelectCompetitor(null)}
+                    onAnalyze={handleAnalyze}
+                    onOpenMaps={() => openGoogleMaps(selectedCompetitor)}
+                    onOpenDirections={() => openDirections(selectedCompetitor)}
+                  />
+                </div>
+              )}
+              {/* Map */}
+              <div className="flex-1 min-w-0">
+                <OverviewMap
+                  shopLocation={shopLocation}
+                  competitors={competitors}
+                  selectedCompetitor={selectedCompetitor}
+                  onSelectCompetitor={handleSelectCompetitor}
+                />
+              </div>
+            </div>
           </CardContent>
-          {!competitorLoading && competitors.length > 0 && (
+          {!selectedCompetitor && !competitorLoading && competitors.length > 0 && (
             <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border/30">
               Click any red dot to view details and AI marketing analysis
             </div>
@@ -215,6 +301,195 @@ export function AdminOverview() {
       </div>
     </div>
   )
+}
+
+function CompetitorDetailPanel({
+  competitor,
+  shopLocation,
+  aiAnalysis,
+  aiLoading,
+  onClose,
+  onAnalyze,
+  onOpenMaps,
+  onOpenDirections,
+}: {
+  competitor: Competitor
+  shopLocation: ShopLocation
+  aiAnalysis: string | null
+  aiLoading: boolean
+  onClose: () => void
+  onAnalyze: () => void
+  onOpenMaps: () => void
+  onOpenDirections: () => void
+}) {
+  const cat = categoryLabels[competitor.category] || "Restaurant"
+  const catIcon = categoryIcons[competitor.category] || "🍽️"
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header with close */}
+      <div className="sticky top-0 z-10 bg-background border-b border-border/50">
+        <div className="flex items-start justify-between p-4 pb-3">
+          <div className="flex-1 min-w-0 pr-2">
+            <h2 className="text-lg font-bold leading-tight">{competitor.name}</h2>
+            <div className="flex items-center gap-2 mt-1.5">
+              <Badge variant="secondary" className="text-xs font-normal">
+                {catIcon} {cat}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {competitor.distance_km.toFixed(2)} km away
+              </span>
+            </div>
+            {competitor.cuisine && (
+              <p className="text-xs text-muted-foreground mt-1">{competitor.cuisine}</p>
+            )}
+          </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Action buttons row - Google Maps style */}
+        <div className="flex items-center gap-1 px-4 pb-3">
+          <ActionButton icon={<Navigation2 className="h-4 w-4" />} label="Directions" onClick={onOpenDirections} />
+          <ActionButton icon={<ExternalLink className="h-4 w-4" />} label="Google Maps" onClick={onOpenMaps} />
+          {competitor.phone && (
+            <ActionButton
+              icon={<Phone className="h-4 w-4" />}
+              label="Call"
+              onClick={() => window.open(`tel:${competitor.phone}`)}
+            />
+          )}
+          {competitor.website && (
+            <ActionButton
+              icon={<Globe className="h-4 w-4" />}
+              label="Website"
+              onClick={() => window.open(competitor.website, "_blank")}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Details section */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 space-y-3">
+          {/* Info rows - Google Maps style */}
+          {competitor.address && (
+            <InfoRow icon={<MapPin className="h-4 w-4" />} text={competitor.address} />
+          )}
+          {competitor.opening_hours && (
+            <InfoRow icon={<Clock className="h-4 w-4" />} text={competitor.opening_hours} />
+          )}
+          {competitor.website && (
+            <InfoRow
+              icon={<Globe className="h-4 w-4" />}
+              text={competitor.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+              href={competitor.website}
+            />
+          )}
+          {competitor.phone && (
+            <InfoRow icon={<Phone className="h-4 w-4" />} text={competitor.phone} href={`tel:${competitor.phone}`} />
+          )}
+          {competitor.brand && (
+            <InfoRow icon={<Store className="h-4 w-4" />} text={`Brand: ${competitor.brand}`} />
+          )}
+          {competitor.cuisine && (
+            <InfoRow icon={<ChefHat className="h-4 w-4" />} text={competitor.cuisine} />
+          )}
+
+          {!competitor.address && !competitor.phone && !competitor.opening_hours && !competitor.website && (
+            <p className="text-xs text-muted-foreground italic py-2">
+              Limited info available from OpenStreetMap. Click "Google Maps" above for full details.
+            </p>
+          )}
+        </div>
+
+        {/* AI Analysis section */}
+        <div className="border-t border-border/50 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 text-[#8b6f47]" />
+              AI Marketing Analysis
+            </h3>
+            <Badge variant="outline" className="text-[10px]">302.AI</Badge>
+          </div>
+
+          {!aiAnalysis && !aiLoading && (
+            <Button
+              onClick={onAnalyze}
+              className="w-full bg-[#8b6f47] hover:bg-[#7a6140] text-white"
+              size="sm"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Analyze This Competitor
+            </Button>
+          )}
+
+          {aiLoading && (
+            <div className="flex flex-col items-center gap-2 py-6">
+              <Loader2 className="h-6 w-6 animate-spin text-[#8b6f47]" />
+              <p className="text-xs text-muted-foreground">Analyzing with AI...</p>
+            </div>
+          )}
+
+          {aiAnalysis && (
+            <div className="space-y-3">
+              <div
+                className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-sm prose-headings:font-semibold prose-p:text-muted-foreground prose-strong:text-foreground"
+                dangerouslySetInnerHTML={{
+                  __html: aiAnalysis
+                    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                    .replace(/\n\n/g, "</p><p>")
+                    .replace(/\n/g, "<br>")
+                    .replace(/^/, "<p>")
+                    .replace(/$/, "</p>"),
+                }}
+              />
+              <Button
+                onClick={onAnalyze}
+                variant="outline"
+                size="sm"
+                className="w-full mt-2"
+              >
+                <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                Re-analyze
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ActionButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-1 rounded-lg px-3 py-2 hover:bg-accent/50 transition-colors min-w-[60px]"
+    >
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#8b6f47]/10 text-[#8b6f47]">
+        {icon}
+      </div>
+      <span className="text-[10px] text-muted-foreground font-medium">{label}</span>
+    </button>
+  )
+}
+
+function InfoRow({ icon, text, href }: { icon: React.ReactNode; text: string; href?: string }) {
+  const content = (
+    <div className="flex items-start gap-3 py-2">
+      <div className="shrink-0 text-muted-foreground mt-0.5">{icon}</div>
+      <span className={`text-sm leading-snug ${href ? "text-blue-600 hover:underline" : "text-foreground"}`}>
+        {text}
+      </span>
+    </div>
+  )
+
+  if (href) {
+    return <a href={href} target="_blank" rel="noopener noreferrer" className="block">{content}</a>
+  }
+  return content
 }
 
 function StatBox({ value, label }: { value: string | number; label: string }) {
