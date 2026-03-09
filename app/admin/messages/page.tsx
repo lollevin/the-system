@@ -6,6 +6,7 @@ import { BulkWhatsApp } from "@/components/admin/bulk-whatsapp"
 import { MessageSquare, Users, Calendar, History } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { PageHeader, T } from "@/components/admin/page-header"
 
 export default async function MessagesPage() {
   const supabase = await createClient()
@@ -46,17 +47,14 @@ export default async function MessagesPage() {
   return (
     <div className="space-y-6">
       {/* Page Title */}
-      <div>
-        <h1 className="text-2xl font-bold">Message Center</h1>
-        <p className="text-muted-foreground">Manage customer messages and WhatsApp sending</p>
-      </div>
+      <PageHeader titleKey="messageCenter" descKey="messageCenterDesc" />
 
       {/* Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Sent Today
+              <T k="todaySent" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -66,7 +64,7 @@ export default async function MessagesPage() {
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Sent
+              <T k="totalSentCount" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -76,7 +74,7 @@ export default async function MessagesPage() {
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Send Method
+              <T k="sendMethod" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -90,15 +88,15 @@ export default async function MessagesPage() {
         <TabsList className="bg-muted/50">
           <TabsTrigger value="events" className="gap-2">
             <Calendar className="w-4 h-4" />
-            Today Events
+            <T k="todayEvents" />
           </TabsTrigger>
           <TabsTrigger value="bulk" className="gap-2">
             <Users className="w-4 h-4" />
-            Bulk Send
+            <T k="bulkSend" />
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <History className="w-4 h-4" />
-            Send History
+            <T k="sendHistory" />
           </TabsTrigger>
         </TabsList>
 
@@ -118,7 +116,7 @@ export default async function MessagesPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <History className="w-5 h-5 text-amber-500" />
-                Recent Send Records
+                <T k="recentSendRecords" />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -131,10 +129,10 @@ export default async function MessagesPage() {
                     >
                       <div>
                         <p className="font-medium">
-                          {msg.customer?.full_name || "Unknown Customer"}
+                          {msg.customer?.full_name || <T k="unknownCustomer" />}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {msg.customer?.phone || "No phone"}
+                          {msg.customer?.phone || <T k="noPhone" />}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                           {msg.message_content?.slice(0, 50)}...
@@ -154,7 +152,7 @@ export default async function MessagesPage() {
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No send records yet</p>
+                  <p><T k="noSendRecords" /></p>
                 </div>
               )}
             </CardContent>

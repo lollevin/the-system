@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Play, Pause, MoreHorizontal, Megaphone } from "lucide-react";
 import Link from "next/link";
+import { PageHeader, T } from "@/components/admin/page-header";
 
 export default async function CampaignsPage() {
   const supabase = await createClient();
@@ -16,14 +17,11 @@ export default async function CampaignsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Campaigns</h2>
-          <p className="text-muted-foreground">Manage your AI marketing campaigns</p>
-        </div>
+        <PageHeader titleKey="campaigns" descKey="manageCampaignsDesc" />
         <Link href="/admin/ai">
           <Button className="gap-2 bg-[#A17755] hover:bg-[#8A6548] text-white">
             <Plus className="h-4 w-4" />
-            New Campaign
+            <T k="newCampaign" />
           </Button>
         </Link>
       </div>
@@ -98,14 +96,14 @@ export default async function CampaignsPage() {
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardContent className="py-12 text-center">
             <Megaphone className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <p className="text-muted-foreground">No campaigns yet</p>
+            <p className="text-muted-foreground"><T k="noCampaignsYet" /></p>
             <p className="text-sm text-muted-foreground mt-1">
-              Create your first AI-powered marketing campaign
+              <T k="createFirstAiCampaign" />
             </p>
             <Link href="/admin/ai">
               <Button className="mt-4 gap-2 bg-[#A17755] hover:bg-[#8A6548] text-white">
                 <Plus className="h-4 w-4" />
-                Create Campaign
+                <T k="createCampaign" />
               </Button>
             </Link>
           </CardContent>

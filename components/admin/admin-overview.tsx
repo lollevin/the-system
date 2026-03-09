@@ -13,6 +13,7 @@ import {
   Send, LayoutDashboard, Settings
 } from "lucide-react"
 import Link from "next/link"
+import { useLanguage } from "@/lib/i18n"
 import type { ShopLocation, Competitor } from "./overview-map"
 
 const OverviewMap = dynamic(() => import("./overview-map"), {
@@ -27,15 +28,18 @@ const OverviewMap = dynamic(() => import("./overview-map"), {
   ),
 })
 
-const sidebarItems = [
-  { href: "/admin/ai", icon: <Bot className="h-5 w-5" />, label: "AI Marketing", desc: "Smart campaigns", color: "bg-amber-500/10 text-amber-600" },
-  { href: "/admin/menu", icon: <UtensilsCrossed className="h-5 w-5" />, label: "Menu", desc: "Food & drinks", color: "bg-orange-500/10 text-orange-600" },
-  { href: "/admin/rewards", icon: <Gift className="h-5 w-5" />, label: "Rewards", desc: "Loyalty rewards", color: "bg-purple-500/10 text-purple-600" },
-  { href: "/admin/referrals", icon: <Users className="h-5 w-5" />, label: "Share & Earn", desc: "Referral program", color: "bg-blue-500/10 text-blue-600" },
-  { href: "/admin/customers", icon: <Store className="h-5 w-5" />, label: "Staff", desc: "Team management", color: "bg-green-500/10 text-green-600" },
-  { href: "/admin/customer-list", icon: <Users className="h-5 w-5" />, label: "Customers", desc: "Member database", color: "bg-teal-500/10 text-teal-600" },
-  { href: "/admin/settings", icon: <Settings className="h-5 w-5" />, label: "Settings", desc: "Shop & location", color: "bg-rose-500/10 text-rose-600" },
-]
+function useSidebarItems() {
+  const { t } = useLanguage()
+  return [
+    { href: "/admin/ai", icon: <Bot className="h-5 w-5" />, label: t("admin", "ai"), desc: t("admin", "smartCampaigns"), color: "bg-amber-500/10 text-amber-600" },
+    { href: "/admin/menu", icon: <UtensilsCrossed className="h-5 w-5" />, label: t("admin", "menu"), desc: t("admin", "foodAndDrinks"), color: "bg-orange-500/10 text-orange-600" },
+    { href: "/admin/rewards", icon: <Gift className="h-5 w-5" />, label: t("admin", "rewards"), desc: t("admin", "loyaltyRewards"), color: "bg-purple-500/10 text-purple-600" },
+    { href: "/admin/referrals", icon: <Users className="h-5 w-5" />, label: t("admin", "shareAndEarn"), desc: t("admin", "referralProgram"), color: "bg-blue-500/10 text-blue-600" },
+    { href: "/admin/customers", icon: <Store className="h-5 w-5" />, label: t("admin", "staffManagement"), desc: t("admin", "teamManagement"), color: "bg-green-500/10 text-green-600" },
+    { href: "/admin/customer-list", icon: <Users className="h-5 w-5" />, label: t("admin", "customers"), desc: t("admin", "memberDatabase"), color: "bg-teal-500/10 text-teal-600" },
+    { href: "/admin/settings", icon: <Settings className="h-5 w-5" />, label: t("common", "settings"), desc: t("admin", "shopAndLocation"), color: "bg-rose-500/10 text-rose-600" },
+  ]
+}
 
 interface ChatMessage {
   id: string
@@ -44,13 +48,15 @@ interface ChatMessage {
   timestamp: Date
 }
 
-const categoryLabels: Record<string, string> = {
-  restaurant: "Restaurant",
-  cafe: "Cafe",
-  fast_food: "Fast Food",
+const categoryMap: Record<string, string> = {
+  restaurant: "catRestaurant",
+  cafe: "catCafe",
+  fast_food: "catFastFood",
 }
 
 export function AdminOverview() {
+  const { t, language } = useLanguage()
+  const sidebarItems = useSidebarItems()
   const [shopLocation, setShopLocation] = useState<ShopLocation>({
     lat: 3.1073, lng: 101.6268, name: "JP&Co", radius_km: 5,
   })
@@ -61,12 +67,18 @@ export function AdminOverview() {
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [sidebarMode, setSidebarMode] = useState<"nav" | "chat">("nav")
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { id: "welcome", role: "assistant", content: "Hi! I'm JP&Co AI Assistant. Ask me anything about marketing, customers, revenue, or strategy.", timestamp: new Date() }
-  ])
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInited, setChatInited] = useState(false)
   const [chatInput, setChatInput] = useState("")
   const [chatLoading, setChatLoading] = useState(false)
   const chatScrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!chatInited) {
+      setChatMessages([{ id: "welcome", role: "assistant", content: t("admin", "sidebarChatWelcome"), timestamp: new Date() }])
+      setChatInited(true)
+    }
+  }, [chatInited, t])
 
   useEffect(() => {
     if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
@@ -146,7 +158,7 @@ export function AdminOverview() {
       const res = await fetch("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goal: text, conversationHistory: history, language: "en", requestId: Date.now() }),
+        body: JSON.stringify({ goal: text, conversationHistory: history, language, requestId: Date.now() }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed")
@@ -185,7 +197,7 @@ export function AdminOverview() {
             <span className="text-border">|</span>
             <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500 inline-block" />{stats.fastFood}</span>
             <span className="text-border">|</span>
-            <span>{competitors.length} total</span>
+            <span>{competitors.length} {t("admin", "total")}</span>
           </div>
           <Button
             size="sm"
@@ -203,9 +215,9 @@ export function AdminOverview() {
           onClick={() => setSidebarMode(prev => prev === "nav" ? "chat" : "nav")}
         >
           {sidebarMode === "nav" ? (
-            <><MessageSquare className="h-3.5 w-3.5 mr-1.5" />AI Chat</>
+            <><MessageSquare className="h-3.5 w-3.5 mr-1.5" />{t("admin", "aiChatBtn")}</>
           ) : (
-            <><LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />Overview</>
+            <><LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />{t("admin", "overview")}</>
           )}
         </Button>
       </div>
@@ -222,6 +234,7 @@ export function AdminOverview() {
               aiLoading={aiLoading}
               onClose={() => handleSelectCompetitor(null)}
               onAnalyze={handleAnalyze}
+              t={t}
             />
           </div>
         )}
@@ -236,7 +249,7 @@ export function AdminOverview() {
           />
           {!selectedCompetitor && !competitorLoading && competitors.length > 0 && (
             <div className="absolute bottom-3 left-3 bg-background/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs text-muted-foreground border border-border/50 shadow-sm">
-              Click any red dot to view details
+              {t("admin", "clickRedDot")}
             </div>
           )}
         </div>
@@ -267,6 +280,7 @@ export function AdminOverview() {
               scrollRef={chatScrollRef}
               onInputChange={setChatInput}
               onSend={handleChatSend}
+              t={t}
             />
           )}
         </div>
@@ -276,7 +290,7 @@ export function AdminOverview() {
 }
 
 function CompetitorPanel({
-  competitor, shopLocation, aiAnalysis, aiLoading, onClose, onAnalyze,
+  competitor, shopLocation, aiAnalysis, aiLoading, onClose, onAnalyze, t,
 }: {
   competitor: Competitor
   shopLocation: ShopLocation
@@ -284,8 +298,9 @@ function CompetitorPanel({
   aiLoading: boolean
   onClose: () => void
   onAnalyze: () => void
+  t: (category: string, key: string) => string
 }) {
-  const cat = categoryLabels[competitor.category] || "Restaurant"
+  const cat = t("admin", categoryMap[competitor.category] || "catRestaurant")
 
   const openGoogleMaps = () => {
     window.open(`https://www.google.com/maps/search/${encodeURIComponent(competitor.name)}/@${competitor.lat},${competitor.lng},17z`, "_blank")
@@ -315,13 +330,13 @@ function CompetitorPanel({
 
         {/* Quick actions */}
         <div className="flex items-center gap-1 px-3 pb-3">
-          <QuickAction icon={<Navigation2 className="h-3.5 w-3.5" />} label="Directions" onClick={openDirections} />
-          <QuickAction icon={<ExternalLink className="h-3.5 w-3.5" />} label="Maps" onClick={openGoogleMaps} />
+          <QuickAction icon={<Navigation2 className="h-3.5 w-3.5" />} label={t("admin", "directions")} onClick={openDirections} />
+          <QuickAction icon={<ExternalLink className="h-3.5 w-3.5" />} label={t("admin", "maps")} onClick={openGoogleMaps} />
           {competitor.phone && (
-            <QuickAction icon={<Phone className="h-3.5 w-3.5" />} label="Call" onClick={() => window.open(`tel:${competitor.phone}`)} />
+            <QuickAction icon={<Phone className="h-3.5 w-3.5" />} label={t("admin", "call")} onClick={() => window.open(`tel:${competitor.phone}`)} />
           )}
           {competitor.website && (
-            <QuickAction icon={<Globe className="h-3.5 w-3.5" />} label="Web" onClick={() => window.open(competitor.website, "_blank")} />
+            <QuickAction icon={<Globe className="h-3.5 w-3.5" />} label={t("admin", "web")} onClick={() => window.open(competitor.website, "_blank")} />
           )}
         </div>
       </div>
@@ -340,7 +355,7 @@ function CompetitorPanel({
 
           {!competitor.address && !competitor.phone && !competitor.opening_hours && (
             <p className="text-xs text-muted-foreground italic py-2">
-              Limited info from OpenStreetMap. Click &quot;Maps&quot; for full details.
+              {t("admin", "limitedInfoOsm")}
             </p>
           )}
         </div>
@@ -349,14 +364,14 @@ function CompetitorPanel({
         <div className="border-t border-border/30 p-4">
           <div className="flex items-center gap-1.5 mb-3">
             <Sparkles className="h-4 w-4 text-[#8b6f47]" />
-            <span className="text-sm font-semibold">AI Analysis</span>
+            <span className="text-sm font-semibold">{t("admin", "aiAnalysis")}</span>
             <Badge variant="outline" className="text-[9px] h-4 ml-auto">302.AI</Badge>
           </div>
 
           {!aiAnalysis && !aiLoading && (
             <Button onClick={onAnalyze} className="w-full bg-[#8b6f47] hover:bg-[#7a5f3a] text-white" size="sm">
               <Sparkles className="h-4 w-4 mr-2" />
-              Analyze Competitor
+              {t("admin", "analyzeCompetitor")}
             </Button>
           )}
 
@@ -366,7 +381,7 @@ function CompetitorPanel({
                 <Loader2 className="h-6 w-6 animate-spin text-[#8b6f47]" />
                 <div className="absolute inset-0 h-6 w-6 rounded-full border-2 border-[#8b6f47]/20 animate-ping" />
               </div>
-              <p className="text-xs text-muted-foreground">AI is analyzing...</p>
+              <p className="text-xs text-muted-foreground">{t("admin", "aiIsAnalyzing")}</p>
             </div>
           )}
 
@@ -383,7 +398,7 @@ function CompetitorPanel({
               />
               <Button onClick={onAnalyze} variant="outline" size="sm" className="w-full">
                 <RefreshCw className="h-3.5 w-3.5 mr-2" />
-                Re-analyze
+                {t("admin", "reAnalyze")}
               </Button>
             </div>
           )}
@@ -412,16 +427,8 @@ function InfoRow({ icon, text, href }: { icon: React.ReactNode; text: string; hr
   return href ? <a href={href} target="_blank" rel="noopener noreferrer" className="block">{inner}</a> : inner
 }
 
-const chatQuickPrompts = [
-  { label: "Birthday customers", prompt: "Find all customers with upcoming birthdays and create personalized messages" },
-  { label: "Wake up dormant", prompt: "Show dormant customers (30+ days inactive) and create comeback offers" },
-  { label: "VIP exclusive", prompt: "Create a special VIP exclusive offer for top spending customers" },
-  { label: "Revenue report", prompt: "How much revenue today and this month? Compare with last month." },
-  { label: "Customer health", prompt: "Customer health report - active vs dormant, trends?" },
-]
-
 function SidebarChat({
-  messages, input, loading, scrollRef, onInputChange, onSend,
+  messages, input, loading, scrollRef, onInputChange, onSend, t,
 }: {
   messages: ChatMessage[]
   input: string
@@ -429,7 +436,15 @@ function SidebarChat({
   scrollRef: React.RefObject<HTMLDivElement | null>
   onInputChange: (v: string) => void
   onSend: (customInput?: string) => void
+  t: (category: string, key: string) => string
 }) {
+  const chatQuickPrompts = [
+    { label: t("admin", "birthdayCustomers"), prompt: "Find all customers with upcoming birthdays and create personalized messages" },
+    { label: t("admin", "wakeUpDormant"), prompt: "Show dormant customers (30+ days inactive) and create comeback offers" },
+    { label: t("admin", "vipExclusive"), prompt: "Create a special VIP exclusive offer for top spending customers" },
+    { label: t("admin", "revenueReport"), prompt: "How much revenue today and this month? Compare with last month." },
+    { label: t("admin", "customerHealth"), prompt: "Customer health report - active vs dormant, trends?" },
+  ]
   return (
     <div className="flex flex-col h-full">
       {/* Chat header */}
@@ -439,8 +454,8 @@ function SidebarChat({
             <Bot className="h-4 w-4 text-white" />
           </div>
           <div>
-            <p className="text-sm font-semibold leading-tight">JP&Co AI</p>
-            <p className="text-[10px] text-muted-foreground leading-none">Marketing & Insights</p>
+            <p className="text-sm font-semibold leading-tight">{t("admin", "jpcoAi")}</p>
+            <p className="text-[10px] text-muted-foreground leading-none">{t("admin", "marketingAndInsights")}</p>
           </div>
           <Badge variant="outline" className="text-[9px] h-4 ml-auto">302.AI</Badge>
         </div>
@@ -489,7 +504,7 @@ function SidebarChat({
             <div className="flex justify-start">
               <div className="bg-muted/60 rounded-2xl px-3.5 py-2.5 flex items-center gap-2">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-[#8b6f47]" />
-                <span className="text-xs text-muted-foreground">Thinking...</span>
+                <span className="text-xs text-muted-foreground">{t("admin", "thinking")}</span>
               </div>
             </div>
           )}
@@ -505,7 +520,7 @@ function SidebarChat({
           <Input
             value={input}
             onChange={(e) => onInputChange(e.target.value)}
-            placeholder="Ask about marketing, revenue..."
+            placeholder={t("admin", "askAboutMarketing")}
             className="flex-1 h-9 text-sm"
             disabled={loading}
           />

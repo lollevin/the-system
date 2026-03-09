@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { MenuManager } from "@/components/admin/menu-manager"
+import { PageHeader } from "@/components/admin/page-header"
 
 export default async function AdminMenuPage() {
   const supabase = await createClient()
@@ -27,10 +28,7 @@ export default async function AdminMenuPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Menu Management</h1>
-        <p className="text-muted-foreground">Add, edit, or remove menu items</p>
-      </div>
+      <PageHeader titleKey="menuManagement" descKey="menuManagementDesc" />
       
       <MenuManager initialItems={menuItems || []} />
     </div>
