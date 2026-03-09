@@ -97,7 +97,8 @@ async function processImage(buffer: Buffer, mimeType: string): Promise<ProcessRe
 
 async function processPdf(buffer: Buffer): Promise<ProcessResult> {
   try {
-    const pdfParse = (await import("pdf-parse")).default
+    const mod: any = await import("pdf-parse")
+    const pdfParse = typeof mod.default === "function" ? mod.default : mod
     const result = await pdfParse(buffer)
     return { text: result.text?.slice(0, 50000) || "[No text in PDF]", method: "pdf-parse" }
   } catch (err: any) {
@@ -107,7 +108,8 @@ async function processPdf(buffer: Buffer): Promise<ProcessResult> {
 
 async function processExcel(buffer: Buffer): Promise<ProcessResult> {
   try {
-    const XLSX = await import("xlsx")
+    const mod: any = await import("xlsx")
+    const XLSX = mod.default || mod
     const workbook = XLSX.read(buffer, { type: "buffer" })
     let allText = ""
 
@@ -130,7 +132,8 @@ function processCsv(buffer: Buffer): ProcessResult {
 
 async function processDocx(buffer: Buffer): Promise<ProcessResult> {
   try {
-    const mammoth = await import("mammoth")
+    const mod: any = await import("mammoth")
+    const mammoth = mod.default || mod
     const result = await mammoth.extractRawText({ buffer })
     return { text: result.value?.slice(0, 50000) || "[No text in document]", method: "mammoth" }
   } catch (err: any) {
