@@ -1,8 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 
-const TAVILY_API_KEY = process.env.TAVILY_API_KEY
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
+const API_302_BASE = "https://api.302.ai"
 
 // ---------------------------------------------------------------------------
 // Tool Definitions (OpenAI function calling format)
@@ -71,16 +71,19 @@ export const toolDefinitions = [
 // ---------------------------------------------------------------------------
 
 export async function executeWebSearch(query: string): Promise<string> {
-  if (!TAVILY_API_KEY) {
-    return "[Web search unavailable - TAVILY_API_KEY not configured. The admin needs to add this key to .env.local]"
+  if (!OPENAI_API_KEY) {
+    return "[Web search unavailable - OPENAI_API_KEY (302.AI) not configured]"
   }
 
   try {
-    const res = await fetch("https://api.tavily.com/search", {
+    const res = await fetch(`${API_302_BASE}/tavily/search`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
       body: JSON.stringify({
-        api_key: TAVILY_API_KEY,
+        api_key: OPENAI_API_KEY,
         query,
         search_depth: "basic",
         max_results: 5,
