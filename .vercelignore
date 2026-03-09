@@ -1,0 +1,7 @@
+# Ignore demo folders
+Demo for supject
+Demo for supject/**
+
+# Ignore local development files
+.env.local
+.env.development.local
