@@ -1,13 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Loader2, MapPin, UtensilsCrossed, Users, Gift, Bot,
   RefreshCw, Store, X, Phone, Globe, Clock, ChefHat,
-  ExternalLink, Sparkles, Navigation2, MessageSquare
+  ExternalLink, Sparkles, Navigation2, MessageSquare,
+  Send, LayoutDashboard, Settings
 } from "lucide-react"
 import Link from "next/link"
 import type { ShopLocation, Competitor } from "./overview-map"
@@ -25,13 +28,21 @@ const OverviewMap = dynamic(() => import("./overview-map"), {
 })
 
 const sidebarItems = [
-  { href: "/admin/menu", icon: <UtensilsCrossed className="h-5 w-5" />, label: "Menu", color: "bg-orange-500/10 text-orange-600" },
-  { href: "/admin/referrals", icon: <Users className="h-5 w-5" />, label: "Share & Earn", color: "bg-blue-500/10 text-blue-600" },
-  { href: "/admin/customers", icon: <Store className="h-5 w-5" />, label: "Staff", color: "bg-green-500/10 text-green-600" },
-  { href: "/admin/rewards", icon: <Gift className="h-5 w-5" />, label: "Rewards", color: "bg-purple-500/10 text-purple-600" },
-  { href: "/admin/customer-list", icon: <Users className="h-5 w-5" />, label: "Customers", color: "bg-teal-500/10 text-teal-600" },
-  { href: "/admin/settings", icon: <MapPin className="h-5 w-5" />, label: "Location", color: "bg-rose-500/10 text-rose-600" },
+  { href: "/admin/ai", icon: <Bot className="h-5 w-5" />, label: "AI Marketing", desc: "Smart campaigns", color: "bg-amber-500/10 text-amber-600" },
+  { href: "/admin/menu", icon: <UtensilsCrossed className="h-5 w-5" />, label: "Menu", desc: "Food & drinks", color: "bg-orange-500/10 text-orange-600" },
+  { href: "/admin/rewards", icon: <Gift className="h-5 w-5" />, label: "Rewards", desc: "Loyalty rewards", color: "bg-purple-500/10 text-purple-600" },
+  { href: "/admin/referrals", icon: <Users className="h-5 w-5" />, label: "Share & Earn", desc: "Referral program", color: "bg-blue-500/10 text-blue-600" },
+  { href: "/admin/customers", icon: <Store className="h-5 w-5" />, label: "Staff", desc: "Team management", color: "bg-green-500/10 text-green-600" },
+  { href: "/admin/customer-list", icon: <Users className="h-5 w-5" />, label: "Customers", desc: "Member database", color: "bg-teal-500/10 text-teal-600" },
+  { href: "/admin/settings", icon: <Settings className="h-5 w-5" />, label: "Settings", desc: "Shop & location", color: "bg-rose-500/10 text-rose-600" },
 ]
+
+interface ChatMessage {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  timestamp: Date
+}
 
 const categoryLabels: Record<string, string> = {
   restaurant: "Restaurant",
@@ -49,6 +60,17 @@ export function AdminOverview() {
   const [selectedCompetitor, setSelectedCompetitor] = useState<Competitor | null>(null)
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [sidebarMode, setSidebarMode] = useState<"nav" | "chat">("nav")
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    { id: "welcome", role: "assistant", content: "Hi! I'm JP&Co AI Assistant. Ask me anything about marketing, customers, revenue, or strategy.", timestamp: new Date() }
+  ])
+  const [chatInput, setChatInput] = useState("")
+  const [chatLoading, setChatLoading] = useState(false)
+  const chatScrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
+  }, [chatMessages])
 
   useEffect(() => { fetchShopSettings() }, [])
 
@@ -110,9 +132,35 @@ export function AdminOverview() {
     }
   }
 
+  const handleChatSend = async (customInput?: string) => {
+    const text = customInput || chatInput
+    if (!text.trim() || chatLoading) return
+
+    const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: text, timestamp: new Date() }
+    setChatMessages(prev => [...prev, userMsg])
+    setChatInput("")
+    setChatLoading(true)
+
+    try {
+      const history = chatMessages.slice(-8).map(m => `${m.role === "user" ? "Admin" : "AI"}: ${m.content}`).join("\n")
+      const res = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goal: text, conversationHistory: history, language: "en", requestId: Date.now() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed")
+      setChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: data.message, timestamp: new Date() }])
+    } catch (err: any) {
+      setChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: `Error: ${err.message}`, timestamp: new Date() }])
+    } finally {
+      setChatLoading(false)
+    }
+  }
+
   if (loading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-[#8b6f47]" />
       </div>
     )
@@ -125,46 +173,41 @@ export function AdminOverview() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] -mx-4 sm:-mx-6 lg:-mx-8 -my-6">
-      {/* Top bar - Shop name + stats + AI Chat */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-border/50 bg-background/80 backdrop-blur-sm">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-[#8b6f47] flex items-center justify-center shadow-md">
-              <Store className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <h1 className="text-base font-bold text-foreground">{shopLocation.name}</h1>
-              <p className="text-[10px] text-muted-foreground leading-none">Competitor Intelligence</p>
-            </div>
+    <div className="flex flex-col h-[calc(100vh-56px)] -mx-4 sm:-mx-6 lg:-mx-8 -mt-4 -mb-4 lg:-mb-4">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-5 h-11 border-b border-border/50 bg-background/80 backdrop-blur-sm shrink-0">
+        <div className="flex items-center gap-3">
+          <h1 className="text-sm font-bold text-foreground">{shopLocation.name}</h1>
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500 inline-block" />{stats.restaurants}</span>
+            <span className="text-border">|</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500 inline-block" />{stats.cafes}</span>
+            <span className="text-border">|</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500 inline-block" />{stats.fastFood}</span>
+            <span className="text-border">|</span>
+            <span>{competitors.length} total</span>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5">
-            <StatPill value={stats.restaurants} label="Restaurants" color="bg-red-500" />
-            <StatPill value={stats.cafes} label="Cafes" color="bg-amber-500" />
-            <StatPill value={stats.fastFood} label="Fast Food" color="bg-orange-500" />
-            <Badge variant="outline" className="text-xs h-7 px-2">
-              {competitors.length} total
-            </Badge>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
             disabled={competitorLoading}
-            className="h-8"
+            className="h-7 px-2 text-xs"
           >
-            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${competitorLoading ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">Refresh</span>
+            <RefreshCw className={`h-3 w-3 ${competitorLoading ? "animate-spin" : ""}`} />
           </Button>
-          <Link href="/admin/ai">
-            <Button size="sm" className="h-8 bg-[#8b6f47] hover:bg-[#7a5f3a] text-white shadow-md">
-              <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-              AI Chat
-            </Button>
-          </Link>
         </div>
+        <Button
+          size="sm"
+          className={`h-8 shadow-md ${sidebarMode === "nav" ? "bg-[#8b6f47] hover:bg-[#7a5f3a] text-white" : "bg-foreground/10 hover:bg-foreground/15 text-foreground"}`}
+          onClick={() => setSidebarMode(prev => prev === "nav" ? "chat" : "nav")}
+        >
+          {sidebarMode === "nav" ? (
+            <><MessageSquare className="h-3.5 w-3.5 mr-1.5" />AI Chat</>
+          ) : (
+            <><LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />Overview</>
+          )}
+        </Button>
       </div>
 
       {/* Main area: Map + right sidebar */}
@@ -198,20 +241,34 @@ export function AdminOverview() {
           )}
         </div>
 
-        {/* Right sidebar - functions */}
-        <div className="hidden lg:flex w-[72px] shrink-0 flex-col items-center gap-1 py-3 border-l border-border/50 bg-background/80 backdrop-blur-sm">
-          {sidebarItems.map((item) => (
-            <Link key={item.href} href={item.href}>
-              <button className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-2.5 hover:bg-accent/50 transition-all group w-[64px]">
-                <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${item.color} transition-transform group-hover:scale-110`}>
-                  {item.icon}
-                </div>
-                <span className="text-[9px] font-medium text-muted-foreground group-hover:text-foreground transition-colors leading-tight text-center">
-                  {item.label}
-                </span>
-              </button>
-            </Link>
-          ))}
+        {/* Right sidebar - toggleable nav / AI chat */}
+        <div className={`hidden lg:flex shrink-0 flex-col border-l border-border/50 bg-background/50 backdrop-blur-sm transition-all duration-300 ${sidebarMode === "chat" ? "w-[380px]" : "w-[200px]"}`}>
+          {sidebarMode === "nav" ? (
+            <div className="p-3 space-y-1 overflow-y-auto flex-1">
+              {sidebarItems.map((item) => (
+                <Link key={item.href} href={item.href}>
+                  <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all group hover:bg-accent/60">
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${item.color} transition-transform group-hover:scale-105`}>
+                      {item.icon}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium leading-tight text-foreground">{item.label}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{item.desc}</p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <SidebarChat
+              messages={chatMessages}
+              input={chatInput}
+              loading={chatLoading}
+              scrollRef={chatScrollRef}
+              onInputChange={setChatInput}
+              onSend={handleChatSend}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -355,12 +412,109 @@ function InfoRow({ icon, text, href }: { icon: React.ReactNode; text: string; hr
   return href ? <a href={href} target="_blank" rel="noopener noreferrer" className="block">{inner}</a> : inner
 }
 
-function StatPill({ value, label, color }: { value: number; label: string; color: string }) {
+const chatQuickPrompts = [
+  { label: "Birthday customers", prompt: "Find all customers with upcoming birthdays and create personalized messages" },
+  { label: "Wake up dormant", prompt: "Show dormant customers (30+ days inactive) and create comeback offers" },
+  { label: "VIP exclusive", prompt: "Create a special VIP exclusive offer for top spending customers" },
+  { label: "Revenue report", prompt: "How much revenue today and this month? Compare with last month." },
+  { label: "Customer health", prompt: "Customer health report - active vs dormant, trends?" },
+]
+
+function SidebarChat({
+  messages, input, loading, scrollRef, onInputChange, onSend,
+}: {
+  messages: ChatMessage[]
+  input: string
+  loading: boolean
+  scrollRef: React.RefObject<HTMLDivElement | null>
+  onInputChange: (v: string) => void
+  onSend: (customInput?: string) => void
+}) {
   return (
-    <div className="flex items-center gap-1.5 rounded-full bg-secondary/50 px-2.5 h-7 text-xs">
-      <div className={`h-2 w-2 rounded-full ${color}`} />
-      <span className="font-semibold">{value}</span>
-      <span className="text-muted-foreground hidden md:inline">{label}</span>
+    <div className="flex flex-col h-full">
+      {/* Chat header */}
+      <div className="px-4 py-3 border-b border-border/30 bg-background/80">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-[#8b6f47] flex items-center justify-center">
+            <Bot className="h-4 w-4 text-white" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold leading-tight">JP&Co AI</p>
+            <p className="text-[10px] text-muted-foreground leading-none">Marketing & Insights</p>
+          </div>
+          <Badge variant="outline" className="text-[9px] h-4 ml-auto">302.AI</Badge>
+        </div>
+      </div>
+
+      {/* Quick prompts */}
+      {messages.length <= 1 && (
+        <div className="px-3 py-2 border-b border-border/20 flex flex-wrap gap-1.5">
+          {chatQuickPrompts.map((p, i) => (
+            <button
+              key={i}
+              onClick={() => onSend(p.prompt)}
+              disabled={loading}
+              className="text-[11px] px-2.5 py-1.5 rounded-full bg-[#8b6f47]/10 text-[#8b6f47] hover:bg-[#8b6f47]/20 transition-colors disabled:opacity-50"
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Messages */}
+      <ScrollArea className="flex-1 px-3 py-3" ref={scrollRef}>
+        <div className="space-y-3">
+          {messages.map((m) => (
+            <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${
+                m.role === "user"
+                  ? "bg-[#8b6f47] text-white"
+                  : "bg-muted/60"
+              }`}>
+                {m.role === "assistant" && (
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Bot className="h-3 w-3 text-[#8b6f47]" />
+                    <span className="text-[10px] text-muted-foreground font-medium">AI</span>
+                  </div>
+                )}
+                <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{m.content}</p>
+                <p className="text-[9px] opacity-40 mt-1">
+                  {m.timestamp.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-muted/60 rounded-2xl px-3.5 py-2.5 flex items-center gap-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#8b6f47]" />
+                <span className="text-xs text-muted-foreground">Thinking...</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      {/* Input */}
+      <div className="p-3 border-t border-border/30 bg-background/80">
+        <form
+          onSubmit={(e) => { e.preventDefault(); onSend() }}
+          className="flex gap-2"
+        >
+          <Input
+            value={input}
+            onChange={(e) => onInputChange(e.target.value)}
+            placeholder="Ask about marketing, revenue..."
+            className="flex-1 h-9 text-sm"
+            disabled={loading}
+          />
+          <Button type="submit" size="icon" disabled={!input.trim() || loading} className="h-9 w-9 bg-[#8b6f47] hover:bg-[#7a5f3a] shrink-0">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </form>
+      </div>
     </div>
   )
 }
+
