@@ -199,7 +199,10 @@ export function AdminOverview() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-56px)] -mx-4 sm:-mx-6 lg:-mx-8 -mt-4 -mb-4 lg:-mb-4 relative overflow-hidden">
+    <div
+      className="flex flex-col h-[calc(100vh-56px)] -mt-4 -mb-24 lg:-mb-4 relative overflow-hidden"
+      style={{ width: "100vw", marginLeft: "calc(-50vw + 50%)" }}
+    >
 
       {/* ========== OVERVIEW VIEW ========== */}
       <div
