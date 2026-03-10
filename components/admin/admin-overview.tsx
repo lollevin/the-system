@@ -10,10 +10,15 @@ import {
   Loader2, MapPin, UtensilsCrossed, Users, Gift, Bot,
   RefreshCw, Store, X, Phone, Globe, Clock, ChefHat,
   ExternalLink, Sparkles, Navigation2, MessageSquare,
-  Send, LayoutDashboard, Settings, Brain
+  Send, LayoutDashboard, Settings, Brain, LogOut
 } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { useLanguage, translations } from "@/lib/i18n"
+import { createClient } from "@/lib/supabase/client"
+import { AdminNotifications } from "@/components/admin/admin-notifications"
+import { toast } from "sonner"
 import type { ShopLocation, Competitor } from "./overview-map"
 
 type TFunc = (category: keyof typeof translations, key: string) => string
@@ -40,7 +45,6 @@ function useSidebarItems() {
     { href: "/admin/customers", icon: <Store className="h-5 w-5" />, label: t("admin", "staffManagement"), desc: t("admin", "teamManagement"), color: "bg-green-500/10 text-green-600" },
     { href: "/admin/customer-list", icon: <Users className="h-5 w-5" />, label: t("admin", "customers"), desc: t("admin", "memberDatabase"), color: "bg-teal-500/10 text-teal-600" },
     { href: "/admin/knowledge-base", icon: <Brain className="h-5 w-5" />, label: t("admin", "knowledgeBase"), desc: t("admin", "kbNavDesc"), color: "bg-indigo-500/10 text-indigo-600" },
-    { href: "/admin/settings", icon: <Settings className="h-5 w-5" />, label: t("common", "settings"), desc: t("admin", "shopAndLocation"), color: "bg-rose-500/10 text-rose-600" },
   ]
 }
 
@@ -59,6 +63,8 @@ const categoryMap: Record<string, string> = {
 
 export function AdminOverview() {
   const { t, language } = useLanguage()
+  const router = useRouter()
+  const supabase = createClient()
   const sidebarItems = useSidebarItems()
 
   const [shopLocation, setShopLocation] = useState<ShopLocation>({
@@ -176,6 +182,12 @@ export function AdminOverview() {
     }
   }
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    toast.success(t("common", "success"))
+    router.push("/")
+  }
+
   const chatQuickPrompts = [
     { label: t("admin", "birthdayCustomers"), prompt: "Find all customers with upcoming birthdays and create personalized messages" },
     { label: t("admin", "wakeUpDormant"), prompt: "Show dormant customers (30+ days inactive) and create comeback offers" },
@@ -186,7 +198,7 @@ export function AdminOverview() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="fixed inset-0 z-40 flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-[#8b6f47]" />
       </div>
     )
@@ -199,24 +211,23 @@ export function AdminOverview() {
   }
 
   return (
-    <div
-      className="flex flex-col h-[calc(100vh-56px)] -mt-4 -mb-24 lg:-mb-4 relative overflow-hidden"
-      style={{ width: "100vw", marginLeft: "calc(-50vw + 50%)" }}
-    >
+    <div className="fixed inset-0 z-40 flex flex-col overflow-hidden bg-background">
 
       {/* ========== OVERVIEW VIEW ========== */}
       <div
         className={`absolute inset-0 flex flex-col view-transition ${
-          viewMode === "chat"
-            ? "view-overview-out"
-            : "view-overview-in"
+          viewMode === "chat" ? "view-overview-out" : "view-overview-in"
         }`}
       >
-        {/* Top bar — 毛玻璃 (frosted glass) */}
-        <div className="flex items-center justify-between px-5 h-11 border-b border-white/20 bg-background/60 backdrop-blur-xl shrink-0 z-10">
+        {/* Top bar — 毛玻璃 (frosted glass), replaces the old header */}
+        <div className="flex items-center justify-between px-4 h-12 border-b border-white/20 bg-background/60 backdrop-blur-xl shrink-0 z-10">
+          {/* Left: Logo + shop name + stats */}
           <div className="flex items-center gap-3">
-            <h1 className="text-sm font-bold text-foreground">{shopLocation.name}</h1>
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Link href="/admin" className="flex items-center gap-2.5 shrink-0">
+              <Image src="/Logo/w768.png" alt="JP&Co" width={30} height={30} className="rounded-lg shadow-sm" />
+              <span className="text-sm font-bold text-foreground hidden sm:inline">{shopLocation.name}</span>
+            </Link>
+            <div className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500 inline-block" />{stats.restaurants}</span>
               <span className="text-border">|</span>
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500 inline-block" />{stats.cafes}</span>
@@ -235,13 +246,23 @@ export function AdminOverview() {
               <RefreshCw className={`h-3 w-3 ${competitorLoading ? "animate-spin" : ""}`} />
             </Button>
           </div>
-          <Button
-            size="sm"
-            className="h-8 shadow-md bg-[#8b6f47] hover:bg-[#7a5f3a] text-white gap-1.5"
-            onClick={() => setViewMode("chat")}
-          >
-            <MessageSquare className="h-3.5 w-3.5" />{t("admin", "aiChatBtn")}
-          </Button>
+
+          {/* Right: Notifications + Settings + AI Chat */}
+          <div className="flex items-center gap-1.5">
+            <AdminNotifications />
+            <Link href="/admin/settings">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Button
+              size="sm"
+              className="h-8 shadow-md bg-[#8b6f47] hover:bg-[#7a5f3a] text-white gap-1.5 ml-1"
+              onClick={() => setViewMode("chat")}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />{t("admin", "aiChatBtn")}
+            </Button>
+          </div>
         </div>
 
         {/* Main area: Map + right sidebar */}
@@ -275,7 +296,7 @@ export function AdminOverview() {
               </div>
             )}
 
-            {/* Two-line grip handle — between map and sidebar */}
+            {/* Two-line grip handle */}
             <button
               onClick={() => setViewMode("chat")}
               className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 flex-col items-center gap-[3px] px-1.5 py-4 rounded-l-lg bg-background/70 backdrop-blur-sm border border-r-0 border-border/40 hover:bg-[#8b6f47]/10 transition-all group cursor-pointer"
@@ -286,7 +307,7 @@ export function AdminOverview() {
             </button>
           </div>
 
-          {/* Right sidebar — navigation */}
+          {/* Right sidebar — navigation + logout */}
           <div className="hidden lg:flex shrink-0 w-[200px] flex-col border-l border-border/50 bg-background/50 backdrop-blur-sm">
             <div className="p-3 space-y-1 overflow-y-auto flex-1">
               {sidebarItems.map((item) => (
@@ -303,6 +324,21 @@ export function AdminOverview() {
                 </Link>
               ))}
             </div>
+
+            {/* Logout at sidebar bottom */}
+            <div className="p-3 border-t border-border/30">
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 w-full transition-all group hover:bg-red-500/10"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-500 transition-transform group-hover:scale-105">
+                  <LogOut className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-tight text-red-600">{t("common", "logout")}</p>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -310,13 +346,11 @@ export function AdminOverview() {
       {/* ========== FULL-SCREEN AI CHAT — 专场 ========== */}
       <div
         className={`absolute inset-0 flex flex-col view-transition z-10 ${
-          viewMode === "chat"
-            ? "view-chat-in"
-            : "view-chat-out"
+          viewMode === "chat" ? "view-chat-in" : "view-chat-out"
         }`}
         style={{ background: "linear-gradient(180deg, var(--background) 0%, var(--background) 92%, rgba(139,111,71,0.04) 100%)" }}
       >
-        {/* Two-line handle — drag affordance at top center */}
+        {/* Two-line handle */}
         <div className="flex justify-center pt-2.5 pb-1 shrink-0">
           <button
             onClick={() => setViewMode("overview")}
@@ -355,10 +389,9 @@ export function AdminOverview() {
 
         <div className="border-t border-border/20 shrink-0" />
 
-        {/* Chat body — centered */}
+        {/* Chat body */}
         <div className="flex-1 min-h-0 px-4 sm:px-6 lg:px-8 overflow-hidden">
           <div className="max-w-3xl mx-auto h-full flex flex-col">
-            {/* Quick prompts when fresh */}
             {chatMessages.length <= 1 && (
               <div className="py-5 flex flex-wrap gap-2 justify-center shrink-0 stagger-children">
                 {chatQuickPrompts.map((p, i) => (
@@ -374,7 +407,6 @@ export function AdminOverview() {
               </div>
             )}
 
-            {/* Messages */}
             <ScrollArea className="flex-1 py-4" ref={chatScrollRef}>
               <div className="space-y-4">
                 {chatMessages.map((m) => (
@@ -437,7 +469,7 @@ export function AdminOverview() {
   )
 }
 
-/* ====== Sub-components (unchanged) ====== */
+/* ====== Sub-components ====== */
 
 function CompetitorPanel({
   competitor, shopLocation, aiAnalysis, aiLoading, onClose, onAnalyze, t,
