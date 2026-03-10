@@ -281,6 +281,7 @@
 /* Competitor markers */
 .competitor-marker-main { transition: z-index 0.2s; }
 .c-marker-wrapper {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -341,6 +342,27 @@
   opacity: 1 !important;
   transform: translateY(0) !important;
   background: rgba(139, 111, 71, 0.9) !important;
+}
+
+/* Threat pulse ring for red (high-threat) competitor dots */
+.c-pulse-ring {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid;
+  opacity: 0.6;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: threatPulse 2s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes threatPulse {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+  70% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
 }
 
 /* Slide-in animation for detail panel */

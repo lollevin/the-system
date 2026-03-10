@@ -15,6 +15,9 @@ export interface Competitor {
   opening_hours?: string
   cuisine?: string
   brand?: string
+  threat_level?: "red" | "green" | "gray"
+  threat_reason?: string
+  deep_analysis?: string
 }
 
 export interface ShopLocation {
@@ -31,10 +34,11 @@ interface OverviewMapProps {
   onSelectCompetitor?: (competitor: Competitor | null) => void
 }
 
-const categoryColors: Record<string, string> = {
-  restaurant: "#dc2626",
-  cafe: "#d97706",
-  fast_food: "#ea580c",
+const threatColors: Record<string, string> = {
+  red: "#dc2626",
+  green: "#16a34a",
+  gray: "#9ca3af",
+  blue: "#2563eb",
 }
 
 export default function OverviewMap({ shopLocation, competitors, selectedCompetitor, onSelectCompetitor }: OverviewMapProps) {
@@ -127,11 +131,13 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
 
       const newMarkers: any[] = []
       competitors.forEach((c) => {
-        const color = categoryColors[c.category] || "#dc2626"
+        const color = threatColors[c.threat_level || "gray"] || "#9ca3af"
+        const isRed = c.threat_level === "red"
         const icon = L.divIcon({
           className: "competitor-marker-main",
           html: `<div class="c-marker-wrapper" data-name="${c.name}">
-            <div class="c-dot" style="background:${color};"></div>
+            ${isRed ? '<div class="c-pulse-ring" style="border-color:' + color + ';"></div>' : ""}
+            <div class="c-dot" style="background:${color};${isRed ? "box-shadow:0 0 8px " + color + "80;" : ""}"></div>
             <div class="c-label">${c.name}</div>
           </div>`,
           iconSize: [20, 32],

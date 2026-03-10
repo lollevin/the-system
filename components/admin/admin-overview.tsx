@@ -74,8 +74,8 @@ export function AdminOverview() {
   const [loading, setLoading] = useState(true)
   const [competitorLoading, setCompetitorLoading] = useState(false)
   const [selectedCompetitor, setSelectedCompetitor] = useState<Competitor | null>(null)
-  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null)
-  const [aiLoading, setAiLoading] = useState(false)
+  const [threatLevels, setThreatLevels] = useState<Record<string, { level: string; reason: string; deepAnalysis?: string }>>({})
+  const [threatLoading, setThreatLoading] = useState(false)
 
   const [viewMode, setViewMode] = useState<"overview" | "chat">("overview")
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
@@ -119,41 +119,44 @@ export function AdminOverview() {
     setCompetitorLoading(true)
     try {
       const r = await fetch(`/api/admin/competitors?lat=${lat}&lng=${lng}&radius=${rKm * 1000}`)
-      if (r.ok) setCompetitors(await r.json())
+      if (r.ok) {
+        const data = await r.json()
+        setCompetitors(data)
+        analyzeThreatLevels(data)
+      }
     } catch { /* silent */ } finally {
       setCompetitorLoading(false)
     }
   }
 
-  const handleSelectCompetitor = (c: Competitor | null) => {
-    setSelectedCompetitor(c)
-    setAiAnalysis(null)
-    setAiLoading(false)
-  }
-
-  const handleAnalyze = async () => {
-    if (!selectedCompetitor) return
-    setAiLoading(true)
-    setAiAnalysis(null)
+  const analyzeThreatLevels = async (comps: Competitor[]) => {
+    if (comps.length === 0) return
+    setThreatLoading(true)
     try {
-      const res = await fetch("/api/admin/competitor-analyze", {
+      const res = await fetch("/api/admin/competitor-threats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: selectedCompetitor.name,
-          address: selectedCompetitor.address,
-          category: selectedCompetitor.category,
-          website: selectedCompetitor.website,
-          language,
+          competitors: comps.map(c => ({
+            name: c.name, lat: c.lat, lng: c.lng,
+            distance_km: c.distance_km, category: c.category,
+            cuisine: c.cuisine, brand: c.brand,
+          })),
+          shopName: shopLocation.name,
+          shopCuisine: "burgers, cakes, artisan coffee",
         }),
       })
-      const data = await res.json()
-      setAiAnalysis(data.analysis || `Error: ${data.detail || data.error || "Failed"}`)
-    } catch {
-      setAiAnalysis("Network error. Please try again.")
-    } finally {
-      setAiLoading(false)
+      if (res.ok) {
+        const data = await res.json()
+        setThreatLevels(data.threats || {})
+      }
+    } catch { /* silent */ } finally {
+      setThreatLoading(false)
     }
+  }
+
+  const handleSelectCompetitor = (c: Competitor | null) => {
+    setSelectedCompetitor(c)
   }
 
   const handleChatSend = async (customInput?: string) => {
@@ -204,10 +207,21 @@ export function AdminOverview() {
     )
   }
 
-  const stats = {
-    restaurants: competitors.filter(c => c.category === "restaurant").length,
-    cafes: competitors.filter(c => c.category === "cafe").length,
-    fastFood: competitors.filter(c => c.category === "fast_food").length,
+  const enrichedCompetitors = competitors.map(c => {
+    const key = `${c.name}_${c.lat.toFixed(5)}_${c.lng.toFixed(5)}`
+    const threat = threatLevels[key]
+    return {
+      ...c,
+      threat_level: (threat?.level as "red" | "green" | "gray") || "gray",
+      threat_reason: threat?.reason || "",
+      deep_analysis: threat?.deepAnalysis || "",
+    }
+  })
+
+  const threatStats = {
+    red: enrichedCompetitors.filter(c => c.threat_level === "red").length,
+    green: enrichedCompetitors.filter(c => c.threat_level === "green").length,
+    gray: enrichedCompetitors.filter(c => c.threat_level === "gray").length,
   }
 
   return (
@@ -220,7 +234,7 @@ export function AdminOverview() {
         }`}
       >
         {/* Top bar — 毛玻璃 (frosted glass) */}
-        <div className="relative flex items-center justify-center h-14 shrink-0 z-10 border-b border-white/15 bg-white/40 backdrop-blur-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="relative flex items-center justify-center h-14 shrink-0 z-10 border-b border-white/30 bg-white/60 backdrop-blur-[20px] saturate-[180%] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
           {/* Center: JP&Co brand */}
           <Link href="/admin" className="flex items-center gap-3">
             <Image src="/Logo/w768.png" alt="JP&Co" width={34} height={34} className="rounded-xl shadow-md" />
@@ -251,12 +265,11 @@ export function AdminOverview() {
           {selectedCompetitor && (
             <div className="w-[340px] shrink-0 border-r border-border/50 bg-background overflow-y-auto animate-slide-in-left">
               <CompetitorPanel
-                competitor={selectedCompetitor}
+                competitor={enrichedCompetitors.find(c => c.name === selectedCompetitor.name && c.lat === selectedCompetitor.lat) || selectedCompetitor}
                 shopLocation={shopLocation}
-                aiAnalysis={aiAnalysis}
-                aiLoading={aiLoading}
                 onClose={() => handleSelectCompetitor(null)}
-                onAnalyze={handleAnalyze}
+                onRefreshAnalysis={() => analyzeThreatLevels(competitors)}
+                threatLoading={threatLoading}
                 t={t}
               />
             </div>
@@ -266,19 +279,20 @@ export function AdminOverview() {
           <div className="flex-1 min-w-0 relative">
             <OverviewMap
               shopLocation={shopLocation}
-              competitors={competitors}
+              competitors={enrichedCompetitors}
               selectedCompetitor={selectedCompetitor}
               onSelectCompetitor={handleSelectCompetitor}
             />
-            {/* Floating stats pill on map */}
-            {competitors.length > 0 && (
-              <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
+            {/* Floating threat stats pill on map */}
+            {enrichedCompetitors.length > 0 && (
+              <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
                 <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs text-muted-foreground border border-white/40 shadow-sm">
-                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500 inline-block" />{stats.restaurants}</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-600 inline-block" />{threatStats.red} {t("admin", "highThreat")}</span>
                   <span className="text-border/50">·</span>
-                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500 inline-block" />{stats.cafes}</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-600 inline-block" />{threatStats.green} {t("admin", "popular")}</span>
                   <span className="text-border/50">·</span>
-                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500 inline-block" />{stats.fastFood}</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-gray-400 inline-block" />{threatStats.gray}</span>
+                  {threatLoading && <Loader2 className="h-3 w-3 animate-spin text-[#8b6f47] ml-1" />}
                 </div>
                 <button
                   onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
@@ -472,17 +486,21 @@ export function AdminOverview() {
 /* ====== Sub-components ====== */
 
 function CompetitorPanel({
-  competitor, shopLocation, aiAnalysis, aiLoading, onClose, onAnalyze, t,
+  competitor, shopLocation, onClose, onRefreshAnalysis, threatLoading, t,
 }: {
   competitor: Competitor
   shopLocation: ShopLocation
-  aiAnalysis: string | null
-  aiLoading: boolean
   onClose: () => void
-  onAnalyze: () => void
+  onRefreshAnalysis: () => void
+  threatLoading: boolean
   t: TFunc
 }) {
   const cat = t("admin", categoryMap[competitor.category] || "catRestaurant")
+  const threatLevel = competitor.threat_level || "gray"
+  const threatReason = competitor.threat_reason || ""
+  const deepAnalysis = competitor.deep_analysis || ""
+  const threatLabel = threatLevel === "red" ? t("admin", "threatHigh") : threatLevel === "green" ? t("admin", "threatPopular") : t("admin", "threatLow")
+  const threatColor = threatLevel === "red" ? "bg-red-500 text-white" : threatLevel === "green" ? "bg-green-500 text-white" : "bg-gray-400 text-white"
 
   const openGoogleMaps = () => {
     window.open(`https://www.google.com/maps/search/${encodeURIComponent(competitor.name)}/@${competitor.lat},${competitor.lng},17z`, "_blank")
@@ -498,7 +516,8 @@ function CompetitorPanel({
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0 pr-2">
               <h2 className="text-lg font-bold leading-tight">{competitor.name}</h2>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <Badge className={`text-[10px] h-5 ${threatColor}`}>{threatLabel}</Badge>
                 <Badge variant="secondary" className="text-[10px] h-5">{cat}</Badge>
                 <span className="text-xs text-muted-foreground">{competitor.distance_km.toFixed(2)} km</span>
               </div>
@@ -541,43 +560,42 @@ function CompetitorPanel({
         <div className="border-t border-border/30 p-4">
           <div className="flex items-center gap-1.5 mb-3">
             <Sparkles className="h-4 w-4 text-[#8b6f47]" />
-            <span className="text-sm font-semibold">{t("admin", "aiAnalysis")}</span>
+            <span className="text-sm font-semibold">{t("admin", "autoAnalysis")}</span>
             <Badge variant="outline" className="text-[9px] h-4 ml-auto">302.AI</Badge>
           </div>
 
-          {!aiAnalysis && !aiLoading && (
-            <Button onClick={onAnalyze} className="w-full bg-[#8b6f47] hover:bg-[#7a5f3a] text-white" size="sm">
-              <Sparkles className="h-4 w-4 mr-2" />
-              {t("admin", "analyzeCompetitor")}
-            </Button>
-          )}
-
-          {aiLoading && (
-            <div className="flex flex-col items-center gap-2 py-8">
-              <div className="relative">
-                <Loader2 className="h-6 w-6 animate-spin text-[#8b6f47]" />
-                <div className="absolute inset-0 h-6 w-6 rounded-full border-2 border-[#8b6f47]/20 animate-ping" />
-              </div>
+          {threatLoading && !threatReason && (
+            <div className="flex flex-col items-center gap-2 py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-[#8b6f47]" />
               <p className="text-xs text-muted-foreground">{t("admin", "aiIsAnalyzing")}</p>
             </div>
           )}
 
-          {aiAnalysis && (
+          {threatReason && (
             <div className="space-y-3">
-              <div
-                className="text-[13px] leading-relaxed [&_strong]:text-foreground [&_strong]:font-semibold text-muted-foreground"
-                dangerouslySetInnerHTML={{
-                  __html: aiAnalysis
-                    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-                    .replace(/\n\n/g, '<div class="h-2"></div>')
-                    .replace(/\n/g, "<br>"),
-                }}
-              />
-              <Button onClick={onAnalyze} variant="outline" size="sm" className="w-full">
-                <RefreshCw className="h-3.5 w-3.5 mr-2" />
-                {t("admin", "reAnalyze")}
+              <p className="text-[13px] leading-relaxed text-muted-foreground">{threatReason}</p>
+
+              {deepAnalysis && (
+                <div
+                  className="text-[13px] leading-relaxed [&_strong]:text-foreground [&_strong]:font-semibold text-muted-foreground border-t border-border/20 pt-3 mt-2"
+                  dangerouslySetInnerHTML={{
+                    __html: deepAnalysis
+                      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                      .replace(/\n\n/g, '<div class="h-2"></div>')
+                      .replace(/\n/g, "<br>"),
+                  }}
+                />
+              )}
+
+              <Button onClick={onRefreshAnalysis} variant="outline" size="sm" className="w-full" disabled={threatLoading}>
+                {threatLoading ? <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-2" />}
+                {t("admin", "refreshAnalysis")}
               </Button>
             </div>
+          )}
+
+          {!threatReason && !threatLoading && (
+            <p className="text-xs text-muted-foreground italic">{t("admin", "threatLow")}</p>
           )}
         </div>
       </div>
