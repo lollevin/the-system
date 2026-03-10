@@ -76,6 +76,9 @@ export function AdminOverview() {
   const [selectedCompetitor, setSelectedCompetitor] = useState<Competitor | null>(null)
   const [threatLevels, setThreatLevels] = useState<Record<string, { level: string; reason: string; deepAnalysis?: string }>>({})
   const [threatLoading, setThreatLoading] = useState(false)
+  const [deepAnalysis, setDeepAnalysis] = useState<string | null>(null)
+  const [deepLoading, setDeepLoading] = useState(false)
+  const deepAnalysisCache = useRef<Record<string, string>>({})
 
   const [viewMode, setViewMode] = useState<"overview" | "chat">("overview")
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
@@ -157,6 +160,42 @@ export function AdminOverview() {
 
   const handleSelectCompetitor = (c: Competitor | null) => {
     setSelectedCompetitor(c)
+    setDeepAnalysis(null)
+    setDeepLoading(false)
+    if (c) autoDeepAnalyze(c)
+  }
+
+  const makeCompetitorKey = (c: Competitor) => `${c.name}_${c.lat.toFixed(5)}_${c.lng.toFixed(5)}`
+
+  const autoDeepAnalyze = async (c: Competitor, force = false) => {
+    const key = makeCompetitorKey(c)
+    if (!force && deepAnalysisCache.current[key]) {
+      setDeepAnalysis(deepAnalysisCache.current[key])
+      return
+    }
+    setDeepLoading(true)
+    setDeepAnalysis(null)
+    try {
+      const res = await fetch("/api/admin/competitor-analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: c.name,
+          address: c.address,
+          category: c.category,
+          website: c.website,
+          language,
+        }),
+      })
+      const data = await res.json()
+      const analysis = data.analysis || `Error: ${data.detail || data.error || "Failed"}`
+      deepAnalysisCache.current[key] = analysis
+      setDeepAnalysis(analysis)
+    } catch {
+      setDeepAnalysis("Network error.")
+    } finally {
+      setDeepLoading(false)
+    }
   }
 
   const handleChatSend = async (customInput?: string) => {
@@ -268,8 +307,9 @@ export function AdminOverview() {
                 competitor={enrichedCompetitors.find(c => c.name === selectedCompetitor.name && c.lat === selectedCompetitor.lat) || selectedCompetitor}
                 shopLocation={shopLocation}
                 onClose={() => handleSelectCompetitor(null)}
-                onRefreshAnalysis={() => analyzeThreatLevels(competitors)}
-                threatLoading={threatLoading}
+                onReAnalyze={() => selectedCompetitor && autoDeepAnalyze(selectedCompetitor, true)}
+                deepAnalysis={deepAnalysis}
+                deepLoading={deepLoading}
                 t={t}
               />
             </div>
@@ -486,19 +526,19 @@ export function AdminOverview() {
 /* ====== Sub-components ====== */
 
 function CompetitorPanel({
-  competitor, shopLocation, onClose, onRefreshAnalysis, threatLoading, t,
+  competitor, shopLocation, onClose, onReAnalyze, deepAnalysis, deepLoading, t,
 }: {
   competitor: Competitor
   shopLocation: ShopLocation
   onClose: () => void
-  onRefreshAnalysis: () => void
-  threatLoading: boolean
+  onReAnalyze: () => void
+  deepAnalysis: string | null
+  deepLoading: boolean
   t: TFunc
 }) {
   const cat = t("admin", categoryMap[competitor.category] || "catRestaurant")
   const threatLevel = competitor.threat_level || "gray"
   const threatReason = competitor.threat_reason || ""
-  const deepAnalysis = competitor.deep_analysis || ""
   const threatLabel = threatLevel === "red" ? t("admin", "threatHigh") : threatLevel === "green" ? t("admin", "threatPopular") : t("admin", "threatLow")
   const threatColor = threatLevel === "red" ? "bg-red-500 text-white" : threatLevel === "green" ? "bg-green-500 text-white" : "bg-gray-400 text-white"
 
@@ -557,45 +597,49 @@ function CompetitorPanel({
           )}
         </div>
 
+        {threatReason && (
+          <div className="border-t border-border/30 px-4 py-3">
+            <p className="text-[13px] leading-relaxed text-muted-foreground italic">{threatReason}</p>
+          </div>
+        )}
+
         <div className="border-t border-border/30 p-4">
           <div className="flex items-center gap-1.5 mb-3">
             <Sparkles className="h-4 w-4 text-[#8b6f47]" />
-            <span className="text-sm font-semibold">{t("admin", "autoAnalysis")}</span>
+            <span className="text-sm font-semibold">{t("admin", "aiAnalysis")}</span>
             <Badge variant="outline" className="text-[9px] h-4 ml-auto">302.AI</Badge>
           </div>
 
-          {threatLoading && !threatReason && (
-            <div className="flex flex-col items-center gap-2 py-6">
-              <Loader2 className="h-5 w-5 animate-spin text-[#8b6f47]" />
+          {deepLoading && (
+            <div className="flex flex-col items-center gap-2 py-8">
+              <div className="relative">
+                <Loader2 className="h-6 w-6 animate-spin text-[#8b6f47]" />
+                <div className="absolute inset-0 h-6 w-6 rounded-full border-2 border-[#8b6f47]/20 animate-ping" />
+              </div>
               <p className="text-xs text-muted-foreground">{t("admin", "aiIsAnalyzing")}</p>
             </div>
           )}
 
-          {threatReason && (
+          {deepAnalysis && !deepLoading && (
             <div className="space-y-3">
-              <p className="text-[13px] leading-relaxed text-muted-foreground">{threatReason}</p>
-
-              {deepAnalysis && (
-                <div
-                  className="text-[13px] leading-relaxed [&_strong]:text-foreground [&_strong]:font-semibold text-muted-foreground border-t border-border/20 pt-3 mt-2"
-                  dangerouslySetInnerHTML={{
-                    __html: deepAnalysis
-                      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-                      .replace(/\n\n/g, '<div class="h-2"></div>')
-                      .replace(/\n/g, "<br>"),
-                  }}
-                />
-              )}
-
-              <Button onClick={onRefreshAnalysis} variant="outline" size="sm" className="w-full" disabled={threatLoading}>
-                {threatLoading ? <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-2" />}
-                {t("admin", "refreshAnalysis")}
+              <div
+                className="text-[13px] leading-relaxed [&_strong]:text-foreground [&_strong]:font-semibold text-muted-foreground"
+                dangerouslySetInnerHTML={{
+                  __html: deepAnalysis
+                    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                    .replace(/\n\n/g, '<div class="h-2"></div>')
+                    .replace(/\n/g, "<br>"),
+                }}
+              />
+              <Button onClick={onReAnalyze} variant="outline" size="sm" className="w-full">
+                <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                {t("admin", "reAnalyze")}
               </Button>
             </div>
           )}
 
-          {!threatReason && !threatLoading && (
-            <p className="text-xs text-muted-foreground italic">{t("admin", "threatLow")}</p>
+          {!deepAnalysis && !deepLoading && (
+            <p className="text-xs text-muted-foreground italic">{t("admin", "aiIsAnalyzing")}</p>
           )}
         </div>
       </div>
