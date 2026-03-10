@@ -219,39 +219,19 @@ export function AdminOverview() {
           viewMode === "chat" ? "view-overview-out" : "view-overview-in"
         }`}
       >
-        {/* Top bar — 毛玻璃 (frosted glass), replaces the old header */}
-        <div className="flex items-center justify-between px-4 h-12 border-b border-white/20 bg-background/60 backdrop-blur-xl shrink-0 z-10">
-          {/* Left: Logo + shop name + stats */}
-          <div className="flex items-center gap-3">
-            <Link href="/admin" className="flex items-center gap-2.5 shrink-0">
-              <Image src="/Logo/w768.png" alt="JP&Co" width={30} height={30} className="rounded-lg shadow-sm" />
-              <span className="text-sm font-bold text-foreground hidden sm:inline">{shopLocation.name}</span>
-            </Link>
-            <div className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500 inline-block" />{stats.restaurants}</span>
-              <span className="text-border">|</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500 inline-block" />{stats.cafes}</span>
-              <span className="text-border">|</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500 inline-block" />{stats.fastFood}</span>
-              <span className="text-border">|</span>
-              <span>{competitors.length} {t("admin", "total")}</span>
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
-              disabled={competitorLoading}
-              className="h-7 px-2 text-xs"
-            >
-              <RefreshCw className={`h-3 w-3 ${competitorLoading ? "animate-spin" : ""}`} />
-            </Button>
-          </div>
+        {/* Top bar — 毛玻璃 (frosted glass) */}
+        <div className="relative flex items-center justify-center h-14 shrink-0 z-10 border-b border-white/15 bg-white/40 backdrop-blur-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          {/* Center: JP&Co brand */}
+          <Link href="/admin" className="flex items-center gap-3">
+            <Image src="/Logo/w768.png" alt="JP&Co" width={34} height={34} className="rounded-xl shadow-md" />
+            <span className="text-xl font-extrabold tracking-tight text-foreground">JP&Co</span>
+          </Link>
 
-          {/* Right: Notifications + Settings + AI Chat */}
-          <div className="flex items-center gap-1.5">
+          {/* Right: icons + AI Chat */}
+          <div className="absolute right-3 flex items-center gap-1">
             <AdminNotifications />
             <Link href="/admin/settings">
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground">
                 <Settings className="h-4 w-4" />
               </Button>
             </Link>
@@ -260,7 +240,7 @@ export function AdminOverview() {
               className="h-8 shadow-md bg-[#8b6f47] hover:bg-[#7a5f3a] text-white gap-1.5 ml-1"
               onClick={() => setViewMode("chat")}
             >
-              <MessageSquare className="h-3.5 w-3.5" />{t("admin", "aiChatBtn")}
+              <MessageSquare className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t("admin", "aiChatBtn")}</span>
             </Button>
           </div>
         </div>
@@ -290,8 +270,28 @@ export function AdminOverview() {
               selectedCompetitor={selectedCompetitor}
               onSelectCompetitor={handleSelectCompetitor}
             />
+            {/* Floating stats pill on map */}
+            {competitors.length > 0 && (
+              <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
+                <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs text-muted-foreground border border-white/40 shadow-sm">
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500 inline-block" />{stats.restaurants}</span>
+                  <span className="text-border/50">·</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500 inline-block" />{stats.cafes}</span>
+                  <span className="text-border/50">·</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500 inline-block" />{stats.fastFood}</span>
+                </div>
+                <button
+                  onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
+                  disabled={competitorLoading}
+                  className="flex items-center justify-center h-7 w-7 rounded-full bg-white/80 backdrop-blur-sm border border-white/40 shadow-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <RefreshCw className={`h-3 w-3 ${competitorLoading ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            )}
+
             {!selectedCompetitor && !competitorLoading && competitors.length > 0 && (
-              <div className="absolute bottom-3 left-3 bg-background/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs text-muted-foreground border border-border/50 shadow-sm">
+              <div className="absolute bottom-3 left-3 bg-white/80 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs text-muted-foreground border border-white/40 shadow-sm">
                 {t("admin", "clickRedDot")}
               </div>
             )}
