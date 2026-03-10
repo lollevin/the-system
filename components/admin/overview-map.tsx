@@ -136,8 +136,10 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
         const icon = L.divIcon({
           className: "competitor-marker-main",
           html: `<div class="c-marker-wrapper" data-name="${c.name}">
-            ${isRed ? '<div class="c-pulse-ring" style="border-color:' + color + ';"></div>' : ""}
-            <div class="c-dot" style="background:${color};${isRed ? "box-shadow:0 0 8px " + color + "80;" : ""}"></div>
+            <div class="c-dot-container">
+              ${isRed ? '<div class="c-pulse-ring" style="border-color:' + color + ';"></div>' : ""}
+              <div class="c-dot" style="background:${color};${isRed ? "box-shadow:0 0 8px " + color + "80;" : ""}"></div>
+            </div>
             <div class="c-label">${c.name}</div>
           </div>`,
           iconSize: [20, 32],

@@ -129,16 +129,20 @@ async function quickBatchAnalysis(
 
   const prompt = `You are a competitive intelligence analyst for "${shopName}", a trendy casual dining restaurant in SS2 Petaling Jaya, Malaysia, serving ${shopCuisine}.
 
-Analyze these nearby competitors and assign each a threat level:
-- "red" = HIGH THREAT: direct competitor (similar food: burgers, western food, cafe, coffee), well-known chain, very close proximity (<1km), or brand that could steal customers
-- "green" = POPULAR/HIGH SALES: well-known chain or brand with high foot traffic (like KFC, McDonald's, Starbucks, etc.), but may not be a direct competitor in terms of cuisine
-- "gray" = LOW RELEVANCE: different cuisine category (e.g. Chinese, Indian, Japanese), far away (>3km), or small unknown shop
+You MUST analyze ALL ${competitors.length} competitors below. Do NOT skip any.
 
-COMPETITORS:
+Assign each a threat level:
+- "red" = HIGH THREAT: direct competitor (similar food: burgers, western food, cafe, coffee, bakery), well-known chain, close proximity, or brand that could steal customers
+- "green" = POPULAR/HIGH SALES: well-known chain or brand with high foot traffic (like KFC, McDonald's, Starbucks, Mixue, Tealive, etc.)
+- "gray" = LOW RELEVANCE: very different cuisine (e.g. Chinese rice, Indian, Japanese sushi), far away (>3km), or tiny unknown shop
+
+When unsure, prefer "red" or "green" over "gray". Most food businesses near a restaurant are at least somewhat competitive.
+
+COMPETITORS (${competitors.length} total — you must return exactly ${competitors.length} results):
 ${list}
 
-Respond with ONLY valid JSON, no markdown. Format:
-[{"idx":1,"level":"red","reason":"Direct burger competitor, 0.5km away"},{"idx":2,"level":"green","reason":"KFC - high traffic chain but different cuisine"}]`
+Respond with ONLY a valid JSON array, no markdown, no explanation. One entry per competitor:
+[{"idx":1,"level":"red","reason":"Direct burger competitor, 0.5km away"},{"idx":2,"level":"green","reason":"KFC - high traffic chain"}]`
 
   const res = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
     method: "POST",
@@ -147,7 +151,7 @@ Respond with ONLY valid JSON, no markdown. Format:
       model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
-      max_tokens: 3000,
+      max_tokens: 8000,
     }),
   })
 
