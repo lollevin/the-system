@@ -127,7 +127,7 @@ async function quickBatchAnalysis(
     `${i + 1}. "${c.name}" | category=${c.category} | cuisine=${c.cuisine || "unknown"} | brand=${c.brand || "none"} | distance=${c.distance_km.toFixed(2)}km`
   ).join("\n")
 
-  const prompt = `You are a competitive intelligence analyst for "${shopName}", a trendy casual dining restaurant in SS2 Petaling Jaya, Malaysia, serving ${shopCuisine}.
+  const prompt = `You are a competitive intelligence analyst for "${shopName}", a trendy casual dining restaurant at Pavilion Bukit Jalil, Kuala Lumpur, Malaysia, serving ${shopCuisine}.
 
 You MUST analyze ALL ${competitors.length} competitors below. Do NOT skip any.
 
@@ -203,7 +203,7 @@ async function deepAnalyzeTopThreats(
 
   for (const c of redCompetitors) {
     try {
-      const searchResult = await executeWebSearch(`${c.name} ${c.brand || ""} SS2 Petaling Jaya Malaysia promotions menu prices reviews`)
+      const searchResult = await executeWebSearch(`${c.name} ${c.brand || ""} Bukit Jalil Kuala Lumpur Malaysia promotions menu prices reviews`)
       if (searchResult && !searchResult.startsWith("[")) {
         const k = makeKey(c)
         await admin

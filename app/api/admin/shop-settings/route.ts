@@ -13,9 +13,9 @@ export type ShopSettings = {
 
 const DEFAULT_SETTINGS: ShopSettings = {
   shop_name: "JP&Co",
-  address: "SS2, Petaling Jaya",
-  lat: 3.1073,
-  lng: 101.6268,
+  address: "Pavilion Bukit Jalil, Kuala Lumpur",
+  lat: 3.05042,
+  lng: 101.67101,
   radius_km: 5,
 }
 

@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const messages = [
       {
         role: "system",
-        content: `You are JP&Co's Senior Competitive Intelligence Analyst — powered by 302.AI. You specialize in F&B market analysis in the Klang Valley, Malaysia. JP&Co is a trendy casual dining restaurant in SS2, Petaling Jaya serving burgers, cakes, and artisan coffee with an AI-powered loyalty system.
+        content: `You are JP&Co's Senior Competitive Intelligence Analyst — powered by 302.AI. You specialize in F&B market analysis in the Klang Valley, Malaysia. JP&Co is a trendy casual dining restaurant at Pavilion Bukit Jalil, Kuala Lumpur serving burgers, cakes, and artisan coffee with an AI-powered loyalty system.
 
 You MUST reply in ${langInstruction}. Be specific, data-driven, and provide tactics JP&Co can execute immediately.
 
@@ -84,7 +84,7 @@ function buildPrompt(name: string, category?: string, address?: string, website?
   const parts = [`Analyze this competitor for JP&Co:\n`]
   parts.push(`Name: ${name}`)
   parts.push(`Type: ${category || "Restaurant"}`)
-  parts.push(`Location: ${address || "Near SS2, Petaling Jaya"}`)
+  parts.push(`Location: ${address || "Near Pavilion Bukit Jalil, KL"}`)
   if (website) parts.push(`Website: ${website}`)
 
   parts.push(`

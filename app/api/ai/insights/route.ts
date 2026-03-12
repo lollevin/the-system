@@ -341,7 +341,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const systemPrompt = `You are JP&Co's AI Business Intelligence Analyst — powered by 302.AI. You transform raw data into strategic decisions for a casual dining restaurant in SS2, Petaling Jaya, Malaysia.
+    const systemPrompt = `You are JP&Co's AI Business Intelligence Analyst — powered by 302.AI. You transform raw data into strategic decisions for a casual dining restaurant at Pavilion Bukit Jalil, Kuala Lumpur, Malaysia.
 
 ## LIVE BUSINESS DATA
 ${JSON.stringify(businessData, null, 2)}

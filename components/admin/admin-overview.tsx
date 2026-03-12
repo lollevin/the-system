@@ -68,7 +68,7 @@ export function AdminOverview() {
   const sidebarItems = useSidebarItems()
 
   const [shopLocation, setShopLocation] = useState<ShopLocation>({
-    lat: 3.1073, lng: 101.6268, name: "JP&Co", radius_km: 5,
+    lat: 3.05042, lng: 101.67101, name: "JP&Co", radius_km: 5,
   })
   const [competitors, setCompetitors] = useState<Competitor[]>([])
   const [loading, setLoading] = useState(true)
@@ -109,10 +109,10 @@ export function AdminOverview() {
         setShopLocation(loc)
         fetchCompetitors(loc.lat, loc.lng, loc.radius_km)
       } else {
-        fetchCompetitors(3.1073, 101.6268, 5)
-      }
+      fetchCompetitors(3.05042, 101.67101, 5)
+    }
     } catch {
-      fetchCompetitors(3.1073, 101.6268, 5)
+      fetchCompetitors(3.05042, 101.67101, 5)
     } finally {
       setLoading(false)
     }
@@ -272,8 +272,8 @@ export function AdminOverview() {
           viewMode === "chat" ? "view-overview-out" : "view-overview-in"
         }`}
       >
-        {/* Top bar — 毛玻璃 (frosted glass) */}
-        <div className="relative flex items-center justify-center h-14 shrink-0 z-10 border-b border-white/30 bg-white/60 backdrop-blur-[20px] saturate-[180%] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+        {/* Top bar */}
+        <div className="relative flex items-center justify-center h-14 shrink-0 z-10 border-b border-border/50 bg-background shadow-sm">
           {/* Center: JP&Co brand */}
           <Link href="/admin" className="flex items-center gap-3">
             <Image src="/Logo/w768.png" alt="JP&Co" width={34} height={34} className="rounded-xl shadow-md" />
@@ -362,7 +362,7 @@ export function AdminOverview() {
           </div>
 
           {/* Right sidebar — navigation + logout */}
-          <div className="hidden lg:flex shrink-0 w-[200px] flex-col border-l border-border/50 bg-background/50 backdrop-blur-sm">
+          <div className="hidden lg:flex shrink-0 w-[200px] flex-col border-l border-border/50 bg-background">
             <div className="p-3 space-y-1 overflow-y-auto flex-1">
               {sidebarItems.map((item) => (
                 <Link key={item.href} href={item.href}>

@@ -36,9 +36,9 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
 
   const [shopSettings, setShopSettings] = useState({
     shop_name: "JP&Co",
-    address: "SS2, Petaling Jaya",
-    lat: "3.1073",
-    lng: "101.6268",
+    address: "Pavilion Bukit Jalil, Kuala Lumpur",
+    lat: "3.05042",
+    lng: "101.67101",
     radius_km: "5",
   })
   const [shopSaving, setShopSaving] = useState(false)
@@ -53,8 +53,8 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
         if (data) setShopSettings({
           shop_name: data.shop_name || "JP&Co",
           address: data.address || "",
-          lat: String(data.lat || "3.1073"),
-          lng: String(data.lng || "101.6268"),
+          lat: String(data.lat || "3.05042"),
+          lng: String(data.lng || "101.67101"),
           radius_km: String(data.radius_km || "5"),
         })
       })

@@ -21,7 +21,7 @@ export const toolDefinitions = [
           query: {
             type: "string",
             description:
-              "Search query. Be specific, e.g. 'KFC SS2 Petaling Jaya promotions 2026' or 'best burger deals PJ Malaysia'",
+              "Search query. Be specific, e.g. 'KFC Bukit Jalil KL promotions 2026' or 'best burger deals Bukit Jalil Malaysia'",
           },
         },
         required: ["query"],
