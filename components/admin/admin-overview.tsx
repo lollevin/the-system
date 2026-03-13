@@ -10,7 +10,7 @@ import {
   Loader2, MapPin, UtensilsCrossed, Users, Gift, Bot,
   RefreshCw, Store, X, Phone, Globe, Clock, ChefHat,
   ExternalLink, Sparkles, Navigation2, MessageSquare,
-  Send, LayoutDashboard, Settings, Brain, LogOut
+  Send, LayoutDashboard, Settings, Brain, LogOut, PanelRightOpen, PanelRightClose
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation"
 import { useLanguage, translations } from "@/lib/i18n"
 import { createClient } from "@/lib/supabase/client"
 import { AdminNotifications } from "@/components/admin/admin-notifications"
+import { RippleButton } from "@/components/ui/ripple-button"
 import { toast } from "sonner"
 import type { ShopLocation, Competitor } from "./overview-map"
 
@@ -354,16 +355,19 @@ export function AdminOverview() {
             </div>
           )}
 
-          {/* Two-line grip handle — toggle navigation sidebar */}
-          <button
+          {/* Navigation sidebar toggle button */}
+          <RippleButton
             onClick={() => setFabOpen(v => !v)}
-            className={`hidden lg:flex absolute top-1/2 -translate-y-1/2 z-[1100] flex-col items-center gap-[3px] px-1.5 py-4 rounded-l-lg bg-background/80 backdrop-blur-sm border border-r-0 border-border/40 hover:bg-[#8b6f47]/10 transition-all group cursor-pointer ${
-              fabOpen ? "right-[200px]" : "right-0"
+            rippleColor="#8b6f47"
+            className={`absolute top-1/2 -translate-y-1/2 z-[1100] h-11 w-11 rounded-full border border-white/50 bg-white/90 dark:bg-background/90 backdrop-blur-md shadow-lg shadow-black/10 hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 ${
+              fabOpen ? "right-[212px]" : "right-3"
             }`}
           >
-            <div className="w-[3px] h-5 rounded-full bg-foreground/20 group-hover:bg-[#8b6f47]/60 transition-colors" />
-            <div className="w-[3px] h-5 rounded-full bg-foreground/15 group-hover:bg-[#8b6f47]/40 transition-colors" />
-          </button>
+            {fabOpen
+              ? <PanelRightClose className="h-5 w-5 text-[#8b6f47]" />
+              : <PanelRightOpen className="h-5 w-5 text-[#8b6f47]" />
+            }
+          </RippleButton>
 
           {/* Right navigation sidebar — sliding overlay */}
           <div
