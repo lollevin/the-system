@@ -98,13 +98,11 @@ First, use web_search to find real information about "${name}" (promotions, menu
 
 **Weaknesses:** Gaps or areas where JP&Co has a clear advantage.
 
-**Threat Level:** Low / Medium / High — with justification.
+**Counter-Strategy:** 2-3 specific, actionable tactics JP&Co should execute immediately.
 
-**Counter-Strategy:** 2-3 specific, actionable tactics JP&Co should execute.
+**Opportunity Score:** Rate 1-10 how much JP&Co can gain from actively competing against this competitor.
 
-**Opportunity Score:** Rate 1-10 how much JP&Co can gain from actively competing.
-
-Be specific to the Malaysian F&B market. Reference real platforms (GrabFood, Instagram, TikTok, Google Reviews).`)
+Be specific to the Malaysian F&B market. Reference real platforms (GrabFood, ShopeeFood, Instagram, TikTok, Google Reviews). Do NOT include a separate "Threat Level" section — threat level is already determined separately.`)
 
   return parts.join("\n")
 }
