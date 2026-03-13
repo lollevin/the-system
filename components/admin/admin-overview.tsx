@@ -251,7 +251,7 @@ export function AdminOverview() {
     const threat = threatLevels[key]
     return {
       ...c,
-      threat_level: (threat?.level as "red" | "green" | "gray") || "gray",
+      threat_level: (threat?.level as "red" | "orange" | "green") || "orange",
       threat_reason: threat?.reason || "",
       deep_analysis: threat?.deepAnalysis || "",
     }
@@ -259,8 +259,8 @@ export function AdminOverview() {
 
   const threatStats = {
     red: enrichedCompetitors.filter(c => c.threat_level === "red").length,
+    orange: enrichedCompetitors.filter(c => c.threat_level === "orange").length,
     green: enrichedCompetitors.filter(c => c.threat_level === "green").length,
-    gray: enrichedCompetitors.filter(c => c.threat_level === "gray").length,
   }
 
   return (
@@ -329,9 +329,9 @@ export function AdminOverview() {
                 <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md rounded-xl px-3.5 py-2 text-xs text-foreground border border-black/5 shadow-lg">
                   <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-600 inline-block shadow-sm" /><span className="font-medium">{threatStats.red}</span> {t("admin", "highThreat")}</span>
                   <span className="text-border/40">|</span>
-                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-600 inline-block shadow-sm" /><span className="font-medium">{threatStats.green}</span> {t("admin", "popular")}</span>
+                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-orange-500 inline-block shadow-sm" /><span className="font-medium">{threatStats.orange}</span> {t("admin", "mediumThreat")}</span>
                   <span className="text-border/40">|</span>
-                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-gray-400 inline-block" /><span className="font-medium">{threatStats.gray}</span></span>
+                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-600 inline-block shadow-sm" /><span className="font-medium">{threatStats.green}</span> {t("admin", "popular")}</span>
                   {threatLoading && <Loader2 className="h-3 w-3 animate-spin text-[#8b6f47] ml-1" />}
                   <button
                     onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
@@ -536,10 +536,10 @@ function CompetitorPanel({
   t: TFunc
 }) {
   const cat = t("admin", categoryMap[competitor.category] || "catRestaurant")
-  const threatLevel = competitor.threat_level || "gray"
+  const threatLevel = competitor.threat_level || "orange"
   const threatReason = competitor.threat_reason || ""
-  const threatLabel = threatLevel === "red" ? t("admin", "threatHigh") : threatLevel === "green" ? t("admin", "threatPopular") : t("admin", "threatLow")
-  const threatColor = threatLevel === "red" ? "bg-red-500 text-white" : threatLevel === "green" ? "bg-green-500 text-white" : "bg-gray-400 text-white"
+  const threatLabel = threatLevel === "red" ? t("admin", "threatHigh") : threatLevel === "orange" ? t("admin", "threatMedium") : threatLevel === "green" ? t("admin", "threatPopular") : t("admin", "threatLow")
+  const threatColor = threatLevel === "red" ? "bg-red-500 text-white" : threatLevel === "orange" ? "bg-orange-500 text-white" : threatLevel === "green" ? "bg-green-500 text-white" : "bg-gray-400 text-white"
 
   const openGoogleMaps = () => {
     window.open(`https://www.google.com/maps/search/${encodeURIComponent(competitor.name)}/@${competitor.lat},${competitor.lng},17z`, "_blank")

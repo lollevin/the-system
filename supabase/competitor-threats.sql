@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS competitor_threats (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   competitor_key TEXT UNIQUE NOT NULL,
   competitor_name TEXT NOT NULL,
-  threat_level TEXT NOT NULL DEFAULT 'gray' CHECK (threat_level IN ('red', 'green', 'gray', 'blue')),
+  threat_level TEXT NOT NULL DEFAULT 'orange' CHECK (threat_level IN ('red', 'orange', 'green')),
   reason TEXT,
   deep_analysis TEXT,
   last_analyzed TIMESTAMPTZ DEFAULT now(),

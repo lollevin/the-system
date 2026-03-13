@@ -15,7 +15,7 @@ export interface Competitor {
   opening_hours?: string
   cuisine?: string
   brand?: string
-  threat_level?: "red" | "green" | "gray"
+  threat_level?: "red" | "orange" | "green"
   threat_reason?: string
   deep_analysis?: string
 }
@@ -36,9 +36,8 @@ interface OverviewMapProps {
 
 const threatColors: Record<string, string> = {
   red: "#dc2626",
+  orange: "#ea580c",
   green: "#16a34a",
-  gray: "#9ca3af",
-  blue: "#2563eb",
 }
 
 export default function OverviewMap({ shopLocation, competitors, selectedCompetitor, onSelectCompetitor }: OverviewMapProps) {
@@ -131,14 +130,14 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
 
       const newMarkers: any[] = []
       competitors.forEach((c) => {
-        const color = threatColors[c.threat_level || "gray"] || "#9ca3af"
-        const isRed = c.threat_level === "red"
+        const color = threatColors[c.threat_level || "orange"] || "#ea580c"
+        const hasPulse = c.threat_level === "red" || c.threat_level === "orange"
         const icon = L.divIcon({
           className: "competitor-marker-main",
           html: `<div class="c-marker-wrapper" data-name="${c.name}">
             <div class="c-dot-container">
-              ${isRed ? '<div class="c-pulse-ring" style="border-color:' + color + ';"></div>' : ""}
-              <div class="c-dot" style="background:${color};${isRed ? "box-shadow:0 0 8px " + color + "80;" : ""}"></div>
+              ${hasPulse ? '<div class="c-pulse-ring" style="border-color:' + color + ';"></div>' : ""}
+              <div class="c-dot" style="background:${color};${hasPulse ? "box-shadow:0 0 8px " + color + "80;" : ""}"></div>
             </div>
             <div class="c-label">${c.name}</div>
           </div>`,

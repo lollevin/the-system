@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
     const upserts = body.competitors.map(c => {
       const k = makeKey(c)
-      const t = threats[k] || { level: "gray", reason: "" }
+      const t = threats[k] || { level: "orange", reason: "" }
       return {
         competitor_key: k,
         competitor_name: c.name,
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
       const row = cachedMap[k]
       threats[k] = row
         ? { level: row.threat_level, reason: row.reason, deepAnalysis: row.deep_analysis }
-        : { level: "gray", reason: "Analysis pending" }
+        : { level: "orange", reason: "Analysis pending" }
     }
     return NextResponse.json({ threats, source: "fallback" })
   }
@@ -119,7 +119,7 @@ async function quickBatchAnalysis(
 ): Promise<Record<string, { level: string; reason: string }>> {
   if (!OPENAI_API_KEY) {
     const result: Record<string, { level: string; reason: string }> = {}
-    for (const c of competitors) result[makeKey(c)] = { level: "gray", reason: "AI not configured" }
+    for (const c of competitors) result[makeKey(c)] = { level: "orange", reason: "AI not configured" }
     return result
   }
 
@@ -132,17 +132,17 @@ async function quickBatchAnalysis(
 You MUST analyze ALL ${competitors.length} competitors below. Do NOT skip any.
 
 Assign each a threat level:
-- "red" = HIGH THREAT: direct competitor (similar food: burgers, western food, cafe, coffee, bakery), well-known chain, close proximity, or brand that could steal customers
+- "red" = HIGH THREAT: direct competitor (similar food: burgers, western food, cafe, coffee, bakery), well-known chain with similar offerings, close proximity, or brand that could steal customers
+- "orange" = MEDIUM THREAT: somewhat similar food or nearby, indirect competitor, or unknown shop that could still compete for the same customers
 - "green" = POPULAR/HIGH SALES: well-known chain or brand with high foot traffic (like KFC, McDonald's, Starbucks, Mixue, Tealive, etc.)
-- "gray" = LOW RELEVANCE: very different cuisine (e.g. Chinese rice, Indian, Japanese sushi), far away (>3km), or tiny unknown shop
 
-When unsure, prefer "red" or "green" over "gray". Most food businesses near a restaurant are at least somewhat competitive.
+When unsure between "red" and "orange", pick "orange". Every food business nearby is at least "orange".
 
 COMPETITORS (${competitors.length} total — you must return exactly ${competitors.length} results):
 ${list}
 
 Respond with ONLY a valid JSON array, no markdown, no explanation. One entry per competitor:
-[{"idx":1,"level":"red","reason":"Direct burger competitor, 0.5km away"},{"idx":2,"level":"green","reason":"KFC - high traffic chain"}]`
+[{"idx":1,"level":"red","reason":"Direct burger competitor, 0.5km away"},{"idx":2,"level":"green","reason":"KFC - high traffic chain"},{"idx":3,"level":"orange","reason":"Nearby noodle shop, indirect competitor"}]`
 
   const res = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
     method: "POST",
@@ -169,18 +169,18 @@ Respond with ONLY a valid JSON array, no markdown, no explanation. One entry per
   } catch {
     console.error("[Threats] Failed to parse AI response:", content.slice(0, 500))
     const result: Record<string, { level: string; reason: string }> = {}
-    for (const c of competitors) result[makeKey(c)] = { level: "gray", reason: "Analysis failed" }
+    for (const c of competitors) result[makeKey(c)] = { level: "orange", reason: "Analysis failed" }
     return result
   }
 
   const result: Record<string, { level: string; reason: string }> = {}
-  for (const c of competitors) result[makeKey(c)] = { level: "gray", reason: "Unanalyzed" }
+  for (const c of competitors) result[makeKey(c)] = { level: "orange", reason: "Unanalyzed" }
 
   for (const item of parsed) {
     const idx = (item.idx || item.index) - 1
     if (idx >= 0 && idx < competitors.length) {
       const k = makeKey(competitors[idx])
-      const level = ["red", "green", "gray", "blue"].includes(item.level) ? item.level : "gray"
+      const level = ["red", "orange", "green"].includes(item.level) ? item.level : "orange"
       result[k] = { level, reason: item.reason || "" }
     }
   }
@@ -194,14 +194,22 @@ async function deepAnalyzeTopThreats(
   threats: Record<string, { level: string; reason: string }>,
   shopName: string
 ) {
-  const redCompetitors = competitors
-    .filter(c => threats[makeKey(c)]?.level === "red")
-    .sort((a, b) => a.distance_km - b.distance_km)
-    .slice(0, 5)
+  const highPriorityCompetitors = competitors
+    .filter(c => {
+      const level = threats[makeKey(c)]?.level
+      return level === "red" || level === "orange"
+    })
+    .sort((a, b) => {
+      const priority: Record<string, number> = { red: 0, orange: 1 }
+      const pa = priority[threats[makeKey(a)]?.level] ?? 2
+      const pb = priority[threats[makeKey(b)]?.level] ?? 2
+      return pa - pb || a.distance_km - b.distance_km
+    })
+    .slice(0, 8)
 
-  if (redCompetitors.length === 0) return
+  if (highPriorityCompetitors.length === 0) return
 
-  for (const c of redCompetitors) {
+  for (const c of highPriorityCompetitors) {
     try {
       const searchResult = await executeWebSearch(`${c.name} ${c.brand || ""} Bukit Jalil Kuala Lumpur Malaysia promotions menu prices reviews`)
       if (searchResult && !searchResult.startsWith("[")) {
