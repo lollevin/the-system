@@ -301,7 +301,7 @@ export function AdminOverview() {
         </div>
 
         {/* Main area: Full-width map with floating overlays */}
-        <div className="flex-1 min-h-0 relative">
+        <div className="flex-1 min-h-0 relative isolate">
           {/* Full-width map */}
           <OverviewMap
             shopLocation={shopLocation}
@@ -312,7 +312,7 @@ export function AdminOverview() {
 
           {/* Competitor detail panel — floating overlay, left side */}
           <div
-            className={`absolute left-0 top-0 bottom-0 z-30 w-[340px] bg-white/95 dark:bg-background/95 backdrop-blur-xl shadow-[4px_0_24px_rgba(0,0,0,0.08)] border-r border-white/40 overflow-y-auto transition-transform duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+            className={`absolute left-0 top-0 bottom-0 z-[1100] w-[340px] bg-white/95 dark:bg-background/95 backdrop-blur-xl shadow-[4px_0_24px_rgba(0,0,0,0.08)] border-r border-white/40 overflow-y-auto transition-transform duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
               selectedCompetitor ? "translate-x-0" : "-translate-x-full"
             }`}
           >
@@ -358,7 +358,7 @@ export function AdminOverview() {
           {/* Two-line grip handle — AI Chat */}
           <button
             onClick={() => setViewMode("chat")}
-            className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 flex-col items-center gap-[3px] px-1.5 py-4 rounded-l-lg bg-background/70 backdrop-blur-sm border border-r-0 border-border/40 hover:bg-[#8b6f47]/10 transition-all group cursor-pointer"
+            className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-[1100] flex-col items-center gap-[3px] px-1.5 py-4 rounded-l-lg bg-background/70 backdrop-blur-sm border border-r-0 border-border/40 hover:bg-[#8b6f47]/10 transition-all group cursor-pointer"
             title={t("admin", "aiChatBtn")}
           >
             <div className="w-[3px] h-5 rounded-full bg-foreground/20 group-hover:bg-[#8b6f47]/60 transition-colors" />
@@ -367,9 +367,9 @@ export function AdminOverview() {
 
           {/* Floating FAB menu — bottom-right */}
           {fabOpen && (
-            <div className="fixed inset-0 z-40" onClick={() => setFabOpen(false)} />
+            <div className="fixed inset-0 z-[1200]" onClick={() => setFabOpen(false)} />
           )}
-          <div className="absolute bottom-6 right-4 z-50 flex flex-col items-center gap-2">
+          <div className="absolute bottom-6 right-4 z-[1300] flex flex-col items-center gap-2">
             {/* Expanded nav icons */}
             <div className="flex flex-col items-center gap-1.5">
               {sidebarItems.map((item, i) => (

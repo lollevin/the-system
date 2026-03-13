@@ -188,7 +188,7 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
   }, [competitors])
 
   return (
-    <div className="h-full w-full overflow-hidden">
+    <div className="h-full w-full overflow-hidden relative z-0">
       <div ref={mapRef} className="h-full w-full" />
     </div>
   )
