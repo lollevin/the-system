@@ -68,7 +68,7 @@ export function AdminOverview() {
   const sidebarItems = useSidebarItems()
 
   const [shopLocation, setShopLocation] = useState<ShopLocation>({
-    lat: 3.05042, lng: 101.67101, name: "JP&Co", radius_km: 5,
+    lat: 3.0536, lng: 101.6714, name: "JP&Co", radius_km: 5,
   })
   const [competitors, setCompetitors] = useState<Competitor[]>([])
   const [loading, setLoading] = useState(true)
@@ -109,10 +109,10 @@ export function AdminOverview() {
         setShopLocation(loc)
         fetchCompetitors(loc.lat, loc.lng, loc.radius_km)
       } else {
-      fetchCompetitors(3.05042, 101.67101, 5)
-    }
+      fetchCompetitors(3.0536, 101.6714, 5)
+      }
     } catch {
-      fetchCompetitors(3.05042, 101.67101, 5)
+      fetchCompetitors(3.0536, 101.6714, 5)
     } finally {
       setLoading(false)
     }

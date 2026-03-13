@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { Camera, Loader2, Globe, MapPin } from "lucide-react"
+import { Camera, Loader2, Globe } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import type { User } from "@supabase/supabase-js"
@@ -34,55 +34,8 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
     weekly: false,
   })
 
-  const [shopSettings, setShopSettings] = useState({
-    shop_name: "JP&Co",
-    address: "Pavilion Bukit Jalil, Kuala Lumpur",
-    lat: "3.05042",
-    lng: "101.67101",
-    radius_km: "5",
-  })
-  const [shopSaving, setShopSaving] = useState(false)
-
   const supabase = createClient()
   const { language, setLanguage, t } = useLanguage()
-
-  useEffect(() => {
-    fetch("/api/admin/shop-settings")
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data) setShopSettings({
-          shop_name: data.shop_name || "JP&Co",
-          address: data.address || "",
-          lat: String(data.lat || "3.05042"),
-          lng: String(data.lng || "101.67101"),
-          radius_km: String(data.radius_km || "5"),
-        })
-      })
-      .catch(() => {})
-  }, [])
-
-  const handleShopSave = async () => {
-    setShopSaving(true)
-    try {
-      const res = await fetch("/api/admin/shop-settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          shop_name: shopSettings.shop_name,
-          address: shopSettings.address,
-          lat: parseFloat(shopSettings.lat),
-          lng: parseFloat(shopSettings.lng),
-          radius_km: parseFloat(shopSettings.radius_km),
-        }),
-      })
-      if (res.ok) toast.success("Shop location saved!")
-      else toast.error("Failed to save shop location")
-    } catch {
-      toast.error("Failed to save shop location")
-    } finally {
-      setShopSaving(false)
-    }
-  }
 
   const handleSave = async () => {
     if (!user) return
@@ -290,88 +243,6 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
               onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, weekly: checked }))}
             />
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Shop Location Section */}
-      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
-            Shop Location
-          </CardTitle>
-          <CardDescription>Configure your shop location for competitor map analysis</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="shopName">Shop Name</Label>
-              <Input
-                id="shopName"
-                value={shopSettings.shop_name}
-                onChange={(e) => setShopSettings(prev => ({ ...prev, shop_name: e.target.value }))}
-                className="bg-background/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="shopAddress">Address</Label>
-              <Input
-                id="shopAddress"
-                value={shopSettings.address}
-                onChange={(e) => setShopSettings(prev => ({ ...prev, address: e.target.value }))}
-                className="bg-background/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="shopLat">Latitude</Label>
-              <Input
-                id="shopLat"
-                type="number"
-                step="0.0001"
-                value={shopSettings.lat}
-                onChange={(e) => setShopSettings(prev => ({ ...prev, lat: e.target.value }))}
-                className="bg-background/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="shopLng">Longitude</Label>
-              <Input
-                id="shopLng"
-                type="number"
-                step="0.0001"
-                value={shopSettings.lng}
-                onChange={(e) => setShopSettings(prev => ({ ...prev, lng: e.target.value }))}
-                className="bg-background/50"
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="shopRadius">Search Radius (km)</Label>
-              <Input
-                id="shopRadius"
-                type="number"
-                step="0.5"
-                min="0.5"
-                max="50"
-                value={shopSettings.radius_km}
-                onChange={(e) => setShopSettings(prev => ({ ...prev, radius_km: e.target.value }))}
-                className="bg-background/50"
-              />
-            </div>
-          </div>
-          <Button
-            onClick={handleShopSave}
-            disabled={shopSaving}
-            className="bg-[#8b6f47] hover:bg-[#7a5f3a] text-white"
-          >
-            {shopSaving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              "Save Location"
-            )}
-          </Button>
         </CardContent>
       </Card>
 
