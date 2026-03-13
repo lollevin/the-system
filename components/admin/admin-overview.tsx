@@ -312,7 +312,7 @@ export function AdminOverview() {
 
           {/* Competitor detail panel — floating overlay, left side */}
           <div
-            className={`absolute left-0 top-0 bottom-0 z-[1100] w-[340px] bg-white/95 dark:bg-background/95 backdrop-blur-xl shadow-[4px_0_24px_rgba(0,0,0,0.08)] border-r border-white/40 overflow-y-auto transition-transform duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+            className={`absolute left-0 top-0 bottom-0 z-[1100] w-[calc(100vw-48px)] sm:w-[340px] max-w-[340px] bg-white/95 dark:bg-background/95 backdrop-blur-xl shadow-[4px_0_24px_rgba(0,0,0,0.08)] border-r border-white/40 overflow-y-auto transition-transform duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
               selectedCompetitor ? "translate-x-0" : "-translate-x-full"
             }`}
           >
@@ -331,7 +331,7 @@ export function AdminOverview() {
 
           {/* Floating threat stats pill — bottom-left */}
           {enrichedCompetitors.length > 0 && (
-            <div className={`absolute bottom-6 z-[1000] flex flex-col gap-2 transition-all duration-300 ${selectedCompetitor ? "left-[356px]" : "left-4"}`}>
+            <div className={`absolute bottom-6 z-[1000] flex flex-col gap-2 transition-all duration-300 ${selectedCompetitor ? "left-4 sm:left-[356px]" : "left-4"}`}>
               <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md rounded-xl px-3.5 py-2 text-xs text-foreground border border-black/5 shadow-lg">
                 <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-600 inline-block shadow-sm" /><span className="font-medium">{threatStats.red}</span> {t("admin", "highThreat")}</span>
                 <span className="text-border/40">|</span>
@@ -360,7 +360,7 @@ export function AdminOverview() {
             onClick={() => setFabOpen(v => !v)}
             rippleColor="#8b6f47"
             className={`absolute top-1/2 -translate-y-1/2 z-[1100] h-11 w-11 rounded-full border border-white/50 bg-white/90 dark:bg-background/90 backdrop-blur-md shadow-lg shadow-black/10 hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 ${
-              fabOpen ? "right-[212px]" : "right-3"
+              fabOpen ? "right-[calc(100vw-48px)] sm:right-[212px]" : "right-3"
             }`}
           >
             {fabOpen
@@ -369,9 +369,14 @@ export function AdminOverview() {
             }
           </RippleButton>
 
+          {/* Backdrop for mobile sidebar */}
+          {fabOpen && (
+            <div className="sm:hidden absolute inset-0 z-[1050] bg-black/20 backdrop-blur-[2px]" onClick={() => setFabOpen(false)} />
+          )}
+
           {/* Right navigation sidebar — sliding overlay */}
           <div
-            className={`absolute right-0 top-0 bottom-0 z-[1100] w-[200px] bg-white/95 dark:bg-background/95 backdrop-blur-xl shadow-[-4px_0_24px_rgba(0,0,0,0.08)] border-l border-white/40 flex flex-col transition-transform duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+            className={`absolute right-0 top-0 bottom-0 z-[1100] w-[calc(100vw-48px)] sm:w-[200px] max-w-[240px] bg-white/95 dark:bg-background/95 backdrop-blur-xl shadow-[-4px_0_24px_rgba(0,0,0,0.08)] border-l border-white/40 flex flex-col transition-transform duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
               fabOpen ? "translate-x-0" : "translate-x-full"
             }`}
           >
