@@ -45,6 +45,7 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
   const mapInstanceRef = useRef<any>(null)
   const markersRef = useRef<any[]>([])
   const onSelectRef = useRef(onSelectCompetitor)
+  const leafletRef = useRef<any>(null)
   onSelectRef.current = onSelectCompetitor
 
   const highlightMarker = useCallback((competitor: Competitor | null) => {
@@ -76,6 +77,7 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
 
     const initMap = async () => {
       const L = (await import("leaflet")).default
+      leafletRef.current = L
 
       delete (L.Icon.Default.prototype as any)._getIconUrl
 
@@ -128,32 +130,6 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
 
       L.marker([shopLocation.lat, shopLocation.lng], { icon: shopIcon, zIndexOffset: 1000 }).addTo(map)
 
-      const newMarkers: any[] = []
-      competitors.forEach((c) => {
-        const color = threatColors[c.threat_level || "orange"] || "#ea580c"
-        const hasPulse = c.threat_level === "red" || c.threat_level === "orange"
-        const icon = L.divIcon({
-          className: "competitor-marker-main",
-          html: `<div class="c-marker-wrapper" data-name="${c.name}">
-            <div class="c-dot-container">
-              ${hasPulse ? '<div class="c-pulse-ring" style="border-color:' + color + ';"></div>' : ""}
-              <div class="c-dot" style="background:${color};${hasPulse ? "box-shadow:0 0 8px " + color + "80;" : ""}"></div>
-            </div>
-            <div class="c-label">${c.name}</div>
-          </div>`,
-          iconSize: [20, 32],
-          iconAnchor: [10, 16],
-        })
-
-        const marker = L.marker([c.lat, c.lng], { icon }).addTo(map)
-        marker.on("click", (e: any) => {
-          L.DomEvent.stopPropagation(e)
-          onSelectRef.current?.(c)
-        })
-        newMarkers.push({ marker, competitor: c })
-      })
-      markersRef.current = newMarkers
-
       map.on("click", () => {
         onSelectRef.current?.(null)
       })
@@ -169,9 +145,47 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
         mapInstanceRef.current.remove()
         mapInstanceRef.current = null
       }
+      leafletRef.current = null
       markersRef.current = []
     }
-  }, [shopLocation, competitors])
+  // Only re-init map when shopLocation changes, NOT competitors
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopLocation])
+
+  useEffect(() => {
+    const map = mapInstanceRef.current
+    const L = leafletRef.current
+    if (!map || !L) return
+
+    markersRef.current.forEach(({ marker }) => map.removeLayer(marker))
+    markersRef.current = []
+
+    const newMarkers: any[] = []
+    competitors.forEach((c) => {
+      const color = threatColors[c.threat_level || "orange"] || "#ea580c"
+      const hasPulse = c.threat_level === "red" || c.threat_level === "orange"
+      const icon = L.divIcon({
+        className: "competitor-marker-main",
+        html: `<div class="c-marker-wrapper" data-name="${c.name}">
+            <div class="c-dot-container">
+              ${hasPulse ? '<div class="c-pulse-ring" style="border-color:' + color + ';"></div>' : ""}
+              <div class="c-dot" style="background:${color};${hasPulse ? "box-shadow:0 0 8px " + color + "80;" : ""}"></div>
+            </div>
+            <div class="c-label">${c.name}</div>
+          </div>`,
+        iconSize: [20, 32],
+        iconAnchor: [10, 16],
+      })
+
+      const marker = L.marker([c.lat, c.lng], { icon }).addTo(map)
+      marker.on("click", (e: any) => {
+        L.DomEvent.stopPropagation(e)
+        onSelectRef.current?.(c)
+      })
+      newMarkers.push({ marker, competitor: c })
+    })
+    markersRef.current = newMarkers
+  }, [competitors])
 
   return (
     <div className="h-full w-full overflow-hidden">

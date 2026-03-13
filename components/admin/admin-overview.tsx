@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useMemo } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -246,7 +246,7 @@ export function AdminOverview() {
     )
   }
 
-  const enrichedCompetitors = competitors.map(c => {
+  const enrichedCompetitors = useMemo(() => competitors.map(c => {
     const key = `${c.name}_${c.lat.toFixed(5)}_${c.lng.toFixed(5)}`
     const threat = threatLevels[key]
     return {
@@ -255,7 +255,7 @@ export function AdminOverview() {
       threat_reason: threat?.reason || "",
       deep_analysis: threat?.deepAnalysis || "",
     }
-  })
+  }), [competitors, threatLevels])
 
   const threatStats = {
     red: enrichedCompetitors.filter(c => c.threat_level === "red").length,
