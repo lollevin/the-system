@@ -89,9 +89,10 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
 
       L.control.zoom({ position: "bottomright" }).addTo(map)
 
-      L.tileLayer("https://mt1.google.com/vt/lyrs=r&x={x}&y={y}&z={z}", {
-        attribution: '&copy; Google Maps',
-        maxZoom: 21,
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: "abcd",
+        maxZoom: 20,
       }).addTo(map)
 
       L.circle([shopLocation.lat, shopLocation.lng], {
