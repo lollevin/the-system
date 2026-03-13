@@ -238,14 +238,6 @@ export function AdminOverview() {
     { label: t("admin", "customerHealth"), prompt: "Customer health report - active vs dormant, trends?" },
   ]
 
-  if (loading) {
-    return (
-      <div className="fixed inset-0 z-40 flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-[#8b6f47]" />
-      </div>
-    )
-  }
-
   const enrichedCompetitors = useMemo(() => competitors.map(c => {
     const key = `${c.name}_${c.lat.toFixed(5)}_${c.lng.toFixed(5)}`
     const threat = threatLevels[key]
@@ -261,6 +253,14 @@ export function AdminOverview() {
     red: enrichedCompetitors.filter(c => c.threat_level === "red").length,
     orange: enrichedCompetitors.filter(c => c.threat_level === "orange").length,
     green: enrichedCompetitors.filter(c => c.threat_level === "green").length,
+  }
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-40 flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-[#8b6f47]" />
+      </div>
+    )
   }
 
   return (
