@@ -10,7 +10,7 @@ import {
   Loader2, MapPin, UtensilsCrossed, Users, Gift, Bot,
   RefreshCw, Store, X, Phone, Globe, Clock, ChefHat,
   ExternalLink, Sparkles, Navigation2, MessageSquare,
-  Send, LayoutDashboard, Settings, Brain, LogOut
+  Send, LayoutDashboard, Settings, Brain, LogOut, LayoutGrid
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation"
 import { useLanguage, translations } from "@/lib/i18n"
 import { createClient } from "@/lib/supabase/client"
 import { AdminNotifications } from "@/components/admin/admin-notifications"
+import { RippleButton } from "@/components/ui/ripple-button"
 import { toast } from "sonner"
 import type { ShopLocation, Competitor } from "./overview-map"
 
@@ -80,6 +81,7 @@ export function AdminOverview() {
   const [deepLoading, setDeepLoading] = useState(false)
   const deepAnalysisCache = useRef<Record<string, string>>({})
 
+  const [fabOpen, setFabOpen] = useState(false)
   const [viewMode, setViewMode] = useState<"overview" | "chat">("overview")
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInited, setChatInited] = useState(false)
@@ -298,11 +300,23 @@ export function AdminOverview() {
           </div>
         </div>
 
-        {/* Main area: Map + right sidebar */}
-        <div className="flex flex-1 min-h-0">
-          {/* Detail panel (Google Maps-style) */}
-          {selectedCompetitor && (
-            <div className="w-[340px] shrink-0 border-r border-border/50 bg-background overflow-y-auto animate-slide-in-left">
+        {/* Main area: Full-width map with floating overlays */}
+        <div className="flex-1 min-h-0 relative">
+          {/* Full-width map */}
+          <OverviewMap
+            shopLocation={shopLocation}
+            competitors={enrichedCompetitors}
+            selectedCompetitor={selectedCompetitor}
+            onSelectCompetitor={handleSelectCompetitor}
+          />
+
+          {/* Competitor detail panel — floating overlay, left side */}
+          <div
+            className={`absolute left-0 top-0 bottom-0 z-30 w-[340px] bg-white/95 dark:bg-background/95 backdrop-blur-xl shadow-[4px_0_24px_rgba(0,0,0,0.08)] border-r border-white/40 overflow-y-auto transition-transform duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+              selectedCompetitor ? "translate-x-0" : "-translate-x-full"
+            }`}
+          >
+            {selectedCompetitor && (
               <CompetitorPanel
                 competitor={enrichedCompetitors.find(c => c.name === selectedCompetitor.name && c.lat === selectedCompetitor.lat) || selectedCompetitor}
                 shopLocation={shopLocation}
@@ -312,86 +326,92 @@ export function AdminOverview() {
                 deepLoading={deepLoading}
                 t={t}
               />
+            )}
+          </div>
+
+          {/* Floating threat stats pill — bottom-left */}
+          {enrichedCompetitors.length > 0 && (
+            <div className={`absolute bottom-6 z-[1000] flex flex-col gap-2 transition-all duration-300 ${selectedCompetitor ? "left-[356px]" : "left-4"}`}>
+              <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md rounded-xl px-3.5 py-2 text-xs text-foreground border border-black/5 shadow-lg">
+                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-600 inline-block shadow-sm" /><span className="font-medium">{threatStats.red}</span> {t("admin", "highThreat")}</span>
+                <span className="text-border/40">|</span>
+                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-orange-500 inline-block shadow-sm" /><span className="font-medium">{threatStats.orange}</span> {t("admin", "mediumThreat")}</span>
+                <span className="text-border/40">|</span>
+                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-600 inline-block shadow-sm" /><span className="font-medium">{threatStats.green}</span> {t("admin", "popular")}</span>
+                {threatLoading && <Loader2 className="h-3 w-3 animate-spin text-[#8b6f47] ml-1" />}
+                <button
+                  onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
+                  disabled={competitorLoading}
+                  className="ml-1 flex items-center justify-center h-6 w-6 rounded-lg bg-black/5 hover:bg-black/10 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <RefreshCw className={`h-3 w-3 ${competitorLoading ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+              {!selectedCompetitor && !competitorLoading && (
+                <div className="bg-white/90 backdrop-blur-md rounded-lg px-3 py-1.5 text-[11px] text-muted-foreground border border-black/5 shadow-sm">
+                  {t("admin", "clickRedDot")}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Map */}
-          <div className="flex-1 min-w-0 relative">
-            <OverviewMap
-              shopLocation={shopLocation}
-              competitors={enrichedCompetitors}
-              selectedCompetitor={selectedCompetitor}
-              onSelectCompetitor={handleSelectCompetitor}
-            />
-            {/* Floating threat stats pill — bottom-left */}
-            {enrichedCompetitors.length > 0 && (
-              <div className="absolute bottom-6 left-4 z-[1000] flex flex-col gap-2">
-                <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md rounded-xl px-3.5 py-2 text-xs text-foreground border border-black/5 shadow-lg">
-                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-600 inline-block shadow-sm" /><span className="font-medium">{threatStats.red}</span> {t("admin", "highThreat")}</span>
-                  <span className="text-border/40">|</span>
-                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-orange-500 inline-block shadow-sm" /><span className="font-medium">{threatStats.orange}</span> {t("admin", "mediumThreat")}</span>
-                  <span className="text-border/40">|</span>
-                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-600 inline-block shadow-sm" /><span className="font-medium">{threatStats.green}</span> {t("admin", "popular")}</span>
-                  {threatLoading && <Loader2 className="h-3 w-3 animate-spin text-[#8b6f47] ml-1" />}
+          {/* Two-line grip handle — AI Chat */}
+          <button
+            onClick={() => setViewMode("chat")}
+            className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 flex-col items-center gap-[3px] px-1.5 py-4 rounded-l-lg bg-background/70 backdrop-blur-sm border border-r-0 border-border/40 hover:bg-[#8b6f47]/10 transition-all group cursor-pointer"
+            title={t("admin", "aiChatBtn")}
+          >
+            <div className="w-[3px] h-5 rounded-full bg-foreground/20 group-hover:bg-[#8b6f47]/60 transition-colors" />
+            <div className="w-[3px] h-5 rounded-full bg-foreground/15 group-hover:bg-[#8b6f47]/40 transition-colors" />
+          </button>
+
+          {/* Floating FAB menu — bottom-right */}
+          {fabOpen && (
+            <div className="fixed inset-0 z-40" onClick={() => setFabOpen(false)} />
+          )}
+          <div className="absolute bottom-6 right-4 z-50 flex flex-col items-center gap-2">
+            {/* Expanded nav icons */}
+            <div className="flex flex-col items-center gap-1.5">
+              {sidebarItems.map((item, i) => (
+                <div
+                  key={item.href}
+                  className={`group relative transition-all duration-300 ${
+                    fabOpen
+                      ? "opacity-100 scale-100 translate-y-0"
+                      : "opacity-0 scale-75 translate-y-3 pointer-events-none"
+                  }`}
+                  style={{ transitionDelay: fabOpen ? `${(sidebarItems.length - 1 - i) * 40}ms` : `${i * 20}ms` }}
+                >
                   <button
-                    onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
-                    disabled={competitorLoading}
-                    className="ml-1 flex items-center justify-center h-6 w-6 rounded-lg bg-black/5 hover:bg-black/10 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => { setFabOpen(false); router.push(item.href) }}
+                    className={`flex h-11 w-11 items-center justify-center rounded-full ${item.color} shadow-lg shadow-black/10 border border-white/60 backdrop-blur-sm transition-transform hover:scale-110 active:scale-95`}
                   >
-                    <RefreshCw className={`h-3 w-3 ${competitorLoading ? "animate-spin" : ""}`} />
+                    {item.icon}
                   </button>
+                  <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg bg-foreground/90 text-background text-[11px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                    {item.label}
+                  </div>
                 </div>
-                {!selectedCompetitor && !competitorLoading && (
-                  <div className="bg-white/90 backdrop-blur-md rounded-lg px-3 py-1.5 text-[11px] text-muted-foreground border border-black/5 shadow-sm">
-                    {t("admin", "clickRedDot")}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Two-line grip handle */}
-            <button
-              onClick={() => setViewMode("chat")}
-              className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 flex-col items-center gap-[3px] px-1.5 py-4 rounded-l-lg bg-background/70 backdrop-blur-sm border border-r-0 border-border/40 hover:bg-[#8b6f47]/10 transition-all group cursor-pointer"
-              title={t("admin", "aiChatBtn")}
-            >
-              <div className="w-[3px] h-5 rounded-full bg-foreground/20 group-hover:bg-[#8b6f47]/60 transition-colors" />
-              <div className="w-[3px] h-5 rounded-full bg-foreground/15 group-hover:bg-[#8b6f47]/40 transition-colors" />
-            </button>
-          </div>
-
-          {/* Right sidebar — navigation + logout */}
-          <div className="hidden lg:flex shrink-0 w-[200px] flex-col border-l border-border/50 bg-background">
-            <div className="p-3 space-y-1 overflow-y-auto flex-1">
-              {sidebarItems.map((item) => (
-                <Link key={item.href} href={item.href}>
-                  <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all group hover:bg-accent/60">
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${item.color} transition-transform group-hover:scale-105`}>
-                      {item.icon}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium leading-tight text-foreground">{item.label}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{item.desc}</p>
-                    </div>
-                  </div>
-                </Link>
               ))}
             </div>
 
-            {/* Logout at sidebar bottom */}
-            <div className="p-3 border-t border-border/30">
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 w-full transition-all group hover:bg-red-500/10"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-500 transition-transform group-hover:scale-105">
-                  <LogOut className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-tight text-red-600">{t("common", "logout")}</p>
-                </div>
-              </button>
-            </div>
+            {/* Main FAB toggle — Ripple Button */}
+            <RippleButton
+              onClick={() => setFabOpen(v => !v)}
+              rippleColor="#8b6f47"
+              className={`h-12 w-12 rounded-full border-0 bg-[#8b6f47] text-white shadow-xl shadow-[#8b6f47]/30 hover:bg-[#7a5f3a] transition-all duration-300 ${fabOpen ? "rotate-45 scale-95" : "rotate-0 scale-100"}`}
+            >
+              <LayoutGrid className={`h-5 w-5 transition-transform duration-300 ${fabOpen ? "rotate-45" : ""}`} />
+            </RippleButton>
+
+            {/* Logout button — always visible */}
+            <button
+              onClick={handleLogout}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 shadow-lg shadow-black/5 border border-white/60 backdrop-blur-sm transition-all hover:scale-110 active:scale-95"
+              title={t("common", "logout")}
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </div>

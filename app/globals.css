@@ -573,15 +573,6 @@
   100% { transform: scale(1.8); opacity: 0; }
 }
 
-/* Slide-in animation for detail panel */
-@keyframes slideInLeft {
-  from { transform: translateX(-100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-.animate-slide-in-left {
-  animation: slideInLeft 0.25s ease-out;
-}
-
 /* ========== View Transition (Overview ↔ Chat 专场) ========== */
 
 .view-transition {
