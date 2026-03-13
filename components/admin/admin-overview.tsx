@@ -323,30 +323,29 @@ export function AdminOverview() {
               selectedCompetitor={selectedCompetitor}
               onSelectCompetitor={handleSelectCompetitor}
             />
-            {/* Floating threat stats pill on map */}
+            {/* Floating threat stats pill — bottom-left */}
             {enrichedCompetitors.length > 0 && (
-              <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-                <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs text-muted-foreground border border-white/40 shadow-sm">
-                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-600 inline-block" />{threatStats.red} {t("admin", "highThreat")}</span>
-                  <span className="text-border/50">·</span>
-                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-600 inline-block" />{threatStats.green} {t("admin", "popular")}</span>
-                  <span className="text-border/50">·</span>
-                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-gray-400 inline-block" />{threatStats.gray}</span>
+              <div className="absolute bottom-6 left-4 z-[1000] flex flex-col gap-2">
+                <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md rounded-xl px-3.5 py-2 text-xs text-foreground border border-black/5 shadow-lg">
+                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-600 inline-block shadow-sm" /><span className="font-medium">{threatStats.red}</span> {t("admin", "highThreat")}</span>
+                  <span className="text-border/40">|</span>
+                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-600 inline-block shadow-sm" /><span className="font-medium">{threatStats.green}</span> {t("admin", "popular")}</span>
+                  <span className="text-border/40">|</span>
+                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-gray-400 inline-block" /><span className="font-medium">{threatStats.gray}</span></span>
                   {threatLoading && <Loader2 className="h-3 w-3 animate-spin text-[#8b6f47] ml-1" />}
+                  <button
+                    onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
+                    disabled={competitorLoading}
+                    className="ml-1 flex items-center justify-center h-6 w-6 rounded-lg bg-black/5 hover:bg-black/10 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${competitorLoading ? "animate-spin" : ""}`} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
-                  disabled={competitorLoading}
-                  className="flex items-center justify-center h-7 w-7 rounded-full bg-white/80 backdrop-blur-sm border border-white/40 shadow-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <RefreshCw className={`h-3 w-3 ${competitorLoading ? "animate-spin" : ""}`} />
-                </button>
-              </div>
-            )}
-
-            {!selectedCompetitor && !competitorLoading && competitors.length > 0 && (
-              <div className="absolute bottom-3 left-3 bg-white/80 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs text-muted-foreground border border-white/40 shadow-sm">
-                {t("admin", "clickRedDot")}
+                {!selectedCompetitor && !competitorLoading && (
+                  <div className="bg-white/90 backdrop-blur-md rounded-lg px-3 py-1.5 text-[11px] text-muted-foreground border border-black/5 shadow-sm">
+                    {t("admin", "clickRedDot")}
+                  </div>
+                )}
               </div>
             )}
 
