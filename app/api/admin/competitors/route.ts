@@ -39,17 +39,48 @@ export async function GET(request: Request) {
   const query = `[out:json][timeout:10];(node["amenity"~"restaurant|cafe|fast_food"](around:${radius},${lat},${lng}););out body;`
 
   try {
-    const res = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `data=${encodeURIComponent(query)}`,
-    })
+    const overpassEndpoints = [
+      "https://overpass-api.de/api/interpreter",
+      "https://overpass.kumi.systems/api/interpreter",
+      "https://overpass.openstreetmap.ru/api/interpreter",
+    ]
 
-    if (!res.ok) {
-      return NextResponse.json({ error: "Overpass API error" }, { status: 502 })
+    let data: any = null
+    let lastErrorStatus: number | null = null
+
+    for (const endpoint of overpassEndpoints) {
+      try {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 8000)
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `data=${encodeURIComponent(query)}`,
+          signal: controller.signal,
+        })
+
+        clearTimeout(timeout)
+
+        if (!res.ok) {
+          lastErrorStatus = res.status
+          continue
+        }
+
+        data = await res.json()
+        break
+      } catch {
+        continue
+      }
     }
 
-    const data = await res.json()
+    if (!data) {
+      return NextResponse.json(
+        { error: "Overpass API unavailable", detail: lastErrorStatus ? `last_status_${lastErrorStatus}` : "timeout_or_network" },
+        { status: 502 }
+      )
+    }
+
     const elements = data.elements || []
 
     const competitors = elements
