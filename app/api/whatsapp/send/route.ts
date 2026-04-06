@@ -34,10 +34,19 @@ function isConnectionError(error: any): boolean {
   )
 }
 
+function formatPhoneForWa(phone: string): string {
+  const clean = String(phone || "").replace(/\D/g, "")
+  if (clean.startsWith("60")) return clean
+  if (clean.startsWith("0")) return "60" + clean.slice(1)
+  return "60" + clean
+}
+
 export async function POST(request: NextRequest) {
   // Rate limit: 30 req/min for WhatsApp
   const limited = rateLimitResponse(request, "whatsapp")
   if (limited) return limited
+
+  let fallbackWaUrl = ""
 
   try {
     const supabase = await createClient()
@@ -66,6 +75,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    const waPhone = formatPhoneForWa(phone)
+    const waText = encodeURIComponent(message || imageCaption || "")
+    fallbackWaUrl = `https://wa.me/${waPhone}${waText ? `?text=${waText}` : ""}`
 
     let finalImageBase64: string | undefined = imageBase64
     let finalImageMimeType: string | undefined = imageMimeType
@@ -169,14 +181,28 @@ export async function POST(request: NextRequest) {
 
     if (isConnectionError(error)) {
       return NextResponse.json(
-        { error: "WhatsApp service is not running", success: false },
+        {
+          error: "WhatsApp service is not running",
+          success: false,
+          fallback: {
+            mode: "wa.me",
+            url: fallbackWaUrl,
+          },
+        },
         { status: 503 }
       )
     }
 
     if (error?.name === "AbortError") {
       return NextResponse.json(
-        { error: "WhatsApp service not responding (timeout)", success: false },
+        {
+          error: "WhatsApp service not responding (timeout)",
+          success: false,
+          fallback: {
+            mode: "wa.me",
+            url: fallbackWaUrl,
+          },
+        },
         { status: 504 }
       )
     }

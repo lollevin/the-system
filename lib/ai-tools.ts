@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
 const API_302_BASE = "https://api.302.ai"
+const AI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "deepseek-chat"
 
 // ---------------------------------------------------------------------------
 // Tool Definitions (OpenAI function calling format)
@@ -233,7 +234,7 @@ export async function aiCallWithTools({
 
   for (let round = 0; round < maxRounds; round++) {
     const body: any = {
-      model: "gpt-4o",
+      model: AI_TEXT_MODEL,
       messages,
       max_tokens: maxTokens,
       temperature,

@@ -7,7 +7,7 @@ import { aiCallWithTools } from "@/lib/ai-tools";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
-const AI_MODEL = "gpt-4o";
+const AI_MODEL = process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "deepseek-chat";
 
 export async function POST(request: NextRequest) {
   // Rate limit: 20 req/min for AI

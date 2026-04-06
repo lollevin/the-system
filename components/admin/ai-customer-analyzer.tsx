@@ -592,6 +592,12 @@ Requirements:
     return "60" + clean
   }
 
+  const openWaFallback = (phone: string, message: string) => {
+    if (!phone) return
+    const waUrl = `https://wa.me/${phone}${message ? `?text=${encodeURIComponent(message)}` : ""}`
+    window.open(waUrl, "_blank")
+  }
+
   const urlRegex = /https?:\/\/[^\s]+/gi
 
   const stripUrlsFromText = (text: string): string => {
@@ -624,19 +630,12 @@ Requirements:
     const ctaLabel = null
 
     const cleanedMessage = stripUrlsFromText(sc.message)
-    const fixedImageUrl = process.env.NEXT_PUBLIC_WHATSAPP_FIXED_IMAGE_URL || "/images/jpco-voucher.png"
+    // TEMP: Disabled image to avoid 413 Payload Too Large error
+    // Re-enable after fixing Nginx: client_max_body_size 50M;
+    const fixedImageUrl = null // was: process.env.NEXT_PUBLIC_WHATSAPP_FIXED_IMAGE_URL || "/images/jpco-voucher.png"
 
-    // Visual style prompt for 302.AI image generation
-    const imagePrompt = [
-      "Create a premium WhatsApp campaign image for JP&Co restaurant in Malaysia.",
-      "Modern lifestyle food ad style, warm natural lighting, appetizing burger and coffee composition.",
-      "Brand feeling: trustworthy, classy, not spammy, clean typography, high conversion marketing creative.",
-      sc.analysis?.hasBirthday ? "Theme: birthday celebration and member appreciation." : "",
-      sc.analysis?.isAtRisk ? "Theme: welcome back / we miss you campaign." : "",
-      sc.voucher ? "Theme: exclusive member reward promotion." : "Theme: loyalty points and menu discovery.",
-      "Avoid fake urgency and avoid scam-like style.",
-      "Square format 1:1 for WhatsApp preview.",
-    ].filter(Boolean).join(" ")
+    // Visual style prompt for 302.AI image generation (disabled for now to avoid 413)
+    const imagePrompt = null
 
     return {
       message: cleanedMessage,
@@ -698,18 +697,20 @@ Requirements:
   const sendWhatsApp = async (customerId: string) => {
     const sc = selectedCustomers.find(s => s.profile.id === customerId)
     if (!sc) return
+    const phone = formatPhone(sc.profile.phone)
 
     // Check WhatsApp connection first
     const isConnected = await checkWhatsAppConnected()
     if (!isConnected) {
-      toast.error(t("ai", "caWaNotConnectedSend"), {
-        description: t("ai", "caScanQr"),
+      const fallbackText = sc.message || `Hi ${sc.profile.full_name || ""}`
+      openWaFallback(phone, fallbackText)
+      toast.warning(t("ai", "caWaNotConnectedSend"), {
+        description: "Switched to wa.me manual send fallback.",
         duration: 5000,
       })
       return
     }
 
-    const phone = formatPhone(sc.profile.phone)
     
     try {
       // Step 1: Create voucher in DB if pending (only on send!)
@@ -763,8 +764,10 @@ Requirements:
 
       toast.success(`${t("ai", "caMessageSentTo")} ${sc.profile.full_name}`)
     } catch (error: any) {
-      toast.error(`${t("ai", "caFailedSendTo")} ${sc.profile.full_name}`, {
-        description: error.message,
+      const fallbackText = sc.message || `Hi ${sc.profile.full_name || ""}`
+      openWaFallback(phone, fallbackText)
+      toast.warning(`${t("ai", "caFailedSendTo")} ${sc.profile.full_name}`, {
+        description: `${error.message || "Send failed"}. Switched to wa.me manual send fallback.`,
       })
     }
   }

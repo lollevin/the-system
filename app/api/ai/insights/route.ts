@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
+const AI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "deepseek-chat"
 const CHAT_ENDPOINT = `${OPENAI_BASE_URL}/chat/completions`
 
 export async function POST(request: NextRequest) {
@@ -379,7 +380,7 @@ Structure every response as:
             Authorization: `Bearer ${OPENAI_API_KEY}`,
           },
           body: JSON.stringify({
-            model: "gpt-4o",
+            model: AI_TEXT_MODEL,
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: question },

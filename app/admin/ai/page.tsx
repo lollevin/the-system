@@ -144,26 +144,33 @@ export default function AICopilotPage() {
     return "60" + clean
   }
 
+  const openWaFallback = (phone: string, message: string) => {
+    if (!phone) return
+    const waUrl = `https://wa.me/${phone}${message ? `?text=${encodeURIComponent(message)}` : ""}`
+    window.open(waUrl, "_blank")
+  }
+
   // Send WhatsApp to a specific customer from chat
   const sendToCustomer = async (messageId: string, customerId: string) => {
-    // Check WhatsApp connection
+    const msg = messages.find(m => m.id === messageId)
+    const action = msg?.customerActions?.find(a => a.id === customerId)
+    if (!action) return
+    const phone = formatPhone(action.phone)
+
+    // Check WhatsApp connection (service mode). If unavailable, fallback to wa.me manual mode.
     const connected = await checkWhatsAppConnected()
     if (!connected) {
-      toast.error(t("ai", "waNotConnected"), {
-        description: t("ai", "scanQrFirst"),
+      openWaFallback(phone, action.message)
+      toast.warning(t("ai", "waNotConnected"), {
+        description: "Switched to wa.me manual send fallback.",
         duration: 5000,
       })
       return
     }
 
-    const msg = messages.find(m => m.id === messageId)
-    const action = msg?.customerActions?.find(a => a.id === customerId)
-    if (!action) return
-
     setSendingCustomers(prev => new Set(prev).add(customerId))
 
     try {
-      const phone = formatPhone(action.phone)
       const response = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -201,8 +208,9 @@ export default function AICopilotPage() {
 
       toast.success(`${t("ai", "messageSentTo")} ${action.name}!`)
     } catch (err: any) {
-      toast.error(`${t("ai", "failedToSendTo")} ${action.name}`, {
-        description: err.message,
+      openWaFallback(phone, action.message)
+      toast.warning(`${t("ai", "failedToSendTo")} ${action.name}`, {
+        description: `${err.message || "Send failed"}. Switched to wa.me manual send fallback.`,
       })
     } finally {
       setSendingCustomers(prev => {

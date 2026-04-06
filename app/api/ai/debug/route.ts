@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
 
   // 5. Check AI service
   diagnostics.ai = {
-    model: "gpt-4o",
+    model: process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "deepseek-chat",
     apiKeySet: !!process.env.OPENAI_API_KEY,
     baseUrl: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
   }

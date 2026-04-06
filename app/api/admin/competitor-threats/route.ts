@@ -5,6 +5,7 @@ import { executeWebSearch } from "@/lib/ai-tools"
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
+const AI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "deepseek-chat"
 const CACHE_HOURS = 24
 
 interface CompetitorInput {
@@ -148,7 +149,7 @@ Respond with ONLY a valid JSON array, no markdown, no explanation. One entry per
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_API_KEY}` },
     body: JSON.stringify({
-      model: "gpt-4o",
+      model: AI_TEXT_MODEL,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
       max_tokens: 8000,
