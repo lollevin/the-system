@@ -6,7 +6,9 @@ const WHATSAPP_SERVICE_URL = process.env.WHATSAPP_SERVICE_URL || "http://localho
 const WHATSAPP_SERVICE_KEY = process.env.WHATSAPP_SERVICE_KEY || "default-key"
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
-const WHATSAPP_FIXED_IMAGE_URL = process.env.WHATSAPP_FIXED_IMAGE_URL || "/images/jpco-voucher.png"
+// TEMP: Disabled fixed image to avoid 413 Payload Too Large
+// Re-enable after fixing Nginx: client_max_body_size 50M;
+const WHATSAPP_FIXED_IMAGE_URL = null // was: process.env.WHATSAPP_FIXED_IMAGE_URL || "/images/jpco-voucher.png"
 
 async function imageUrlToBase64(url: string): Promise<{ base64: string; mimeType: string; filename: string } | null> {
   try {
@@ -83,12 +85,13 @@ export async function POST(request: NextRequest) {
     let finalImageMimeType: string | undefined = imageMimeType
     let finalImageFilename: string | undefined = imageFilename
 
-    // Highest priority: explicit imageUrl from request, then fixed env image URL.
-    const preferredImageUrl = imageUrl || WHATSAPP_FIXED_IMAGE_URL
-    const resolvedImageUrl = preferredImageUrl?.startsWith("/")
+    // TEMP: Image sending disabled to avoid 413 errors
+    // Re-enable after fixing Nginx: client_max_body_size 50M;
+    const preferredImageUrl = imageUrl // was: imageUrl || WHATSAPP_FIXED_IMAGE_URL
+    const resolvedImageUrl = preferredImageUrl?.startsWith?.("/")
       ? new URL(preferredImageUrl, request.nextUrl.origin).toString()
       : preferredImageUrl
-    if (!finalImageBase64 && resolvedImageUrl) {
+    if (!finalImageBase64 && resolvedImageUrl && preferredImageUrl) {
       const converted = await imageUrlToBase64(resolvedImageUrl)
       if (converted) {
         finalImageBase64 = converted.base64
