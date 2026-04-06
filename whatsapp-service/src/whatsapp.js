@@ -4,7 +4,7 @@
  * Handles WhatsApp connection, QR code generation, and message sending.
  */
 
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const path = require('path');
 
@@ -234,19 +234,52 @@ function formatPhone(phone) {
 /**
  * Send a single message
  */
-async function sendMessage(phone, message) {
+async function sendMessage(phone, message, options = {}) {
   if (connectionStatus !== 'connected') {
     throw new Error('WhatsApp is not connected. Please scan QR code first.');
   }
   
   const formattedPhone = formatPhone(phone);
+  const {
+    imageBase64,
+    imageMimeType = 'image/png',
+    imageFilename = 'campaign.png',
+    imageCaption,
+    ctaUrl,
+    ctaLabel = 'Open now',
+  } = options || {};
   
   try {
-    const result = await client.sendMessage(formattedPhone, message);
+    const sentIds = [];
+
+    // 1) Send image card first (if provided)
+    if (imageBase64) {
+      const media = new MessageMedia(imageMimeType, imageBase64, imageFilename);
+      const mediaResult = await client.sendMessage(formattedPhone, media, {
+        caption: imageCaption || message || '',
+      });
+      sentIds.push(mediaResult?.id?.id);
+    } else if (message) {
+      // Fallback: text only
+      const textResult = await client.sendMessage(formattedPhone, message);
+      sentIds.push(textResult?.id?.id);
+    }
+
+    // 2) Send CTA as separate message so WhatsApp renders a richer link card preview
+    if (ctaUrl) {
+      // URL-only gives the best chance for WhatsApp native link card/button preview.
+      const ctaMessage = `${ctaUrl}`;
+      const ctaResult = await client.sendMessage(formattedPhone, ctaMessage, {
+        linkPreview: true,
+      });
+      sentIds.push(ctaResult?.id?.id);
+    }
+
     return {
       success: true,
       phone: phone,
-      messageId: result.id.id,
+      messageId: sentIds[0] || null,
+      messageIds: sentIds.filter(Boolean),
       timestamp: new Date().toISOString()
     };
   } catch (error) {
@@ -272,10 +305,27 @@ async function sendBulkMessages(messages, delayMs = 3000) {
   console.log(`Starting bulk send: ${totalCount} messages`);
   
   for (let i = 0; i < messages.length; i++) {
-    const { phone, message, customerId } = messages[i];
+    const {
+      phone,
+      message,
+      customerId,
+      imageBase64,
+      imageMimeType,
+      imageFilename,
+      imageCaption,
+      ctaUrl,
+      ctaLabel,
+    } = messages[i];
     
     try {
-      const result = await sendMessage(phone, message);
+      const result = await sendMessage(phone, message, {
+        imageBase64,
+        imageMimeType,
+        imageFilename,
+        imageCaption,
+        ctaUrl,
+        ctaLabel,
+      });
       results.push({
         ...result,
         customerId,

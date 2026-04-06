@@ -313,6 +313,9 @@ When generating messages for customers, ALWAYS include this JSON block at the en
 - Use line breaks for visual breathing room
 - Do NOT force voucher wording in every message; use voucher only when campaign intent explicitly requires it
 - If no voucher is provided/approved, avoid words like "voucher", "coupon", "claim", and use points/menu/revisit CTA instead
+- Tone must be premium and trustworthy (brand-safe), never "spammy" or "scam-like"
+- Avoid ALL CAPS, too many exclamation marks, fake countdown pressure, and suspicious wording
+- Prefer human, caring, relationship-first copy that sounds like a real brand manager
 
 ### Marketing Quality Bar (Must Follow)
 - Each recommendation must include: target segment, objective, offer/mechanic, channel timing, and expected impact

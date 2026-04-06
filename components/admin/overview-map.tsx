@@ -43,6 +43,7 @@ const threatColors: Record<string, string> = {
 export default function OverviewMap({ shopLocation, competitors, selectedCompetitor, onSelectCompetitor }: OverviewMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
+  const mapInitializingRef = useRef(false)
   const markersRef = useRef<any[]>([])
   const onSelectRef = useRef(onSelectCompetitor)
   const leafletRef = useRef<any>(null)
@@ -73,13 +74,26 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
   }, [selectedCompetitor, highlightMarker])
 
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return
+    if (!mapRef.current || mapInstanceRef.current || mapInitializingRef.current) return
+
+    let cancelled = false
 
     const initMap = async () => {
+      mapInitializingRef.current = true
       const L = (await import("leaflet")).default
+      if (cancelled || !mapRef.current) {
+        mapInitializingRef.current = false
+        return
+      }
       leafletRef.current = L
 
       delete (L.Icon.Default.prototype as any)._getIconUrl
+
+      // In dev strict mode, async init/cleanup can race and leave stale leaflet id on container.
+      const container = mapRef.current as any
+      if (container?._leaflet_id) {
+        delete container._leaflet_id
+      }
 
       const map = L.map(mapRef.current!, {
         center: [shopLocation.lat, shopLocation.lng],
@@ -134,16 +148,28 @@ export default function OverviewMap({ shopLocation, competitors, selectedCompeti
         onSelectRef.current?.(null)
       })
 
+      if (cancelled) {
+        map.remove()
+        mapInitializingRef.current = false
+        return
+      }
+
       mapInstanceRef.current = map
+      mapInitializingRef.current = false
       setTimeout(() => map.invalidateSize(), 100)
     }
 
     initMap()
 
     return () => {
+      cancelled = true
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove()
         mapInstanceRef.current = null
+      }
+      mapInitializingRef.current = false
+      if ((mapRef.current as any)?._leaflet_id) {
+        delete (mapRef.current as any)._leaflet_id
       }
       leafletRef.current = null
       markersRef.current = []

@@ -76,13 +76,29 @@ app.post('/api/restart', authenticate, async (req, res) => {
 // Send single message
 app.post('/api/send', authenticate, async (req, res) => {
   try {
-    const { phone, message } = req.body;
+    const {
+      phone,
+      message,
+      imageBase64,
+      imageMimeType,
+      imageFilename,
+      imageCaption,
+      ctaUrl,
+      ctaLabel,
+    } = req.body;
     
-    if (!phone || !message) {
-      return res.status(400).json({ error: 'Phone and message are required' });
+    if (!phone || (!message && !imageBase64)) {
+      return res.status(400).json({ error: 'Phone and at least one content (message/image) are required' });
     }
     
-    const result = await sendMessage(phone, message);
+    const result = await sendMessage(phone, message, {
+      imageBase64,
+      imageMimeType,
+      imageFilename,
+      imageCaption,
+      ctaUrl,
+      ctaLabel,
+    });
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -99,8 +115,8 @@ app.post('/api/bulk-send', authenticate, async (req, res) => {
     }
     
     for (const msg of messages) {
-      if (!msg.phone || !msg.message) {
-        return res.status(400).json({ error: 'Each message must have phone and message fields' });
+      if (!msg.phone || (!msg.message && !msg.imageBase64)) {
+        return res.status(400).json({ error: 'Each message must have phone and at least one content (message/image)' });
       }
     }
     

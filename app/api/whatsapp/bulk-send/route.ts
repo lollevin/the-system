@@ -40,9 +40,9 @@ export async function POST(request: NextRequest) {
 
     // Validate messages format
     for (const msg of messages) {
-      if (!msg.phone || !msg.message) {
+      if (!msg.phone || (!msg.message && !msg.imageBase64)) {
         return NextResponse.json(
-          { error: "Each message must have phone and message fields" },
+          { error: "Each message must have phone and at least one content (message/image)" },
           { status: 400 }
         )
       }

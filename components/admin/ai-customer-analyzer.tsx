@@ -42,7 +42,6 @@ import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { useLanguage } from "@/lib/i18n"
 import { checkWhatsAppConnected } from "@/components/admin/floating-whatsapp"
-import { getVoucherLink, getSmartLinks, getPointsLink, getMenuLink } from "@/lib/pwa-links"
 import type { Profile } from "@/lib/supabase/types"
 
 interface CustomerAnalysis {
@@ -283,7 +282,8 @@ Requirements:
 - Malaysia market (mix of English/Malay/Chinese is OK)
 - Include specific data points from this customer's profile
 - ONLY output the WhatsApp message text, nothing else
-- Make this message feel truly personal to THIS specific customer`,
+- Make this message feel truly personal to THIS specific customer
+- IMPORTANT: Do NOT include any URL or link in the message text`,
           language,
           requestId: `${customer.id}-${Date.now()}`
         }),
@@ -319,15 +319,15 @@ Requirements:
   // Fallback template message
   const getTemplateMessage = (customer: Profile, analysis: CustomerAnalysis): string => {
     if (analysis.hasBirthday) {
-      return `🎂 Happy Birthday ${customer.full_name}!\n\nThank you for being a valued member! 🎉\nAs a birthday gift, enjoy 20% OFF this week!\n\nCome celebrate with us!\n\n📱 View points & rewards: ${getPointsLink()}\n\n- JP&Co Team ❤️`
+      return `🎂 Happy Birthday ${customer.full_name}!\n\nThank you for being a valued member! 🎉\nAs a birthday gift, enjoy 20% OFF this week!\n\nCome celebrate with us!\n\n- JP&Co Team ❤️`
     } else if (analysis.isAtRisk && analysis.daysSinceLastVisit > 60) {
-      return `👋 Hey ${customer.full_name}!\n\nIt's been ${analysis.daysSinceLastVisit} days! We miss you! 😊\nSpecial come-back offer: 15% OFF your next order!\n\nYou have ${analysis.pointsBalance} points waiting!\n\n📱 View points & rewards: ${getPointsLink()}\n🍽️ See our menu: ${getMenuLink()}\n\n- JP&Co Team 🍔`
+      return `👋 Hey ${customer.full_name}!\n\nIt's been ${analysis.daysSinceLastVisit} days! We miss you! 😊\nSpecial come-back offer: 15% OFF your next order!\n\nYou have ${analysis.pointsBalance} points waiting!\n\n- JP&Co Team 🍔`
     } else if (analysis.isAtRisk) {
-      return `🍔 Hey ${customer.full_name}!\n\nHaven't seen you in ${analysis.daysSinceLastVisit} days!\nJust for you: 10% OFF on your next visit!\n\nYou have ${analysis.pointsBalance} points!\n\n📱 View points & rewards: ${getPointsLink()}\n🍽️ See our menu: ${getMenuLink()}\n\n- JP&Co Team 🍟`
+      return `🍔 Hey ${customer.full_name}!\n\nHaven't seen you in ${analysis.daysSinceLastVisit} days!\nJust for you: 10% OFF on your next visit!\n\nYou have ${analysis.pointsBalance} points!\n\n- JP&Co Team 🍟`
     } else if (analysis.isVip) {
-      return `⭐ Hi ${customer.full_name}!\n\nThank you for being a ${analysis.membershipTier} member!\n💰 Total: RM${analysis.totalSpent.toFixed(0)}\n✨ Points: ${analysis.pointsBalance}\n\nKeep collecting for amazing rewards!\n\n📱 Check your rewards: ${getPointsLink()}\n\n- JP&Co Team ⭐`
+      return `⭐ Hi ${customer.full_name}!\n\nThank you for being a ${analysis.membershipTier} member!\n💰 Total: RM${analysis.totalSpent.toFixed(0)}\n✨ Points: ${analysis.pointsBalance}\n\nKeep collecting for amazing rewards!\n\n- JP&Co Team ⭐`
     } else {
-      return `🍔 Hi ${customer.full_name}!\n\nHope you're doing great!\n✨ Points: ${analysis.pointsBalance}\n📊 Visits: ${analysis.visitCount}\n\nCheck out our latest menu!\n\n🍽️ See our menu: ${getMenuLink()}\n📱 Check your rewards: ${getPointsLink()}\n\n- JP&Co Team 🍟`
+      return `🍔 Hi ${customer.full_name}!\n\nHope you're doing great!\n✨ Points: ${analysis.pointsBalance}\n📊 Visits: ${analysis.visitCount}\n\nCheck out our latest menu!\n\n- JP&Co Team 🍟`
     }
   }
 
@@ -433,19 +433,12 @@ Requirements:
             reason: voucherReason,
             createdInDb: false, // pending - will be created on send
           }
-          message += `\n\n🎫 Your voucher code: ${code}\n👉 Claim here: ${getVoucherLink(code)}`
+          // Keep message clean (no raw links). Voucher redemption is handled by CTA payload.
+          message += `\n\n🎫 A special member reward has been prepared for you.`
         }
 
-        // Append smart PWA links based on customer context
-        const links = getSmartLinks({
-          hasVoucher: !!voucher,
-          voucherCode: voucher?.code,
-          isVip: analysis.isVip,
-          isBirthday: analysis.hasBirthday,
-          isInactive: analysis.isAtRisk,
-          isNewCustomer: analysis.visitCount <= 2,
-        })
-        if (links) message += `\n\n${links}`
+        // Final cleanup: ensure no URLs and no link-like residue in chat text.
+        message = stripUrlsFromText(message)
 
         updated[i] = {
           ...sc,
@@ -587,15 +580,6 @@ Requirements:
       .replace(/\n{3,}/g, "\n\n")
       .trim()
 
-    const links = getSmartLinks({
-      hasVoucher: false,
-      isVip: !!analysis?.isVip,
-      isBirthday: !!analysis?.hasBirthday,
-      isInactive: !!analysis?.isAtRisk,
-      isNewCustomer: (analysis?.visitCount || 0) <= 2,
-    })
-
-    if (links) return `${cleaned}\n\n${links}`.trim()
     return cleaned || `Hi ${profile.full_name || "there"}!`
   }
 
@@ -606,6 +590,62 @@ Requirements:
     if (clean.startsWith("60")) return clean
     if (clean.startsWith("0")) return "60" + clean.substring(1)
     return "60" + clean
+  }
+
+  const urlRegex = /https?:\/\/[^\s]+/gi
+
+  const stripUrlsFromText = (text: string): string => {
+    const cleaned = text
+      .replace(urlRegex, "")
+      .split("\n")
+      .map((line) => line.trimEnd())
+      .filter((line) => {
+        const l = line.toLowerCase().trim()
+        if (!l) return true
+        // Remove orphan CTA/link lines after URL stripping
+        if (l.includes("claim here") || l.includes("claim voucher")) return false
+        if (l.includes("voucher code")) return false
+        if (l.includes("view points") || l.includes("check your rewards")) return false
+        if (l.includes("see our menu")) return false
+        if (l.includes("read more") || l.includes("查看更多")) return false
+        if (l === "👉" || l === "🍽️" || l === "📱" || l === "🎫") return false
+        if (l.endsWith(":")) return false
+        return true
+      })
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+
+    return cleaned
+  }
+
+  const buildSmartWhatsAppPayload = (sc: SelectedCustomer) => {
+    const ctaUrl = null
+    const ctaLabel = null
+
+    const cleanedMessage = stripUrlsFromText(sc.message)
+    const fixedImageUrl = process.env.NEXT_PUBLIC_WHATSAPP_FIXED_IMAGE_URL || "/images/jpco-voucher.png"
+
+    // Visual style prompt for 302.AI image generation
+    const imagePrompt = [
+      "Create a premium WhatsApp campaign image for JP&Co restaurant in Malaysia.",
+      "Modern lifestyle food ad style, warm natural lighting, appetizing burger and coffee composition.",
+      "Brand feeling: trustworthy, classy, not spammy, clean typography, high conversion marketing creative.",
+      sc.analysis?.hasBirthday ? "Theme: birthday celebration and member appreciation." : "",
+      sc.analysis?.isAtRisk ? "Theme: welcome back / we miss you campaign." : "",
+      sc.voucher ? "Theme: exclusive member reward promotion." : "Theme: loyalty points and menu discovery.",
+      "Avoid fake urgency and avoid scam-like style.",
+      "Square format 1:1 for WhatsApp preview.",
+    ].filter(Boolean).join(" ")
+
+    return {
+      message: cleanedMessage,
+      imageCaption: cleanedMessage,
+      imageUrl: fixedImageUrl,
+      ctaUrl,
+      ctaLabel,
+      imagePrompt,
+    }
   }
 
   // Create voucher in database (called when sending)
@@ -685,12 +725,18 @@ Requirements:
       }
 
       // Step 2: Send via WhatsApp service API
+      const payload = buildSmartWhatsAppPayload(sc)
       const response = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone,
-          message: sc.message,
+          message: payload.message,
+          imageCaption: payload.imageCaption,
+          imageUrl: payload.imageUrl,
+          imagePrompt: payload.imagePrompt,
+          ctaUrl: payload.ctaUrl,
+          ctaLabel: payload.ctaLabel,
         }),
       })
 
@@ -709,7 +755,7 @@ Requirements:
         await supabase.from("sent_messages").insert({
           customer_id: sc.profile.id,
           message_type: "ai_personalized",
-          message_content: sc.message,
+          message_content: payload.message,
           channel: "whatsapp",
           status: "sent"
         })
@@ -755,10 +801,19 @@ Requirements:
         }
 
         const phone = formatPhone(sc.profile.phone)
+        const payload = buildSmartWhatsAppPayload(sc)
         const response = await fetch("/api/whatsapp/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone, message: sc.message }),
+          body: JSON.stringify({
+            phone,
+            message: payload.message,
+            imageCaption: payload.imageCaption,
+            imageUrl: payload.imageUrl,
+            imagePrompt: payload.imagePrompt,
+            ctaUrl: payload.ctaUrl,
+            ctaLabel: payload.ctaLabel,
+          }),
         })
 
         const result = await response.json()
@@ -772,7 +827,7 @@ Requirements:
           await supabase.from("sent_messages").insert({
             customer_id: sc.profile.id,
             message_type: "ai_personalized",
-            message_content: sc.message,
+            message_content: payload.message,
             channel: "whatsapp",
             status: "sent"
           })
@@ -1207,6 +1262,18 @@ Requirements:
                             )}
 
                             {/* Message */}
+                            {(() => {
+                              const sendPack = buildSmartWhatsAppPayload(sc)
+                              return (
+                                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/25 text-xs space-y-1">
+                                  <p className="font-medium text-blue-700">WhatsApp Send Package</p>
+                                  <p>🖼️ Image: {sendPack.imageUrl ? "Fixed voucher image URL" : "AI generated campaign visual (302.AI)"}</p>
+                                  <p>🔘 CTA: Disabled (as requested)</p>
+                                  <p className="truncate">🔗 Link in chat: Disabled</p>
+                                </div>
+                              )
+                            })()}
+
                             <div>
                               <label className="text-sm font-medium mb-1 block">{t("ai", "generatedMessage")}</label>
                               <Textarea

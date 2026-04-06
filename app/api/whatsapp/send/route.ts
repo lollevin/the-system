@@ -4,6 +4,23 @@ import { createClient } from "@/lib/supabase/server"
 
 const WHATSAPP_SERVICE_URL = process.env.WHATSAPP_SERVICE_URL || "http://localhost:3001"
 const WHATSAPP_SERVICE_KEY = process.env.WHATSAPP_SERVICE_KEY || "default-key"
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY
+const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
+const WHATSAPP_FIXED_IMAGE_URL = process.env.WHATSAPP_FIXED_IMAGE_URL || "/images/jpco-voucher.png"
+
+async function imageUrlToBase64(url: string): Promise<{ base64: string; mimeType: string; filename: string } | null> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const mimeType = res.headers.get("content-type") || "image/png"
+    const ab = await res.arrayBuffer()
+    const base64 = Buffer.from(ab).toString("base64")
+    const filename = mimeType.includes("jpeg") ? "campaign.jpg" : mimeType.includes("webp") ? "campaign.webp" : "campaign.png"
+    return { base64, mimeType, filename }
+  } catch {
+    return null
+  }
+}
 
 function isConnectionError(error: any): boolean {
   const msg = (error?.message || error?.cause?.message || "").toLowerCase()
@@ -30,17 +47,83 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { phone, message } = body
+    const {
+      phone,
+      message,
+      imageBase64,
+      imageMimeType,
+      imageFilename,
+      imagePrompt,
+      imageUrl,
+      imageCaption,
+      ctaUrl,
+      ctaLabel,
+    } = body
 
-    if (!phone || !message) {
+    if (!phone || (!message && !imageBase64 && !imagePrompt)) {
       return NextResponse.json(
-        { error: "Phone and message are required" },
+        { error: "Phone and at least one content (message/image) is required" },
         { status: 400 }
       )
     }
 
+    let finalImageBase64: string | undefined = imageBase64
+    let finalImageMimeType: string | undefined = imageMimeType
+    let finalImageFilename: string | undefined = imageFilename
+
+    // Highest priority: explicit imageUrl from request, then fixed env image URL.
+    const preferredImageUrl = imageUrl || WHATSAPP_FIXED_IMAGE_URL
+    const resolvedImageUrl = preferredImageUrl?.startsWith("/")
+      ? new URL(preferredImageUrl, request.nextUrl.origin).toString()
+      : preferredImageUrl
+    if (!finalImageBase64 && resolvedImageUrl) {
+      const converted = await imageUrlToBase64(resolvedImageUrl)
+      if (converted) {
+        finalImageBase64 = converted.base64
+        finalImageMimeType = converted.mimeType
+        finalImageFilename = converted.filename
+      } else {
+        console.warn("[WA Send] Failed to load image URL:", resolvedImageUrl)
+      }
+    }
+
+    // Optional: generate campaign image using 302.AI(OpenAI compatible) when prompt is provided.
+    if (!finalImageBase64 && imagePrompt && OPENAI_API_KEY) {
+      try {
+        const imgRes = await fetch(`${OPENAI_BASE_URL}/images/generations`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-image-1",
+            prompt: imagePrompt,
+            size: "1024x1024",
+            quality: "high",
+            response_format: "b64_json",
+          }),
+        })
+
+        if (imgRes.ok) {
+          const imgData = await imgRes.json()
+          const b64 = imgData?.data?.[0]?.b64_json
+          if (b64) {
+            finalImageBase64 = b64
+            finalImageMimeType = "image/png"
+            finalImageFilename = "jpco-campaign.png"
+          }
+        } else {
+          console.warn("[WA Send] Image generation failed:", imgRes.status)
+        }
+      } catch (imgErr: any) {
+        console.warn("[WA Send] Image generation error:", imgErr?.message || imgErr)
+      }
+    }
+
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 15000)
+    // Allow longer timeout when image generation/upload is involved.
+    const timeout = setTimeout(() => controller.abort(), imagePrompt || finalImageBase64 ? 50000 : 15000)
 
     const response = await fetch(`${WHATSAPP_SERVICE_URL}/api/send`, {
       method: "POST",
@@ -48,7 +131,16 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
         "x-api-key": WHATSAPP_SERVICE_KEY,
       },
-      body: JSON.stringify({ phone, message }),
+      body: JSON.stringify({
+        phone,
+        message,
+        imageBase64: finalImageBase64,
+        imageMimeType: finalImageMimeType,
+        imageFilename: finalImageFilename,
+        imageCaption,
+        ctaUrl,
+        ctaLabel,
+      }),
       signal: controller.signal,
     })
 
