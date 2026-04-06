@@ -492,7 +492,7 @@ Requirements:
       // Always remove from local state and clean message
       setSelectedCustomers(prev => prev.map(s => 
         s.profile.id === customerId 
-          ? { ...s, voucher: null, message: s.message.split("\n\n🎫")[0] }
+          ? { ...s, voucher: null, message: rebuildMessageWithoutVoucher(s.message, s.analysis, s.profile) }
           : s
       ))
 
@@ -559,6 +559,44 @@ Requirements:
     setSelectedCustomers(prev => prev.map(s => 
       s.profile.id === customerId ? { ...s, message: newMessage } : s
     ))
+  }
+
+  // Remove voucher traces and regenerate smart links without voucher CTA
+  const rebuildMessageWithoutVoucher = (message: string, analysis: CustomerAnalysis | null, profile: Profile): string => {
+    const cleaned = message
+      .split("\n")
+      .filter((line) => {
+        const l = line.toLowerCase()
+        if (!line.trim()) return true
+
+        // Voucher copy / code / claim lines
+        if (l.includes("voucher") || l.includes("优惠券")) return false
+        if (l.includes("claim here") || l.includes("claim voucher") || l.includes("领取")) return false
+        if (l.includes("view=vouchers") || l.includes("code=")) return false
+
+        // Existing smart links to be regenerated for current context
+        if (l.includes("view points & rewards") || l.includes("check your rewards")) return false
+        if (l.includes("see our menu")) return false
+        if (l.includes("/pwa?view=home") || l.includes("/pwa?view=menu")) return false
+
+        return true
+      })
+      .join("\n")
+      .replace(/https?:\/\/\S*view=vouchers\S*/gi, "")
+      .replace(/🎫.*$/gim, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+
+    const links = getSmartLinks({
+      hasVoucher: false,
+      isVip: !!analysis?.isVip,
+      isBirthday: !!analysis?.hasBirthday,
+      isInactive: !!analysis?.isAtRisk,
+      isNewCustomer: (analysis?.visitCount || 0) <= 2,
+    })
+
+    if (links) return `${cleaned}\n\n${links}`.trim()
+    return cleaned || `Hi ${profile.full_name || "there"}!`
   }
 
   // Format phone for WhatsApp
