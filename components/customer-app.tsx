@@ -711,7 +711,7 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
 
   // Support View
   if (activeView === "support") {
-    const SUPPORT_PHONE = "60123456789" // JP&Co customer service WhatsApp number - change later
+    const SUPPORT_PHONE = "60173599349" // JP&Co customer service WhatsApp number
     
     const supportCategories = [
       { value: "points", label: t("customer", "supportPoints") },
