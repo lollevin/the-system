@@ -3,6 +3,11 @@
  * 
  * This service manages WhatsApp Web.js connection and provides
  * API endpoints for sending messages.
+ * 
+ * 安全特性:
+ * - 频率限制 (Rate Limiting) - 防止账号被封
+ * - 指数退避重试 (Exponential Backoff) - 处理网络抖动
+ * - 所有 API Key 通过环境变量管理
  */
 
 require('dotenv').config();
@@ -14,9 +19,96 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const API_KEY = process.env.API_KEY || 'default-key';
 
+// ============================================
+// 频率限制配置 (Rate Limiting)
+// ============================================
+const RATE_LIMIT = {
+  windowMs: 60 * 1000,           // 1 分钟窗口
+  maxRequests: 20,               // 每分钟最多 20 条消息 (WhatsApp 安全阈值)
+  maxBurstRequests: 5,           // 瞬时突发最多 5 条
+  burstWindowMs: 10 * 1000,      // 10 秒内的突发窗口
+};
+
+const rateLimitStore = {
+  requests: [],      // 时间戳数组
+  burstRequests: [], // 突发请求时间戳
+};
+
+function checkRateLimit() {
+  const now = Date.now();
+  
+  // 清理过期的请求记录
+  rateLimitStore.requests = rateLimitStore.requests.filter(
+    ts => now - ts < RATE_LIMIT.windowMs
+  );
+  rateLimitStore.burstRequests = rateLimitStore.burstRequests.filter(
+    ts => now - ts < RATE_LIMIT.burstWindowMs
+  );
+  
+  // 检查是否超限
+  if (rateLimitStore.requests.length >= RATE_LIMIT.maxRequests) {
+    const oldestRequest = rateLimitStore.requests[0];
+    const retryAfter = Math.ceil((RATE_LIMIT.windowMs - (now - oldestRequest)) / 1000);
+    return { allowed: false, reason: 'rate_limit', retryAfter };
+  }
+  
+  if (rateLimitStore.burstRequests.length >= RATE_LIMIT.maxBurstRequests) {
+    const oldestBurst = rateLimitStore.burstRequests[0];
+    const retryAfter = Math.ceil((RATE_LIMIT.burstWindowMs - (now - oldestBurst)) / 1000);
+    return { allowed: false, reason: 'burst_limit', retryAfter };
+  }
+  
+  return { allowed: true };
+}
+
+function recordRequest() {
+  const now = Date.now();
+  rateLimitStore.requests.push(now);
+  rateLimitStore.burstRequests.push(now);
+}
+
+// 频率限制中间件
+function rateLimitMiddleware(req, res, next) {
+  const check = checkRateLimit();
+  if (!check.allowed) {
+    console.warn(`[Rate Limit] Blocked: ${check.reason}, retry after ${check.retryAfter}s`);
+    return res.status(429).json({
+      error: 'Too many requests',
+      reason: check.reason,
+      retryAfter: check.retryAfter,
+      message: `请等待 ${check.retryAfter} 秒后重试，防止 WhatsApp 账号被封`
+    });
+  }
+  next();
+}
+
+// ============================================
+// 指数退避重试 (Exponential Backoff)
+// ============================================
+async function withRetry(fn, maxRetries = 3, baseDelay = 1000) {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      
+      // 如果是最后一次尝试，直接抛出错误
+      if (attempt === maxRetries) break;
+      
+      // 计算退避延迟: 1s, 2s, 4s, 8s...
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`[Retry] Attempt ${attempt + 1} failed, retrying in ${delay}ms...`, error.message);
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError;
+}
+
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // 支持大图片
 
 // Localhost-only security (before routes)
 app.use((req, res, next) => {
@@ -73,8 +165,8 @@ app.post('/api/restart', authenticate, async (req, res) => {
   }
 });
 
-// Send single message
-app.post('/api/send', authenticate, async (req, res) => {
+// Send single message (with rate limiting and retry)
+app.post('/api/send', authenticate, rateLimitMiddleware, async (req, res) => {
   try {
     const {
       phone,
@@ -91,21 +183,29 @@ app.post('/api/send', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Phone and at least one content (message/image) are required' });
     }
     
-    const result = await sendMessage(phone, message, {
-      imageBase64,
-      imageMimeType,
-      imageFilename,
-      imageCaption,
-      ctaUrl,
-      ctaLabel,
-    });
+    // 记录请求（用于频率限制）
+    recordRequest();
+    
+    // 使用指数退避重试发送消息
+    const result = await withRetry(async () => {
+      return await sendMessage(phone, message, {
+        imageBase64,
+        imageMimeType,
+        imageFilename,
+        imageCaption,
+        ctaUrl,
+        ctaLabel,
+      });
+    }, 3, 1000);
+    
     res.json(result);
   } catch (error) {
+    console.error('[Send Error]', error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Send bulk messages
+// Send bulk messages (with built-in rate limiting via delay)
 app.post('/api/bulk-send', authenticate, async (req, res) => {
   try {
     const { messages, delayMs = 3000 } = req.body;
@@ -120,9 +220,26 @@ app.post('/api/bulk-send', authenticate, async (req, res) => {
       }
     }
     
-    const result = await sendBulkMessages(messages, delayMs);
+    // 批量发送的频率限制：确保每条消息间隔至少 3 秒
+    // WhatsApp 建议间隔 3-5 秒以避免被封
+    const safeDelayMs = Math.max(delayMs, 3000);
+    
+    // 检查是否会超过频率限制
+    const estimatedTime = messages.length * safeDelayMs / 1000;
+    if (messages.length > RATE_LIMIT.maxRequests) {
+      console.warn(`[Bulk Send] Large batch: ${messages.length} messages, ~${estimatedTime}s`);
+    }
+    
+    const result = await sendBulkMessages(messages, safeDelayMs);
+    
+    // 记录所有发送的消息（用于频率限制统计）
+    for (let i = 0; i < result.success; i++) {
+      recordRequest();
+    }
+    
     res.json(result);
   } catch (error) {
+    console.error('[Bulk Send Error]', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -135,6 +252,26 @@ app.post('/api/disconnect', authenticate, async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Rate limit stats (for monitoring)
+app.get('/api/rate-limit-stats', authenticate, (req, res) => {
+  const now = Date.now();
+  const recentRequests = rateLimitStore.requests.filter(
+    ts => now - ts < RATE_LIMIT.windowMs
+  ).length;
+  const recentBurst = rateLimitStore.burstRequests.filter(
+    ts => now - ts < RATE_LIMIT.burstWindowMs
+  ).length;
+  
+  res.json({
+    currentMinuteRequests: recentRequests,
+    maxPerMinute: RATE_LIMIT.maxRequests,
+    currentBurstRequests: recentBurst,
+    maxBurst: RATE_LIMIT.maxBurstRequests,
+    remainingMinute: RATE_LIMIT.maxRequests - recentRequests,
+    remainingBurst: RATE_LIMIT.maxBurstRequests - recentBurst,
+  });
 });
 
 // Initialize WhatsApp client

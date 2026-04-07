@@ -292,7 +292,26 @@ async function sendMessage(phone, message, options = {}) {
 }
 
 /**
- * Send bulk messages with delay
+ * 指数退避重试辅助函数
+ */
+async function withRetry(fn, maxRetries = 3, baseDelay = 1000) {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt === maxRetries) break;
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`[Retry] Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError;
+}
+
+/**
+ * Send bulk messages with delay and retry
  */
 async function sendBulkMessages(messages, delayMs = 3000) {
   if (connectionStatus !== 'connected') {
@@ -302,7 +321,7 @@ async function sendBulkMessages(messages, delayMs = 3000) {
   const results = [];
   const totalCount = messages.length;
   
-  console.log(`Starting bulk send: ${totalCount} messages`);
+  console.log(`Starting bulk send: ${totalCount} messages (delay: ${delayMs}ms)`);
   
   for (let i = 0; i < messages.length; i++) {
     const {
@@ -318,14 +337,18 @@ async function sendBulkMessages(messages, delayMs = 3000) {
     } = messages[i];
     
     try {
-      const result = await sendMessage(phone, message, {
-        imageBase64,
-        imageMimeType,
-        imageFilename,
-        imageCaption,
-        ctaUrl,
-        ctaLabel,
-      });
+      // 使用指数退避重试
+      const result = await withRetry(async () => {
+        return await sendMessage(phone, message, {
+          imageBase64,
+          imageMimeType,
+          imageFilename,
+          imageCaption,
+          ctaUrl,
+          ctaLabel,
+        });
+      }, 2, 1000); // 最多重试 2 次
+      
       results.push({
         ...result,
         customerId,
@@ -347,8 +370,10 @@ async function sendBulkMessages(messages, delayMs = 3000) {
     }
     
     // Delay between messages (except for the last one)
+    // WhatsApp 建议至少 3 秒间隔以避免被封
     if (i < messages.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+      const safeDelay = Math.max(delayMs, 3000);
+      await new Promise(resolve => setTimeout(resolve, safeDelay));
     }
   }
   

@@ -35,126 +35,64 @@ export async function addPoints(
 ) {
   const supabase = await createClient();
 
-  // Calculate points (1 point per RM 1)
-  const points = Math.floor(amount);
-
-  // Insert transaction
-  const { error: txError } = await supabase.from("transactions").insert({
-    user_id: userId,
-    staff_id: staffId,
-    type: "earn",
-    points,
-    amount,
-    reason,
+  // 使用原子操作 RPC 函数，防止竞态条件
+  const { data, error } = await supabase.rpc("add_points_atomic", {
+    p_user_id: userId,
+    p_amount: amount,
+    p_reason: reason,
+    p_staff_id: staffId,
   });
 
-  if (txError) {
-    return { success: false, error: txError.message };
+  if (error) {
+    return { success: false, error: error.message };
   }
 
-  // Get current balance
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("points_balance, total_spent, visit_count")
-    .eq("id", userId)
-    .single();
-
-  if (!profile) {
-    return { success: false, error: "User not found" };
-  }
-
-  // Update user profile
-  const { error: updateError } = await supabase
-    .from("profiles")
-    .update({
-      points_balance: profile.points_balance + points,
-      total_spent: profile.total_spent + amount,
-      visit_count: profile.visit_count + 1,
-      last_visit: new Date().toISOString(),
-    })
-    .eq("id", userId);
-
-  if (updateError) {
-    return { success: false, error: updateError.message };
+  // RPC 返回 JSONB
+  const result = data as { success: boolean; points?: number; newBalance?: number; error?: string };
+  
+  if (!result.success) {
+    return { success: false, error: result.error || "Unknown error" };
   }
 
   return {
     success: true,
-    points,
-    newBalance: profile.points_balance + points,
+    points: result.points,
+    newBalance: result.newBalance,
   };
 }
 
 export async function redeemVoucher(userId: string, voucherId: string) {
   const supabase = await createClient();
 
-  // Get voucher details
-  const { data: voucher } = await supabase
-    .from("vouchers")
-    .select("*")
-    .eq("id", voucherId)
-    .single();
-
-  if (!voucher) {
-    return { success: false, error: "Voucher not found" };
-  }
-
-  if (!voucher.is_active) {
-    return { success: false, error: "Voucher is not active" };
-  }
-
-  // Get user profile
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("points_balance")
-    .eq("id", userId)
-    .single();
-
-  if (!profile) {
-    return { success: false, error: "User not found" };
-  }
-
-  if (profile.points_balance < voucher.points_cost) {
-    return { success: false, error: "Insufficient points" };
-  }
-
-  // Create user voucher record
-  const { error: voucherError } = await supabase.from("user_vouchers").insert({
-    user_id: userId,
-    voucher_id: voucherId,
+  // 使用原子操作 RPC 函数，防止竞态条件
+  // 整个兑换过程在一个数据库事务中完成
+  const { data, error } = await supabase.rpc("redeem_voucher_atomic", {
+    p_user_id: userId,
+    p_voucher_id: voucherId,
   });
 
-  if (voucherError) {
-    return { success: false, error: voucherError.message };
+  if (error) {
+    return { success: false, error: error.message };
   }
 
-  // Deduct points and record transaction
-  const { error: txError } = await supabase.from("transactions").insert({
-    user_id: userId,
-    type: "redeem",
-    points: voucher.points_cost,
-    reason: `Redeemed: ${voucher.name}`,
-  });
-
-  if (txError) {
-    return { success: false, error: txError.message };
-  }
-
-  // Update user points
-  const { error: updateError } = await supabase
-    .from("profiles")
-    .update({
-      points_balance: profile.points_balance - voucher.points_cost,
-    })
-    .eq("id", userId);
-
-  if (updateError) {
-    return { success: false, error: updateError.message };
+  // RPC 返回 JSONB
+  const result = data as { 
+    success: boolean; 
+    voucher?: string; 
+    voucherCode?: string;
+    pointsUsed?: number;
+    newBalance?: number; 
+    error?: string 
+  };
+  
+  if (!result.success) {
+    return { success: false, error: result.error || "Unknown error" };
   }
 
   return {
     success: true,
-    voucher: voucher.name,
-    newBalance: profile.points_balance - voucher.points_cost,
+    voucher: result.voucher,
+    voucherCode: result.voucherCode,
+    newBalance: result.newBalance,
   };
 }
