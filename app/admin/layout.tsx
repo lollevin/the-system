@@ -1,8 +1,9 @@
 import { Metadata, Viewport } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { DashboardHeader } from "@/components/admin/dashboard-header";
+import { AdminSidebar } from "@/app/admin/components/admin-sidebar";
 import { AdminMobileNav } from "@/components/admin/admin-mobile-nav";
+import { DashboardHeader } from "@/components/admin/dashboard-header";
 
 export const metadata: Metadata = {
   title: "JP&Co - Admin Dashboard",
@@ -43,11 +44,25 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader />
-      <main className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8 pb-24 lg:pb-4">
-        {children}
-      </main>
-      <AdminMobileNav />
+      {/* Sidebar for Desktop */}
+      <div className="hidden lg:block">
+        <AdminSidebar />
+      </div>
+
+      {/* Main Content Area - adjusted for sidebar padding on desktop */}
+      <div className="lg:pl-64 transition-all duration-300">
+        {/* Header - now used for mobile or as a top utility bar */}
+        <DashboardHeader />
+        
+        <main className="px-4 py-4 sm:px-6 lg:px-8 pb-24 lg:pb-4">
+          {children}
+        </main>
+      </div>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="lg:hidden">
+        <AdminMobileNav />
+      </div>
     </div>
   );
 }

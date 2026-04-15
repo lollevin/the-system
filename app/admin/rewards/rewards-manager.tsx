@@ -40,7 +40,7 @@ interface RewardsManagerProps {
   customers: CustomerBasic[]
 }
 
-export function RewardsManager({ initialVouchers, customers }: RewardsManagerProps) {
+export function RewardsManager({ initialVouchers = [], customers = [] }: RewardsManagerProps) {
   const { t } = useLanguage()
   const [vouchers, setVouchers] = useState<any[]>(initialVouchers)
   const [isDialogOpen, setIsDialogOpen] = useState(false)

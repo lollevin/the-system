@@ -33,9 +33,49 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
     push: true,
     weekly: false,
   })
+  const [promoBanner, setPromoBanner] = useState({
+    imageUrl: "",
+    link: "/pwa",
+    isActive: false,
+  })
 
   const supabase = createClient()
   const { language, setLanguage, t } = useLanguage()
+
+  useEffect(() => {
+    async function fetchPromo() {
+      const { data } = await supabase
+        .from("global_settings")
+        .select("value")
+        .eq("key", "promo_banner")
+        .single()
+      
+      if (data?.value) {
+        setPromoBanner(data.value)
+      }
+    }
+    fetchPromo()
+  }, [])
+
+  const handleSavePromo = async () => {
+    setIsLoading(true)
+    try {
+      const { error } = await supabase
+        .from("global_settings")
+        .upsert({
+          key: "promo_banner",
+          value: promoBanner,
+          updated_at: new Date().toISOString()
+        })
+
+      if (error) throw error
+      toast.success("Promo banner settings saved!")
+    } catch (err: any) {
+      toast.error("Failed to save promo settings", { description: err.message })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleSave = async () => {
     if (!user) return
@@ -199,6 +239,66 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
               </>
             ) : (
               t("admin", "saveChanges")
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* App Customization Section */}
+      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <CardHeader>
+          <CardTitle>App Promotion Banner</CardTitle>
+          <CardDescription>Configure the popup banner that appears when customers open the app.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-foreground">Enable Banner</p>
+              <p className="text-sm text-muted-foreground">Show the promotional popup to customers on entry.</p>
+            </div>
+            <Switch 
+              checked={promoBanner.isActive}
+              onCheckedChange={(checked) => setPromoBanner(prev => ({ ...prev, isActive: checked }))}
+            />
+          </div>
+
+          <Separator className="bg-border/50" />
+
+          <div className="space-y-2">
+            <Label htmlFor="bannerImage">Banner Image URL</Label>
+            <Input 
+              id="bannerImage" 
+              placeholder="https://example.com/banner.jpg"
+              value={promoBanner.imageUrl}
+              onChange={(e) => setPromoBanner(prev => ({ ...prev, imageUrl: e.target.value }))}
+              className="bg-background/50" 
+            />
+            <p className="text-[10px] text-muted-foreground">Upload your banner to a CDN or host and paste the URL here.</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bannerLink">Banner Link (Optional)</Label>
+            <Input 
+              id="bannerLink" 
+              placeholder="/pwa?view=menu"
+              value={promoBanner.link}
+              onChange={(e) => setPromoBanner(prev => ({ ...prev, link: e.target.value }))}
+              className="bg-background/50" 
+            />
+          </div>
+
+          <Button 
+            onClick={handleSavePromo}
+            disabled={isLoading}
+            className="w-full bg-[#8b6f47] hover:bg-[#7a5f3a] text-white"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Banner Settings"
             )}
           </Button>
         </CardContent>

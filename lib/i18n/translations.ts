@@ -283,6 +283,8 @@ export const translations = {
     menu: { en: "Menu", zh: "菜单", ms: "Menu" },
     ai: { en: "AI Marketing", zh: "AI 营销", ms: "Pemasaran AI" },
     staffManagement: { en: "Staff Management", zh: "员工管理", ms: "Pengurusan Staf" },
+    shopManagement: { en: "Shop Management", zh: "店铺管理", ms: "Pengurusan Kedai" },
+    menuAndStaff: { en: "Menu & Staff", zh: "菜单和员工", ms: "Menu & Kakitangan" },
     overview: { en: "Overview", zh: "概览", ms: "Gambaran Keseluruhan" },
     
     // Settings

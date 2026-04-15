@@ -40,10 +40,9 @@ function useSidebarItems() {
   const { t } = useLanguage()
   return [
     { href: "/admin/ai", icon: <Bot className="h-5 w-5" />, label: t("admin", "ai"), desc: t("admin", "smartCampaigns"), color: "bg-amber-500/10 text-amber-600" },
-    { href: "/admin/menu", icon: <UtensilsCrossed className="h-5 w-5" />, label: t("admin", "menu"), desc: t("admin", "foodAndDrinks"), color: "bg-orange-500/10 text-orange-600" },
-    { href: "/admin/rewards", icon: <Gift className="h-5 w-5" />, label: t("admin", "rewards"), desc: t("admin", "loyaltyRewards"), color: "bg-purple-500/10 text-purple-600" },
-    { href: "/admin/referrals", icon: <Users className="h-5 w-5" />, label: t("admin", "shareAndEarn"), desc: t("admin", "referralProgram"), color: "bg-blue-500/10 text-blue-600" },
-    { href: "/admin/customers", icon: <Store className="h-5 w-5" />, label: t("admin", "staffManagement"), desc: t("admin", "teamManagement"), color: "bg-green-500/10 text-green-600" },
+    { href: "/admin/shop", icon: <Store className="h-5 w-5" />, label: t("admin", "shopManagement"), desc: t("admin", "menuAndStaff"), color: "bg-orange-500/10 text-orange-600" },
+    { href: "/admin/growth?tab=rewards", icon: <Gift className="h-5 w-5" />, label: t("admin", "rewards"), desc: t("admin", "loyaltyRewards"), color: "bg-purple-500/10 text-purple-600" },
+    { href: "/admin/growth?tab=referrals", icon: <Users className="h-5 w-5" />, label: t("admin", "shareAndEarn"), desc: t("admin", "referralProgram"), color: "bg-blue-500/10 text-blue-600" },
     { href: "/admin/customer-list", icon: <Users className="h-5 w-5" />, label: t("admin", "customers"), desc: t("admin", "memberDatabase"), color: "bg-teal-500/10 text-teal-600" },
     { href: "/admin/knowledge-base", icon: <Brain className="h-5 w-5" />, label: t("admin", "knowledgeBase"), desc: t("admin", "kbNavDesc"), color: "bg-indigo-500/10 text-indigo-600" },
   ]

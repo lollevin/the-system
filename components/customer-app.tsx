@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { ChevronLeft, Gift, History, Ticket, Coins, User, Users, Settings, HelpCircle, Mail, Phone, Loader2, LogOut, Bell, Megaphone, Star, PartyPopper, CheckCircle, QrCode, X, Globe, MessageCircle, Send } from "lucide-react"
+import { ChevronLeft, Gift, History, Ticket, Coins, User, Users, Settings, HelpCircle, Mail, Phone, Loader2, LogOut, Bell, Megaphone, Star, PartyPopper, CheckCircle, QrCode, X, Globe, MessageCircle, Send, Home, Coffee } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { QRCodeSVG } from "qrcode.react"
@@ -25,6 +25,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 import type { Profile } from "@/lib/supabase/types"
+import { PromoModal } from "@/components/promo-modal"
 import { useLanguage } from "@/lib/i18n"
 
 interface CustomerAppProps {
@@ -932,6 +933,7 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
   // Home View
   return (
     <main className="min-h-screen bg-background pb-8">
+      <PromoModal />
       <div className="mx-auto max-w-md sm:max-w-lg">
         <Header 
           profile={profile} 

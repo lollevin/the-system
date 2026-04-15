@@ -4,207 +4,173 @@ import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import {
-  LayoutDashboard,
-  Users,
+import { 
+  LayoutDashboard, 
+  UtensilsCrossed, 
+  Users, 
+  Settings, 
+  LogOut, 
+  ChevronLeft, 
+  ChevronRight,
   UserRound,
-  Bot,
-  Settings,
-  LogOut,
-  Sparkles,
-  BarChart3,
-  Gift,
   History,
-  Menu,
-  X,
+  Bot,
+  BookOpen,
   Shield,
-  Share2,
+  Megaphone,
+  Heart,
+  Store
 } from "lucide-react";
-import type { User } from "@supabase/supabase-js";
-import type { Profile } from "@/lib/supabase/types";
+import Link from "next/link";
+import Image from "next/image";
+import { toast } from "sonner";
 
-interface AdminSidebarProps {
-  user: User;
-  profile: Profile;
-}
-
-const navItems = [
-  {
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    href: "/admin",
-  },
-  {
-    label: "Analytics",
-    icon: BarChart3,
-    href: "/admin/analytics",
-  },
-  {
-    label: "Customers",
-    icon: UserRound,
-    href: "/admin/customer-list",
-  },
-  {
-    label: "Staff Management",
-    icon: Users,
-    href: "/admin/customers",
-  },
-  {
-    label: "Rewards",
-    icon: Gift,
-    href: "/admin/rewards",
-  },
-  {
-    label: "Transactions",
-    icon: History,
-    href: "/admin/transactions",
-  },
-  {
-    label: "AI Copilot",
-    icon: Bot,
-    href: "/admin/ai",
-  },
-  {
-    label: "Share & Earn",
-    icon: Share2,
-    href: "/admin/referrals",
-  },
-  {
-    label: "Staff Monitor",
-    icon: Shield,
-    href: "/admin/staff",
-  },
-  {
-    label: "Settings",
-    icon: Settings,
-    href: "/admin/settings",
-  },
-];
-
-export default function AdminSidebar({ user, profile }: AdminSidebarProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function AdminSidebar() {
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
 
+  const menuItems = [
+    {
+      label: "Overview Maps",
+      icon: LayoutDashboard,
+      href: "/admin",
+    },
+    {
+      label: "Customer Hub",
+      icon: Heart,
+      href: "/admin/growth",
+    },
+    {
+      label: "Customer List",
+      icon: UserRound,
+      href: "/admin/customer-list",
+    },
+    {
+      label: "Menu Management",
+      icon: UtensilsCrossed,
+      href: "/admin/menu",
+    },
+    {
+      label: "App Banner",
+      icon: Megaphone,
+      href: "/admin/banner",
+    },
+    {
+      label: "Staff Management",
+      icon: Users,
+      href: "/admin/customers",
+    },
+    {
+      label: "Transactions",
+      icon: History,
+      href: "/admin/transactions",
+    },
+    {
+      label: "AI Copilot",
+      icon: Bot,
+      href: "/admin/ai",
+    },
+    {
+      label: "Knowledge Base",
+      icon: BookOpen,
+      href: "/admin/knowledge-base",
+    },
+    {
+      label: "Staff Monitor",
+      icon: Shield,
+      href: "/admin/staff",
+    },
+    {
+      label: "Settings",
+      icon: Settings,
+      href: "/admin/settings",
+    },
+  ];
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    toast.success("Logged out successfully");
     router.push("/login");
-  };
-
-  const handleNavClick = (href: string) => {
-    router.push(href);
-    setIsOpen(false); // Close mobile menu after navigation
   };
 
   return (
     <>
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#8b6f47] flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <h1 className="font-bold text-foreground">JP&co</h1>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </Button>
-      </div>
-
-      {/* Mobile Overlay */}
-      {isOpen && (
-        <div 
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside className={`
-        fixed left-0 top-0 z-40 h-screen w-64 bg-background border-r border-border flex flex-col
-        transition-transform duration-300 ease-in-out
-        lg:translate-x-0
-        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:block
-      `}>
-        {/* Logo - Hidden on mobile (shown in header) */}
-        <div className="p-6 hidden lg:block">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#8b6f47] flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
+      <aside 
+        className={`fixed left-0 top-0 z-40 h-screen border-r border-border bg-card transition-all duration-300 ${
+          isCollapsed ? "w-20" : "w-64"
+        }`}
+      >
+        <div className="flex h-full flex-col">
+          {/* Logo Section */}
+          <div className="flex items-center gap-3 p-6">
+            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-lg shadow-primary/20">
+              <Image
+                src="/Logo/w768.png"
+                alt="JP&Co"
+                fill
+                className="object-cover"
+              />
             </div>
-            <div>
-              <h1 className="font-bold text-lg text-foreground">JP&co</h1>
-              <p className="text-xs text-muted-foreground">Admin Dashboard</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Spacer for mobile header */}
-        <div className="h-14 lg:hidden" />
-
-        <Separator className="bg-border hidden lg:block" />
-
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/admin" && pathname.startsWith(item.href));
-            const Icon = item.icon;
-
-            return (
-              <button
-                key={item.href}
-                onClick={() => handleNavClick(item.href)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive
-                    ? "bg-[#8b6f47]/10 text-[#8b6f47]"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{item.label}</span>
-                {item.label === "AI Copilot" && (
-                  <span className="ml-auto px-2 py-0.5 text-xs bg-[#8b6f47] text-white rounded-full font-semibold">
-                    NEW
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        <Separator className="bg-border" />
-
-        {/* User Info & Logout */}
-        <div className="p-4">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-            <div className="w-10 h-10 rounded-full bg-[#8b6f47] flex items-center justify-center">
-              <span className="text-sm font-medium text-white">
-                {profile.full_name?.charAt(0) || user.email?.charAt(0) || "A"}
+            {!isCollapsed && (
+              <span className="text-xl font-extrabold tracking-tight text-foreground">
+                JP&Co
               </span>
+            )}
+          </div>
+
+          {/* Navigation Section */}
+          <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto overflow-x-hidden">
+            {menuItems.map((item) => {
+              const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all group ${
+                    isActive
+                      ? "bg-[#8b6f47] text-white shadow-lg shadow-[#8b6f47]/20"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <item.icon className={`h-5 w-5 shrink-0 ${isActive ? "" : "group-hover:scale-110 transition-transform"}`} />
+                  {!isCollapsed && (
+                    <span className="text-sm font-semibold tracking-wide whitespace-nowrap">
+                      {item.label}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Footer Section */}
+          <div className="border-t border-border p-4">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+              </Button>
+              {!isCollapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate text-foreground">Administrator</p>
+                  <p className="text-xs text-muted-foreground truncate">Admin Panel</p>
+                </div>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLogout}
+                className="shrink-0 text-muted-foreground hover:text-red-500 hover:bg-red-50"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate text-foreground">
-                {profile.full_name || "Admin"}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              className="shrink-0"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
           </div>
         </div>
       </aside>

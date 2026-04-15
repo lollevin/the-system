@@ -42,20 +42,13 @@ export function AdminNotifications() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   
   const supabase = createClient()
   const { language, t } = useLanguage()
-  
-  // Get locale for date formatting
-  const getLocale = () => {
-    switch (language) {
-      case "zh": return zhCN
-      case "ms": return ms
-      default: return enUS
-    }
-  }
 
   useEffect(() => {
+    setIsMounted(true)
     loadNotifications()
     
     // Subscribe to new notifications
@@ -174,6 +167,17 @@ export function AdminNotifications() {
         return "bg-card border-border"
     }
   }
+
+  // Get locale for date formatting
+  const getLocale = () => {
+    switch (language) {
+      case "zh": return zhCN
+      case "ms": return ms
+      default: return enUS
+    }
+  }
+
+  if (!isMounted) return null
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
