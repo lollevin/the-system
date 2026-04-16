@@ -25,7 +25,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 import type { Profile } from "@/lib/supabase/types"
-import { PromoModal } from "@/components/promo-modal"
+import { PromoModal, TopBanner } from "@/components/promo-modal"
 import { useLanguage } from "@/lib/i18n"
 
 interface CustomerAppProps {
@@ -941,6 +941,7 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
           onNotificationClick={handleNotificationClick}
           onAvatarClick={() => setActiveView("settings")}
         />
+        <TopBanner />
         <div className="flex flex-col gap-3.5 px-4 py-3 stagger-children">
           <AnimatedGreeting profile={profile} vouchers={vouchers} t={t} />
           <MembershipCard profile={profile} />

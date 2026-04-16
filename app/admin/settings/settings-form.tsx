@@ -85,9 +85,9 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
     const fileExt = file.name.split('.').pop()
     const fileName = `banner_${bannerType}_${Date.now()}.${fileExt}`
     const filePath = `banners/${fileName}`
-    const { error: uploadError } = await supabase.storage.from("public-assets").upload(filePath, file, { upsert: true })
+    const { error: uploadError } = await supabase.storage.from("uploads").upload(filePath, file, { upsert: true })
     if (uploadError) throw uploadError
-    const { data } = supabase.storage.from("public-assets").getPublicUrl(filePath)
+    const { data } = supabase.storage.from("uploads").getPublicUrl(filePath)
     return data.publicUrl
   }
 
