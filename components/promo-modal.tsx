@@ -11,6 +11,7 @@ interface BannerData {
   imageUrl: string
   link?: string
   isActive?: boolean
+  images?: string[]
 }
 
 export function PromoModal() {
@@ -142,8 +143,9 @@ export function PromoModal() {
 }
 
 export function TopBanner() {
-  const [banner, setBanner] = useState<BannerData | null>(null)
-  const [visible, setVisible] = useState(true)
+  const [images, setImages] = useState<string[]>([])
+  const [link, setLink] = useState<string>("")
+  const [currentIndex, setCurrentIndex] = useState(0)
   const supabase = createClient()
 
   useEffect(() => {
@@ -155,8 +157,13 @@ export function TopBanner() {
           .eq("key", "banner_topbar")
           .single()
 
-        if (data?.value?.isActive && data?.value?.imageUrl) {
-          setBanner(data.value)
+        if (data?.value?.isActive) {
+          if (data.value.images && data.value.images.length > 0) {
+            setImages(data.value.images)
+          } else if (data.value.imageUrl) {
+            setImages([data.value.imageUrl])
+          }
+          if (data.value.link) setLink(data.value.link)
         }
       } catch (err) {
         console.error("Top banner fetch error:", err)
@@ -165,19 +172,39 @@ export function TopBanner() {
     fetchTopBanner()
   }, [])
 
-  if (!banner || !visible) return null
+  useEffect(() => {
+    if (images.length <= 1) return
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % images.length)
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [images.length])
+
+  if (images.length === 0) return null
 
   const content = (
-    <div className="relative w-full h-12 sm:h-14 overflow-hidden bg-amber-100">
-      <Image src={banner.imageUrl} alt="Promotion" fill className="object-cover" />
-      <button
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setVisible(false) }}
-        className="absolute right-2 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors"
-      >
-        <X className="h-4 w-4" />
-      </button>
+    <div className="relative w-full h-20 sm:h-24 overflow-hidden bg-gradient-to-r from-amber-50 to-orange-50">
+      {images.map((img, idx) => (
+        <div
+          key={idx}
+          className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${idx === currentIndex ? "opacity-100" : "opacity-0"}`}
+        >
+          <Image src={img} alt={`Promo ${idx + 1}`} fill className="object-cover" priority={idx === 0} />
+        </div>
+      ))}
+      {images.length > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+          {images.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCurrentIndex(idx) }}
+              className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? "bg-white w-4 shadow-sm" : "bg-white/50 w-1.5"}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 
-  return banner.link ? <Link href={banner.link} className="block">{content}</Link> : content
+  return link ? <Link href={link} className="block">{content}</Link> : content
 }

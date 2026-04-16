@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { Camera, Loader2, Globe, ArrowLeft, User, Image as ImageIcon, ChevronRight, ChevronDown, Upload, X, Smartphone, Maximize2, Layout, Square } from "lucide-react"
+import { Camera, Loader2, Globe, ArrowLeft, User, Image as ImageIcon, ChevronRight, ChevronDown, Upload, X, Smartphone, Maximize2, Layout, Square, Plus, Trash2 } from "lucide-react"
 import NextImage from "next/image"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
@@ -56,6 +56,8 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
     topbar: { imageUrl: "", link: "/pwa", isActive: false },
     popup: { imageUrl: "", link: "/pwa", isActive: false },
   })
+  const [topbarImages, setTopbarImages] = useState<string[]>([])
+  const [topbarPreviewIndex, setTopbarPreviewIndex] = useState(0)
 
   const supabase = createClient()
   const { language, setLanguage, t } = useLanguage()
@@ -73,6 +75,10 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
           const key = item.key.replace("banner_", "") as BannerType
           if (newBanners[key] && item.value) {
             newBanners[key] = { ...newBanners[key], ...item.value }
+            // Load topbar images array
+            if (key === "topbar" && item.value.images) {
+              setTopbarImages(item.value.images)
+            }
           }
         })
         setBanners(newBanners)
@@ -80,6 +86,15 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
     }
     fetchBanners()
   }, [])
+
+  // Auto-rotate topbar preview
+  useEffect(() => {
+    if (topbarImages.length <= 1 || previewBanner !== "topbar") return
+    const timer = setInterval(() => {
+      setTopbarPreviewIndex((prev) => (prev + 1) % topbarImages.length)
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [topbarImages.length, previewBanner])
 
   const uploadImage = async (file: File, bannerType: BannerType): Promise<string> => {
     const fileExt = file.name.split('.').pop()
@@ -106,6 +121,26 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
     finally { setIsUploading(false) }
   }
 
+  // Handle topbar multi-image upload
+  const handleTopbarImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be less than 5MB"); return }
+    setIsUploading(true)
+    try {
+      const imageUrl = await uploadImage(file, "topbar")
+      setTopbarImages(prev => [...prev, imageUrl])
+      setPreviewBanner("topbar")
+      toast.success("Image added!")
+    } catch (err: any) { toast.error("Failed to upload", { description: err.message }) }
+    finally { setIsUploading(false); if (topbarInputRef.current) topbarInputRef.current.value = "" }
+  }
+
+  const removeTopbarImage = (index: number) => {
+    setTopbarImages(prev => prev.filter((_, i) => i !== index))
+  }
+
   const handleSaveBanner = async (bannerType: BannerType) => {
     setIsLoading(true)
     try {
@@ -114,12 +149,23 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
         imageUrl = await uploadImage(banners[bannerType].imageFile!, bannerType)
         setBanners(prev => ({ ...prev, [bannerType]: { ...prev[bannerType], imageUrl, imageFile: undefined } }))
       }
-      const { error } = await supabase.from("global_settings").upsert({
-        key: `banner_${bannerType}`,
-        value: { imageUrl, link: banners[bannerType].link, isActive: banners[bannerType].isActive },
-        updated_at: new Date().toISOString()
-      })
-      if (error) throw error
+      
+      // Special handling for topbar - save images array
+      if (bannerType === "topbar") {
+        const { error } = await supabase.from("global_settings").upsert({
+          key: "banner_topbar",
+          value: { images: topbarImages, link: banners.topbar.link, isActive: banners.topbar.isActive },
+          updated_at: new Date().toISOString()
+        })
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from("global_settings").upsert({
+          key: `banner_${bannerType}`,
+          value: { imageUrl, link: banners[bannerType].link, isActive: banners[bannerType].isActive },
+          updated_at: new Date().toISOString()
+        })
+        if (error) throw error
+      }
       toast.success("Banner saved!")
     } catch (err: any) { toast.error("Failed to save", { description: err.message }) }
     finally { setIsLoading(false) }
@@ -382,25 +428,49 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                                   <div><p className="font-medium">Enable this banner</p><p className="text-xs text-muted-foreground">Show to customers</p></div>
                                   <Switch checked={config.isActive} onCheckedChange={(checked) => setBanners(prev => ({ ...prev, [banner.id]: { ...prev[banner.id], isActive: checked } }))} />
                                 </div>
-                                <div className="space-y-2">
-                                  <Label>Banner Image</Label>
-                                  <input ref={getInputRef(banner.id)} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, banner.id)} />
-                                  {config.imageUrl ? (
-                                    <div className="relative group">
-                                      <div className="relative w-full h-40 rounded-lg overflow-hidden border border-border">
-                                        <NextImage src={config.imageUrl} alt="Banner" fill className="object-cover" />
-                                      </div>
-                                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
-                                        <Button size="sm" variant="secondary" onClick={() => getInputRef(banner.id).current?.click()}><Upload className="h-4 w-4 mr-1" />Change</Button>
-                                        <Button size="sm" variant="destructive" onClick={() => clearImage(banner.id)}><X className="h-4 w-4 mr-1" />Remove</Button>
-                                      </div>
+                                {/* Different UI for topbar (multi-image) vs others (single image) */}
+                                {banner.id === "topbar" ? (
+                                  <div className="space-y-2">
+                                    <Label>Banner Images (auto-rotate every 3s)</Label>
+                                    <input ref={topbarInputRef} type="file" accept="image/*" className="hidden" onChange={handleTopbarImageUpload} />
+                                    <div className="grid grid-cols-3 gap-2">
+                                      {topbarImages.map((img, idx) => (
+                                        <div key={idx} className="relative group aspect-[16/9] rounded-lg overflow-hidden border border-border">
+                                          <NextImage src={img} alt={`Slide ${idx + 1}`} fill className="object-cover" />
+                                          <button onClick={() => removeTopbarImage(idx)} className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Trash2 className="h-3 w-3 text-white" />
+                                          </button>
+                                          <span className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/60 text-white text-[10px] rounded">{idx + 1}</span>
+                                        </div>
+                                      ))}
+                                      <button onClick={() => topbarInputRef.current?.click()} className="aspect-[16/9] border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-1 hover:border-[#8b6f47] hover:bg-[#8b6f47]/5 transition-colors">
+                                        <Plus className="h-5 w-5 text-muted-foreground" />
+                                        <span className="text-[10px] text-muted-foreground">Add</span>
+                                      </button>
                                     </div>
-                                  ) : (
-                                    <button onClick={() => getInputRef(banner.id).current?.click()} className="w-full h-40 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 hover:border-[#8b6f47] hover:bg-[#8b6f47]/5 transition-colors">
-                                      <Upload className="h-8 w-8 text-muted-foreground" /><p className="text-sm text-muted-foreground">Click to upload</p><p className="text-xs text-muted-foreground">PNG, JPG up to 5MB</p>
-                                    </button>
-                                  )}
-                                </div>
+                                    {topbarImages.length > 1 && <p className="text-xs text-muted-foreground">Images will auto-rotate every 3 seconds</p>}
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2">
+                                    <Label>Banner Image</Label>
+                                    <input ref={getInputRef(banner.id)} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, banner.id)} />
+                                    {config.imageUrl ? (
+                                      <div className="relative group">
+                                        <div className="relative w-full h-40 rounded-lg overflow-hidden border border-border">
+                                          <NextImage src={config.imageUrl} alt="Banner" fill className="object-cover" />
+                                        </div>
+                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                                          <Button size="sm" variant="secondary" onClick={() => getInputRef(banner.id).current?.click()}><Upload className="h-4 w-4 mr-1" />Change</Button>
+                                          <Button size="sm" variant="destructive" onClick={() => clearImage(banner.id)}><X className="h-4 w-4 mr-1" />Remove</Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <button onClick={() => getInputRef(banner.id).current?.click()} className="w-full h-40 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 hover:border-[#8b6f47] hover:bg-[#8b6f47]/5 transition-colors">
+                                        <Upload className="h-8 w-8 text-muted-foreground" /><p className="text-sm text-muted-foreground">Click to upload</p><p className="text-xs text-muted-foreground">PNG, JPG up to 5MB</p>
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
                                 <div className="space-y-2">
                                   <Label>Click Link (Optional)</Label>
                                   <Input placeholder="/pwa?view=menu" value={config.link} onChange={(e) => setBanners(prev => ({ ...prev, [banner.id]: { ...prev[banner.id], link: e.target.value } }))} className="bg-background/50" />
@@ -426,11 +496,24 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                         <div className="relative bg-white rounded-[2.5rem] overflow-hidden h-[500px]">
                           <div className="h-12 bg-gray-100 flex items-end justify-center pb-1"><div className="w-20 h-1 bg-black rounded-full" /></div>
                           <div className="relative h-[452px] bg-gradient-to-b from-amber-50 to-white">
-                            {/* Top bar banner preview */}
+                            {/* Top bar banner preview - carousel */}
                             {previewBanner === "topbar" && (
-                              <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full h-16 relative">
-                                {banners.topbar.imageUrl ? (
-                                  <NextImage src={banners.topbar.imageUrl} alt="Top" fill className="object-cover" />
+                              <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full h-20 relative overflow-hidden">
+                                {topbarImages.length > 0 ? (
+                                  <>
+                                    {topbarImages.map((img, idx) => (
+                                      <div key={idx} className={`absolute inset-0 transition-opacity duration-700 ${idx === topbarPreviewIndex ? "opacity-100" : "opacity-0"}`}>
+                                        <NextImage src={img} alt={`Slide ${idx + 1}`} fill className="object-cover" />
+                                      </div>
+                                    ))}
+                                    {topbarImages.length > 1 && (
+                                      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
+                                        {topbarImages.map((_, idx) => (
+                                          <div key={idx} className={`h-1 rounded-full transition-all ${idx === topbarPreviewIndex ? "bg-white w-3" : "bg-white/50 w-1"}`} />
+                                        ))}
+                                      </div>
+                                    )}
+                                  </>
                                 ) : (
                                   <div className="w-full h-full bg-gradient-to-r from-[#8b6f47] to-[#a8845a] flex items-center justify-center">
                                     <p className="text-white text-xs font-medium">Top Banner Area</p>
