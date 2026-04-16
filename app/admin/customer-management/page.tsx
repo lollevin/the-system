@@ -3,17 +3,18 @@
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Gift, Share2, ArrowLeft, ChevronRight, Loader2 } from "lucide-react"
+import { Gift, Share2, ArrowLeft, ChevronRight, Loader2, Users } from "lucide-react"
 import { RewardsManager } from "@/app/admin/rewards/rewards-manager"
 import ReferralPage from "@/app/admin/referrals/page"
+import CustomerListPage from "@/app/admin/customer-list/page"
 import { Button } from "@/components/ui/button"
 
 import { createClient } from "@/lib/supabase/client"
 
-type Tab = "rewards" | "referrals"
+type Tab = "customers" | "rewards" | "referrals"
 
-function GrowthContent() {
-  const [activeTab, setActiveTab] = useState<Tab>("rewards")
+function CustomerManagementContent() {
+  const [activeTab, setActiveTab] = useState<Tab>("customers")
   const [vouchers, setVouchers] = useState<any[]>([])
   const [customers, setCustomers] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -52,7 +53,7 @@ function GrowthContent() {
 
   useEffect(() => {
     const tab = searchParams.get("tab")
-    if (tab === "rewards" || tab === "referrals") {
+    if (tab === "customers" || tab === "rewards" || tab === "referrals") {
       setActiveTab(tab)
     }
   }, [searchParams])
@@ -81,6 +82,20 @@ function GrowthContent() {
         </div>
 
         <nav className="flex-1 px-3 space-y-1">
+          <button
+            onClick={() => handleTabChange("customers")}
+            className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group ${
+              activeTab === "customers"
+                ? "bg-[#8b6f47] text-white shadow-md shadow-[#8b6f47]/20"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Users className={`h-5 w-5 ${activeTab === "customers" ? "" : "group-hover:scale-110 transition-transform"}`} />
+              <span className="font-bold">Customers</span>
+            </div>
+            {activeTab === "customers" && <ChevronRight className="h-4 w-4 opacity-50" />}
+          </button>
           <button
             onClick={() => handleTabChange("rewards")}
             className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group ${
@@ -116,6 +131,9 @@ function GrowthContent() {
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto bg-card/10">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50 px-6 py-4">
+          <h1 className="text-xl font-bold">Customer Management</h1>
+        </div>
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -129,6 +147,8 @@ function GrowthContent() {
               <div className="flex items-center justify-center h-64">
                 <Loader2 className="w-8 h-8 animate-spin text-[#8b6f47]" />
               </div>
+            ) : activeTab === "customers" ? (
+              <CustomerListPage />
             ) : activeTab === "rewards" ? (
               <RewardsManager initialVouchers={vouchers} customers={customers} />
             ) : (
@@ -142,10 +162,10 @@ function GrowthContent() {
   )
 }
 
-export default function GrowthPage() {
+export default function CustomerManagementPage() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
-      <GrowthContent />
+      <CustomerManagementContent />
     </Suspense>
   )
 }

@@ -286,6 +286,10 @@ export const translations = {
     shopManagement: { en: "Shop Management", zh: "店铺管理", ms: "Pengurusan Kedai" },
     menuAndStaff: { en: "Menu & Staff", zh: "菜单和员工", ms: "Menu & Kakitangan" },
     overview: { en: "Overview", zh: "概览", ms: "Gambaran Keseluruhan" },
+    customerManagement: { en: "Customer Management", zh: "客户管理", ms: "Pengurusan Pelanggan" },
+    customerManagementDesc: { en: "Customers, rewards & referrals", zh: "客户、奖励和推荐", ms: "Pelanggan, ganjaran & rujukan" },
+    settings: { en: "Settings", zh: "设置", ms: "Tetapan" },
+    settingsDesc: { en: "App configuration", zh: "应用配置", ms: "Konfigurasi apl" },
     
     // Settings
     manageAccount: { en: "Manage your account and preferences", zh: "管理您的账户和偏好设置", ms: "Urus akaun dan tetapan anda" },
