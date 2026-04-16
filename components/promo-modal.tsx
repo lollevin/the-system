@@ -19,14 +19,14 @@ export function PromoModal({ onClose }: PromoModalProps) {
   useEffect(() => {
     async function fetchPromo() {
       // Check if promo has been shown in this session
-      const hasShown = sessionStorage.getItem("promo_shown")
+      const hasShown = sessionStorage.getItem("banner_popup_shown")
       if (hasShown) return
 
       try {
         const { data, error } = await supabase
           .from("global_settings")
           .select("value")
-          .eq("key", "promo_banner")
+          .eq("key", "banner_popup")
           .single()
         
         if (!error && data?.value?.isActive) {
@@ -47,7 +47,7 @@ export function PromoModal({ onClose }: PromoModalProps) {
 
   const handleClose = () => {
     setIsOpen(false)
-    sessionStorage.setItem("promo_shown", "true")
+    sessionStorage.setItem("banner_popup_shown", "true")
     if (onClose) onClose()
   }
 
