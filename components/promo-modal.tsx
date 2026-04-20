@@ -1,129 +1,210 @@
-"use client"
+﻿"use client"
 
 import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X } from "lucide-react"
 import Image from "next/image"
-
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 
-interface PromoModalProps {
-  onClose?: () => void
+interface BannerData {
+  imageUrl: string
+  link?: string
+  isActive?: boolean
+  images?: string[]
 }
 
-export function PromoModal({ onClose }: PromoModalProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [promoData, setPromoData] = useState<{ imageUrl: string; link?: string; isActive?: boolean } | null>(null)
+export function PromoModal() {
+  const [loginBanner, setLoginBanner] = useState<BannerData | null>(null)
+  const [popupBanner, setPopupBanner] = useState<BannerData | null>(null)
+  const [showLogin, setShowLogin] = useState(false)
+  const [showPopup, setShowPopup] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
-    async function fetchPromo() {
-      // Check if promo has been shown in this session
-      const hasShown = sessionStorage.getItem("promo_shown")
-      if (hasShown) return
-
-      try {
-        const { data, error } = await supabase
-          .from("global_settings")
-          .select("value")
-          .eq("key", "promo_banner")
-          .single()
-        
-        if (!error && data?.value?.isActive) {
-          setPromoData(data.value)
-          
-          // Small delay before showing
-          setTimeout(() => {
-            setIsOpen(true)
-          }, 1000)
-        }
-      } catch (err) {
-        console.error("Failed to fetch promo banner:", err)
-      }
-    }
-    
-    fetchPromo()
+    fetchBanners()
   }, [])
 
-  const handleClose = () => {
-    setIsOpen(false)
-    sessionStorage.setItem("promo_shown", "true")
-    if (onClose) onClose()
+  const fetchBanners = async () => {
+    try {
+      const { data } = await supabase
+        .from("global_settings")
+        .select("key, value")
+        .in("key", ["banner_login", "banner_popup"])
+
+      if (!data) return
+
+      let loginData: BannerData | null = null
+      let popupData: BannerData | null = null
+
+      data.forEach(item => {
+        if (item.key === "banner_login" && item.value?.isActive && item.value?.imageUrl) {
+          loginData = item.value
+        }
+        if (item.key === "banner_popup" && item.value?.isActive && item.value?.imageUrl) {
+          popupData = item.value
+        }
+      })
+
+      setLoginBanner(loginData)
+      setPopupBanner(popupData)
+
+      const loginShown = sessionStorage.getItem("banner_login_shown")
+      if (!loginShown && loginData) {
+        setTimeout(() => setShowLogin(true), 300)
+      } else {
+        const popupShown = sessionStorage.getItem("banner_popup_shown")
+        if (!popupShown && popupData) {
+          setTimeout(() => setShowPopup(true), 800)
+        }
+      }
+    } catch (err) {
+      console.error("Banner fetch error:", err)
+    }
+  }
+
+  const closeLogin = () => {
+    setShowLogin(false)
+    sessionStorage.setItem("banner_login_shown", "true")
+    const popupShown = sessionStorage.getItem("banner_popup_shown")
+    if (!popupShown && popupBanner) {
+      setTimeout(() => setShowPopup(true), 300)
+    }
+  }
+
+  const closePopup = () => {
+    setShowPopup(false)
+    sessionStorage.setItem("banner_popup_shown", "true")
   }
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-4">
-          {/* Backdrop */}
+    <>
+      <AnimatePresence>
+        {showLogin && loginBanner && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={handleClose}
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-          />
-
-          {/* Modal Content */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-sm aspect-[3/4] overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className="fixed inset-0 z-[200] bg-black"
           >
-            {/* Close Button */}
+            {loginBanner.link ? (
+              <Link href={loginBanner.link} onClick={closeLogin} className="block w-full h-full">
+                <Image src={loginBanner.imageUrl} alt="Welcome" fill className="object-cover" priority />
+              </Link>
+            ) : (
+              <Image src={loginBanner.imageUrl} alt="Welcome" fill className="object-cover" priority />
+            )}
             <button
-              onClick={handleClose}
-              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/20 text-white backdrop-blur-md transition-transform hover:scale-110 active:scale-95"
+              onClick={closeLogin}
+              className="absolute right-4 top-12 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur transition-transform hover:scale-110"
             >
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6" />
             </button>
-
-            {/* Promo Image */}
-            <div className="relative h-full w-full">
-              {promoData?.imageUrl ? (
-                <div className="h-full w-full bg-[#f8f5f2] flex items-center justify-center">
-                   {/* If file exists show it, else show a stylized placeholder as requested */}
-                   <Image
-                      src={promoData.imageUrl}
-                      alt="Promotion"
-                      fill
-                      className="object-cover"
-                      onError={(e) => {
-                        // If image fails to load, we can show a nice placeholder
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                   />
-                   {/* Default placeholder style if no image is provided yet */}
-                   <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
-                      <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Image src="/Logo/w768.png" alt="Logo" width={60} height={24} className="opacity-50" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-primary">New Arrivals!</h3>
-                        <p className="text-sm text-muted-foreground mt-2">Check out our latest coffee beans and exclusive offers.</p>
-                      </div>
-                      <div className="pt-4">
-                        <button 
-                          onClick={handleClose}
-                          className="px-6 py-2 bg-primary text-white rounded-full text-sm font-medium"
-                        >
-                          View Offers
-                        </button>
-                      </div>
-                   </div>
-                </div>
-              ) : (
-                <div className="h-full w-full bg-secondary flex items-center justify-center">
-                  <p className="text-muted-foreground">Loading Promotion...</p>
-                </div>
-              )}
-            </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showPopup && popupBanner && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closePopup}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              transition={{ type: "spring", damping: 20 }}
+              className="relative w-full max-w-[300px] aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl bg-white"
+            >
+              <button
+                onClick={closePopup}
+                className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur transition-transform hover:scale-110"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              {popupBanner.link ? (
+                <Link href={popupBanner.link} onClick={closePopup} className="block w-full h-full">
+                  <Image src={popupBanner.imageUrl} alt="Promotion" fill className="object-cover" />
+                </Link>
+              ) : (
+                <Image src={popupBanner.imageUrl} alt="Promotion" fill className="object-cover" />
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
+
+export function TopBanner() {
+  const [images, setImages] = useState<string[]>([])
+  const [link, setLink] = useState<string>("")
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const supabase = createClient()
+
+  useEffect(() => {
+    const fetchTopBanner = async () => {
+      try {
+        const { data } = await supabase
+          .from("global_settings")
+          .select("value")
+          .eq("key", "banner_topbar")
+          .single()
+
+        if (data?.value?.isActive) {
+          if (data.value.images && data.value.images.length > 0) {
+            setImages(data.value.images)
+          } else if (data.value.imageUrl) {
+            setImages([data.value.imageUrl])
+          }
+          if (data.value.link) setLink(data.value.link)
+        }
+      } catch (err) {
+        console.error("Top banner fetch error:", err)
+      }
+    }
+    fetchTopBanner()
+  }, [])
+
+  useEffect(() => {
+    if (images.length <= 1) return
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % images.length)
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [images.length])
+
+  if (images.length === 0) return null
+
+  const content = (
+    <div className="relative w-full h-20 sm:h-24 overflow-hidden bg-gradient-to-r from-amber-50 to-orange-50">
+      {images.map((img, idx) => (
+        <div
+          key={idx}
+          className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${idx === currentIndex ? "opacity-100" : "opacity-0"}`}
+        >
+          <Image src={img} alt={`Promo ${idx + 1}`} fill className="object-cover" priority={idx === 0} />
+        </div>
+      ))}
+      {images.length > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+          {images.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCurrentIndex(idx) }}
+              className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? "bg-white w-4 shadow-sm" : "bg-white/50 w-1.5"}`}
+            />
+          ))}
         </div>
       )}
-    </AnimatePresence>
+    </div>
   )
+
+  return link ? <Link href={link} className="block">{content}</Link> : content
 }

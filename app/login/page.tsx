@@ -454,6 +454,10 @@ function LoginForm() {
 
           toast.success("Login successful!")
 
+          // Clear banner flags so they show on every login
+          sessionStorage.removeItem("banner_login_shown")
+          sessionStorage.removeItem("banner_popup_shown")
+
           // Redirect based on role - use window.location for reliable redirect
           if (profile?.role === "admin") {
             window.location.href = "/admin"
@@ -488,6 +492,10 @@ function LoginForm() {
             .single()
 
           toast.success(t("login", "loginSuccess"))
+
+          // Clear banner flags so they show on every login
+          sessionStorage.removeItem("banner_login_shown")
+          sessionStorage.removeItem("banner_popup_shown")
 
           // Redirect based on role - use window.location for reliable redirect
           if (profile2?.role === "admin") {
@@ -982,6 +990,9 @@ function RegisterForm() {
         }
 
         toast.success(t("login", "accountCreated"))
+        // Clear banner flags so they show for new users
+        sessionStorage.removeItem("banner_login_shown")
+        sessionStorage.removeItem("banner_popup_shown")
         window.location.href = "/pwa"
       }
     } catch {
