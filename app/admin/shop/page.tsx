@@ -42,19 +42,15 @@ import {
   X,
   UtensilsCrossed,
   Users,
-  Store,
   UserMinus,
   UserX,
   AlertTriangle,
   Image as ImageIcon,
-  Settings,
-  LogOut,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import type { MenuItem, Profile } from "@/lib/supabase/types"
-import Image from "next/image"
 
 const CATEGORY_VALUES = ["brunch", "rice_bowl", "malaysian", "kids", "coffee", "drinks", "dessert", "high_tea", "other"]
 const CATEGORY_LABELS: Record<string, string> = {
@@ -66,8 +62,9 @@ export default function ShopManagementPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  // View: "select" shows Menu/Staff buttons, "menu" shows menu list, "staff" shows staff list
-  const [activeView, setActiveView] = useState<"select" | "menu" | "staff">("select")
+  // Active tab: menu or staff (vertical tabs on left)
+  const [activeTab, setActiveTab] = useState<"menu" | "staff">("menu")
+  const [shopName, setShopName] = useState("JP&Co")
 
   // Menu state
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
@@ -103,7 +100,15 @@ export default function ShopManagementPage() {
   const [passwordCopied, setPasswordCopied] = useState(false)
   const [staffForm, setStaffForm] = useState({ full_name: "", email: "", phone: "", role: "staff" as "staff" | "admin", password: "" })
 
-  useEffect(() => { loadMenuItems(); loadStaffMembers() }, [])
+  useEffect(() => {
+    loadMenuItems()
+    loadStaffMembers()
+    // Load shop name from settings
+    fetch("/api/admin/shop-settings")
+      .then(r => r.json())
+      .then(d => { if (d?.shop_name) setShopName(d.shop_name) })
+      .catch(() => {})
+  }, [])
 
   const loadMenuItems = async () => {
     setMenuLoading(true)
@@ -117,11 +122,6 @@ export default function ShopManagementPage() {
     const { data } = await supabase.from("profiles").select("*").in("role", ["staff", "admin"]).order("created_at", { ascending: false })
     setStaffMembers(data || [])
     setStaffLoading(false)
-  }
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push("/login")
   }
 
   // Menu functions
@@ -259,181 +259,297 @@ export default function ShopManagementPage() {
   const getInitials = (name: string | null) => name ? name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "ST"
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-[#faf8f5] to-[#f5f0e8] dark:from-zinc-900 dark:to-zinc-950 z-[9999] overflow-auto">
-      {/* Top Bar - Clean design like PDF */}
+    <div className="fixed inset-0 bg-[#faf8f5] dark:bg-zinc-950 z-[9999] overflow-hidden flex flex-col">
+      {/* Header - Back button + Title */}
       <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="sticky top-0 z-50 h-16 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-[#8b6f47]/10 flex items-center justify-between px-6"
+        className="h-14 bg-white dark:bg-zinc-900 border-b border-[#8b6f47]/10 flex items-center px-4 flex-shrink-0"
       >
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => activeView === "select" ? router.push("/admin") : setActiveView("select")}
-            className="h-10 w-10 rounded-xl hover:bg-[#8b6f47]/10"
-          >
-            <ArrowLeft className="h-5 w-5 text-[#8b6f47]" />
-          </Button>
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#8b6f47] to-[#a08060] flex items-center justify-center shadow-lg">
-              <Store className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-[#3d3225]">Shop Management</h1>
-              <p className="text-xs text-[#8b6f47]/70">
-                {activeView === "select" ? "Choose a section" : activeView === "menu" ? "Menu Items" : "Staff Members"}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/admin/settings")} className="h-10 w-10 rounded-xl hover:bg-[#8b6f47]/10">
-            <Settings className="h-5 w-5 text-[#8b6f47]" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={handleLogout} className="h-10 w-10 rounded-xl hover:bg-red-500/10">
-            <LogOut className="h-5 w-5 text-red-500" />
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push("/admin")}
+          className="h-9 w-9 rounded-lg hover:bg-[#8b6f47]/10 mr-3"
+        >
+          <ArrowLeft className="h-5 w-5 text-[#8b6f47]" />
+        </Button>
+        <h1 className="text-lg font-bold text-[#3d3225] dark:text-white">{shopName} Management</h1>
       </motion.header>
 
-      {/* Content */}
-      <div className="p-6 max-w-5xl mx-auto">
-        <AnimatePresence mode="wait">
-          {/* Selection View - Two big buttons */}
-          {activeView === "select" && (
-            <motion.div key="select" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.3 }} className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-              <motion.button whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} onClick={() => setActiveView("menu")}
-                className="group relative p-8 rounded-3xl bg-white dark:bg-zinc-800 border-2 border-[#8b6f47]/20 hover:border-[#8b6f47] shadow-xl hover:shadow-2xl transition-all duration-300 text-left overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#8b6f47]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative z-10">
-                  <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
-                    <UtensilsCrossed className="h-10 w-10 text-white" />
-                  </div>
-                  <h2 className="text-3xl font-bold text-[#3d3225] dark:text-white mb-2">Menu</h2>
-                  <p className="text-[#8b6f47]/70 text-lg">{menuItems.length} items</p>
-                  <p className="text-sm text-muted-foreground mt-2">Manage food items, prices, and categories</p>
-                </div>
-              </motion.button>
+      {/* Main Content - Left tabs + Right content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Side - Vertical Tabs */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="w-24 sm:w-28 bg-white dark:bg-zinc-900 border-r border-[#8b6f47]/10 flex flex-col py-4 flex-shrink-0"
+        >
+          <button
+            onClick={() => setActiveTab("menu")}
+            className={`py-4 px-2 text-center transition-all relative ${
+              activeTab === "menu" 
+                ? "text-[#8b6f47] font-semibold bg-[#8b6f47]/5" 
+                : "text-muted-foreground hover:text-[#8b6f47] hover:bg-[#8b6f47]/5"
+            }`}
+          >
+            {activeTab === "menu" && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute left-0 top-0 bottom-0 w-1 bg-[#8b6f47] rounded-r"
+              />
+            )}
+            <UtensilsCrossed className="h-6 w-6 mx-auto mb-1" />
+            <span className="text-sm">Menu</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("staff")}
+            className={`py-4 px-2 text-center transition-all relative ${
+              activeTab === "staff" 
+                ? "text-[#8b6f47] font-semibold bg-[#8b6f47]/5" 
+                : "text-muted-foreground hover:text-[#8b6f47] hover:bg-[#8b6f47]/5"
+            }`}
+          >
+            {activeTab === "staff" && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute left-0 top-0 bottom-0 w-1 bg-[#8b6f47] rounded-r"
+              />
+            )}
+            <Users className="h-6 w-6 mx-auto mb-1" />
+            <span className="text-sm">Staff</span>
+          </button>
+        </motion.div>
 
-              <motion.button whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} onClick={() => setActiveView("staff")}
-                className="group relative p-8 rounded-3xl bg-white dark:bg-zinc-800 border-2 border-[#8b6f47]/20 hover:border-[#8b6f47] shadow-xl hover:shadow-2xl transition-all duration-300 text-left overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#8b6f47]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative z-10">
-                  <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-[#8b6f47] to-[#6b5535] flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
-                    <Users className="h-10 w-10 text-white" />
+        {/* Right Side - Content */}
+        <div className="flex-1 overflow-auto">
+          <AnimatePresence mode="wait">
+            {/* Menu Content */}
+            {activeTab === "menu" && (
+              <motion.div
+                key="menu"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="p-4 sm:p-6"
+              >
+                {/* Menu Header */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-[#3d3225] dark:text-white">Menu</h2>
+                    <p className="text-sm text-muted-foreground">{menuItems.length} items</p>
                   </div>
-                  <h2 className="text-3xl font-bold text-[#3d3225] dark:text-white mb-2">Staff</h2>
-                  <p className="text-[#8b6f47]/70 text-lg">{staffMembers.length} members</p>
-                  <p className="text-sm text-muted-foreground mt-2">Manage team members and permissions</p>
+                  <Button onClick={() => openMenuDialog()} className="gap-2 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white shadow-lg">
+                    <Plus className="w-4 h-4" />Add Foods
+                  </Button>
                 </div>
-              </motion.button>
-            </motion.div>
-          )}
 
-          {/* Menu View */}
-          {activeView === "menu" && (
-            <motion.div key="menu" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="space-y-6">
-              <div className="flex flex-col sm:flex-row gap-4 justify-between">
-                <div className="flex gap-2 flex-1">
-                  <div className="relative flex-1 max-w-sm">
+                {/* Search + Category Filter */}
+                <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                  <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input placeholder="Search menu..." value={menuSearch} onChange={(e) => setMenuSearch(e.target.value)} className="pl-10 bg-white dark:bg-zinc-800 border-[#8b6f47]/20" />
+                    <Input 
+                      placeholder="Search Bar" 
+                      value={menuSearch} 
+                      onChange={(e) => setMenuSearch(e.target.value)} 
+                      className="pl-10 bg-white dark:bg-zinc-800 border-[#8b6f47]/20" 
+                    />
                   </div>
                   <Select value={menuCategory} onValueChange={setMenuCategory}>
-                    <SelectTrigger className="w-[150px] bg-white dark:bg-zinc-800 border-[#8b6f47]/20"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-[180px] bg-white dark:bg-zinc-800 border-[#8b6f47]/20">
+                      <SelectValue placeholder="Category to select" />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Categories</SelectItem>
                       {CATEGORY_VALUES.map(v => <SelectItem key={v} value={v}>{CATEGORY_LABELS[v]}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={() => openMenuDialog()} className="gap-2 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white shadow-lg"><Plus className="w-4 h-4" />Add Food</Button>
-              </div>
 
-              {menuLoading ? (
-                <div className="flex items-center justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#8b6f47]" /></div>
-              ) : filteredMenuItems.length === 0 ? (
-                <div className="text-center py-20"><UtensilsCrossed className="w-16 h-16 mx-auto mb-4 text-[#8b6f47]/30" /><p className="text-muted-foreground">No menu items found</p></div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredMenuItems.map((item, i) => (
-                    <motion.div key={item.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                      <Card className={`bg-white dark:bg-zinc-800 border-[#8b6f47]/10 hover:border-[#8b6f47]/30 transition-all ${!item.is_active ? "opacity-50" : ""}`}>
-                        <CardContent className="p-4 flex items-center gap-4">
-                          <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#f5f0e8] flex-shrink-0">
-                            {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-6 h-6 text-[#8b6f47]/30" /></div>}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-semibold text-[#3d3225] dark:text-white">{item.name}</h4>
-                              <Badge variant="secondary" className="text-[10px] bg-[#8b6f47]/10 text-[#8b6f47]">{CATEGORY_LABELS[item.category]}</Badge>
-                              {!item.is_active && <Badge variant="outline" className="text-[10px]">Hidden</Badge>}
+                {/* Menu Items List */}
+                {menuLoading ? (
+                  <div className="flex items-center justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#8b6f47]" /></div>
+                ) : filteredMenuItems.length === 0 ? (
+                  <div className="text-center py-20"><UtensilsCrossed className="w-16 h-16 mx-auto mb-4 text-[#8b6f47]/30" /><p className="text-muted-foreground">No menu items found</p></div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredMenuItems.map((item, i) => (
+                      <motion.div 
+                        key={item.id} 
+                        initial={{ opacity: 0, y: 10 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        transition={{ delay: i * 0.02 }}
+                      >
+                        <Card className={`bg-white dark:bg-zinc-800 border-[#8b6f47]/10 hover:border-[#8b6f47]/30 transition-all ${!item.is_active ? "opacity-50" : ""}`}>
+                          <CardContent className="p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
+                            {/* Food Image */}
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-[#f5f0e8] flex-shrink-0 border border-[#8b6f47]/10">
+                              {item.image_url ? (
+                                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-6 h-6 text-[#8b6f47]/30" /></div>
+                              )}
                             </div>
-                            {item.description && <p className="text-sm text-muted-foreground line-clamp-1">{item.description}</p>}
-                          </div>
-                          <span className="font-bold text-[#8b6f47] text-lg">RM {item.price.toFixed(2)}</span>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openMenuDialog(item)} className="h-9 w-9 hover:bg-[#8b6f47]/10"><Edit className="h-4 w-4 text-[#8b6f47]" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => deleteMenuItem(item)} className="h-9 w-9 hover:bg-red-500/10"><Trash2 className="h-4 w-4 text-red-500" /></Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* Staff View */}
-          {activeView === "staff" && (
-            <motion.div key="staff" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="space-y-6">
-              <div className="flex flex-col sm:flex-row gap-4 justify-between">
-                <div className="relative flex-1 max-w-sm">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input placeholder="Search staff..." value={staffSearch} onChange={(e) => setStaffSearch(e.target.value)} className="pl-10 bg-white dark:bg-zinc-800 border-[#8b6f47]/20" />
-                </div>
-                <div className="flex gap-2">
-                  {selectedStaff.size > 0 && <Button variant="destructive" onClick={deleteSelectedStaff} disabled={isDeleting} className="gap-2"><Trash2 className="w-4 h-4" />Delete ({selectedStaff.size})</Button>}
-                  <Button onClick={() => openStaffDialog()} className="gap-2 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white shadow-lg"><Plus className="w-4 h-4" />Add Staff</Button>
-                </div>
-              </div>
-
-              {staffLoading ? (
-                <div className="flex items-center justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#8b6f47]" /></div>
-              ) : filteredStaffMembers.length === 0 ? (
-                <div className="text-center py-20"><Users className="w-16 h-16 mx-auto mb-4 text-[#8b6f47]/30" /><p className="text-muted-foreground">No staff members found</p></div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredStaffMembers.map((member, i) => (
-                    <motion.div key={member.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                      <Card className="bg-white dark:bg-zinc-800 border-[#8b6f47]/10 hover:border-[#8b6f47]/30 transition-all">
-                        <CardContent className="p-4 flex items-center gap-4">
-                          <Checkbox checked={selectedStaff.has(member.id)} onCheckedChange={() => toggleStaffSelection(member.id)} className="data-[state=checked]:bg-[#8b6f47] data-[state=checked]:border-[#8b6f47]" />
-                          <Avatar className="h-12 w-12 border-2 border-[#8b6f47]/20"><AvatarFallback className="bg-[#8b6f47]/10 text-[#8b6f47] font-semibold">{getInitials(member.full_name)}</AvatarFallback></Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-semibold text-[#3d3225] dark:text-white">{member.full_name || "Unnamed"}</h4>
-                              <Badge variant="secondary" className={member.role === "admin" ? "bg-[#8b6f47]/20 text-[#8b6f47]" : ""}>{member.role}</Badge>
+                            
+                            {/* Food Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline" className="text-[10px] bg-[#8b6f47]/10 text-[#8b6f47] border-[#8b6f47]/20">
+                                  {CATEGORY_LABELS[item.category]}
+                                </Badge>
+                                {!item.is_active && <Badge variant="outline" className="text-[10px]">Hidden</Badge>}
+                              </div>
+                              <h4 className="font-semibold text-[#3d3225] dark:text-white mt-1">{item.name}</h4>
+                              {item.description && <p className="text-xs text-muted-foreground line-clamp-1">{item.description}</p>}
+                              <p className="text-sm font-bold text-[#8b6f47] mt-1">RM {item.price.toFixed(2)}</p>
                             </div>
-                            <p className="text-sm text-muted-foreground truncate">{member.email}</p>
-                          </div>
-                          {member.phone && <span className="text-sm text-muted-foreground hidden md:block">{member.phone}</span>}
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openStaffDialog(member)} className="h-9 w-9 hover:bg-[#8b6f47]/10" title="Edit"><Edit className="h-4 w-4 text-[#8b6f47]" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setResetPasswordStaff(member); setNewPassword(generatePassword()); setResetSuccess(false); setResetPasswordDialogOpen(true) }} className="h-9 w-9 hover:bg-amber-500/10" title="Reset Password"><Key className="h-4 w-4 text-amber-500" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setDeletingStaff(member); setDeleteDialogOpen(true) }} className="h-9 w-9 hover:bg-red-500/10" title="Delete"><Trash2 className="h-4 w-4 text-red-500" /></Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
+                            
+                            {/* Action Buttons - Edit & Delete stacked */}
+                            <div className="flex flex-col gap-1">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => openMenuDialog(item)} 
+                                className="h-8 text-xs border-[#8b6f47]/20 hover:bg-[#8b6f47]/10 hover:text-[#8b6f47]"
+                              >
+                                <Edit className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => deleteMenuItem(item)} 
+                                className="h-8 text-xs border-red-500/20 hover:bg-red-500/10 hover:text-red-500 text-red-500"
+                              >
+                                <Trash2 className="h-3 w-3 mr-1" />Delete
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* Staff Content */}
+            {activeTab === "staff" && (
+              <motion.div
+                key="staff"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="p-4 sm:p-6"
+              >
+                {/* Staff Header */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-[#3d3225] dark:text-white">Staff</h2>
+                    <p className="text-sm text-muted-foreground">{staffMembers.length} members</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {selectedStaff.size > 0 && (
+                      <Button variant="destructive" onClick={deleteSelectedStaff} disabled={isDeleting} size="sm">
+                        <Trash2 className="w-4 h-4 mr-1" />Delete ({selectedStaff.size})
+                      </Button>
+                    )}
+                    <Button onClick={() => openStaffDialog()} className="gap-2 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white shadow-lg">
+                      <Plus className="w-4 h-4" />Add Staff
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+
+                {/* Search Bar */}
+                <div className="mb-6">
+                  <div className="relative max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Search Bar" 
+                      value={staffSearch} 
+                      onChange={(e) => setStaffSearch(e.target.value)} 
+                      className="pl-10 bg-white dark:bg-zinc-800 border-[#8b6f47]/20" 
+                    />
+                  </div>
+                </div>
+
+                {/* Staff Grid - Card layout like PDF */}
+                {staffLoading ? (
+                  <div className="flex items-center justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#8b6f47]" /></div>
+                ) : filteredStaffMembers.length === 0 ? (
+                  <div className="text-center py-20"><Users className="w-16 h-16 mx-auto mb-4 text-[#8b6f47]/30" /><p className="text-muted-foreground">No staff members found</p></div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredStaffMembers.map((member, i) => (
+                      <motion.div 
+                        key={member.id} 
+                        initial={{ opacity: 0, y: 10 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        transition={{ delay: i * 0.03 }}
+                      >
+                        <Card className="bg-white dark:bg-zinc-800 border-[#8b6f47]/10 hover:border-[#8b6f47]/30 transition-all overflow-hidden">
+                          <CardContent className="p-4">
+                            {/* Top row - Checkbox + Edit button */}
+                            <div className="flex items-center justify-between mb-3">
+                              <Checkbox 
+                                checked={selectedStaff.has(member.id)} 
+                                onCheckedChange={() => toggleStaffSelection(member.id)} 
+                                className="data-[state=checked]:bg-[#8b6f47] data-[state=checked]:border-[#8b6f47]" 
+                              />
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => openStaffDialog(member)} 
+                                className="h-8 w-8 hover:bg-[#8b6f47]/10"
+                              >
+                                <Edit className="h-4 w-4 text-[#8b6f47]" />
+                              </Button>
+                            </div>
+                            
+                            {/* Staff Info */}
+                            <div className="text-center">
+                              <Avatar className="h-16 w-16 mx-auto border-2 border-[#8b6f47]/20">
+                                <AvatarFallback className="bg-[#8b6f47]/10 text-[#8b6f47] font-semibold text-lg">
+                                  {getInitials(member.full_name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <h4 className="font-semibold text-[#3d3225] dark:text-white mt-3">{member.full_name || "Unnamed"}</h4>
+                              <Badge variant="secondary" className={`mt-1 ${member.role === "admin" ? "bg-[#8b6f47]/20 text-[#8b6f47]" : ""}`}>
+                                {member.role}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground mt-2 truncate">{member.email}</p>
+                            </div>
+
+                            {/* Action buttons at bottom */}
+                            <div className="flex justify-center gap-2 mt-4 pt-3 border-t border-[#8b6f47]/10">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => { setResetPasswordStaff(member); setNewPassword(generatePassword()); setResetSuccess(false); setResetPasswordDialogOpen(true) }} 
+                                className="h-8 w-8 hover:bg-amber-500/10" 
+                                title="Reset Password"
+                              >
+                                <Key className="h-4 w-4 text-amber-500" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => { setDeletingStaff(member); setDeleteDialogOpen(true) }} 
+                                className="h-8 w-8 hover:bg-red-500/10" 
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Menu Dialog */}
@@ -463,11 +579,11 @@ export default function ShopManagementPage() {
       {/* Staff Dialog */}
       <Dialog open={staffDialogOpen} onOpenChange={(o) => { setStaffDialogOpen(o); if (!o) resetStaffForm() }}>
         <DialogContent className="max-w-md bg-white dark:bg-zinc-900">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Key className="w-5 h-5 text-amber-500" />{editingStaff ? "Edit Staff" : createdCredentials ? "Account Created" : "Add New Staff"}</DialogTitle>{!editingStaff && !createdCredentials && <DialogDescription>Create staff account and save credentials</DialogDescription>}</DialogHeader>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Users className="w-5 h-5 text-[#8b6f47]" />{editingStaff ? "Edit Staff" : createdCredentials ? "Account Created" : "Add New Staff"}</DialogTitle>{!editingStaff && !createdCredentials && <DialogDescription>Create staff account and save credentials</DialogDescription>}</DialogHeader>
           {createdCredentials ? (
             <div className="space-y-4 mt-4">
               <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-                <p className="text-sm text-green-600 font-medium mb-3">✓ Staff created! Save login info:</p>
+                <p className="text-sm text-green-600 font-medium mb-3">Staff created! Save login info:</p>
                 <div className="space-y-3">
                   <div><Label className="text-xs text-muted-foreground">Email</Label><div className="flex gap-2"><Input value={createdCredentials.email} readOnly className="font-mono text-sm" /><Button variant="outline" size="icon" onClick={() => copyToClipboard(createdCredentials.email)}><Copy className="h-4 w-4" /></Button></div></div>
                   <div><Label className="text-xs text-muted-foreground">Password</Label><div className="flex gap-2"><Input type={showPassword ? "text" : "password"} value={createdCredentials.password} readOnly className="font-mono text-sm" /><Button variant="outline" size="icon" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button variant="outline" size="icon" onClick={() => copyToClipboard(createdCredentials.password)}>{passwordCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}</Button></div></div>
@@ -480,6 +596,14 @@ export default function ShopManagementPage() {
             <form onSubmit={saveStaff} className="space-y-4 mt-2">
               <div><Label>Full Name</Label><Input value={staffForm.full_name} onChange={(e) => setStaffForm({ ...staffForm, full_name: e.target.value })} placeholder="John Doe" required /></div>
               {!editingStaff && (<><div><Label>Email</Label><Input type="email" value={staffForm.email} onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })} placeholder="staff@jpco.com" required /></div><div><Label>Password</Label><div className="flex gap-2"><div className="relative flex-1"><Input type={showPassword ? "text" : "password"} value={staffForm.password} onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })} className="pr-10" required minLength={6} /><Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button></div><Button type="button" variant="outline" size="icon" onClick={() => setStaffForm({ ...staffForm, password: generatePassword() })}><RefreshCw className="h-4 w-4" /></Button></div></div></>)}
+              {editingStaff && (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <div className="flex items-center gap-2 text-amber-600 text-sm">
+                    <Key className="h-4 w-4" />
+                    <span>To reset password, use the Key button</span>
+                  </div>
+                </div>
+              )}
               <div><Label>Phone</Label><Input type="tel" value={staffForm.phone} onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })} placeholder="+60 12 345 6789" /></div>
               <div><Label>Role</Label><Select value={staffForm.role} onValueChange={(v: "staff" | "admin") => setStaffForm({ ...staffForm, role: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="staff">Staff</SelectItem><SelectItem value="admin">Admin</SelectItem></SelectContent></Select></div>
               <div className="flex gap-2 pt-2"><Button type="button" variant="outline" onClick={() => setStaffDialogOpen(false)} className="flex-1">Cancel</Button><Button type="submit" disabled={staffSaving} className="flex-1 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white">{staffSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : editingStaff ? "Update" : "Create"}</Button></div>
@@ -508,7 +632,7 @@ export default function ShopManagementPage() {
           {resetSuccess ? (
             <div className="space-y-4 mt-4">
               <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-                <p className="text-sm text-green-600 font-medium mb-3">✓ Password reset! New credentials:</p>
+                <p className="text-sm text-green-600 font-medium mb-3">Password reset! New credentials:</p>
                 <div className="space-y-3">
                   <div><Label className="text-xs text-muted-foreground">Email</Label><div className="flex gap-2"><Input value={resetPasswordStaff?.email || ""} readOnly className="font-mono text-sm" /><Button variant="outline" size="icon" onClick={() => copyToClipboard(resetPasswordStaff?.email || "")}><Copy className="h-4 w-4" /></Button></div></div>
                   <div><Label className="text-xs text-muted-foreground">New Password</Label><div className="flex gap-2"><Input type={showPassword ? "text" : "password"} value={newPassword} readOnly className="font-mono text-sm" /><Button variant="outline" size="icon" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button variant="outline" size="icon" onClick={() => copyToClipboard(newPassword)}>{passwordCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}</Button></div></div>

@@ -57,7 +57,7 @@ export function QuickActions({ onShowQR, onShowVouchers, onShowHistory, onShowPr
       
       {/* Share & Earn banner */}
       <button 
-        onClick={onShowReferral}
+        onClick={() => window.open("https://readyshare.ai/app/#/user-share?store_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJtZW1iZXIiLCJpZCI6MTUyfQ.W1Rvl3rPRw8W8a-MD8fs5O4vfwseF0tAYGNBf9SGWI4Aj8_2wIklspX0Vk8IvUCW", "_blank")}
         className="flex items-center justify-between w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-primary via-[#9a7a4d] to-[#a07d50] hover:opacity-95 transition-all duration-200 shadow-sm active:scale-[0.99]"
       >
         <div className="flex items-center gap-2.5">
