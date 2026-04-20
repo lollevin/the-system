@@ -336,21 +336,37 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
                   {vouchers.map((item) => (
                     <Card 
                       key={item.id} 
-                      className="overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+                      className="overflow-hidden cursor-pointer hover:border-primary/50 transition-all hover:shadow-md group"
                       onClick={() => setSelectedVoucherQR(item)}
                     >
                       <CardContent className="p-0">
-                        <div className="flex">
-                          {/* QR Code Side */}
-                          <div className="w-24 bg-white flex items-center justify-center p-2">
-                            <QRCodeSVG 
-                              value={item.code} 
-                              size={72}
-                              level="M"
-                            />
+                        <div className="flex items-stretch">
+                          {/* Image Side - Shows voucher image or QR as fallback */}
+                          <div className="relative w-24 sm:w-28 flex-shrink-0 overflow-hidden bg-gradient-to-br from-amber-100 to-orange-200">
+                            {item.voucher?.image_url ? (
+                              <>
+                                <img 
+                                  src={item.voucher.image_url} 
+                                  alt={item.voucher?.name}
+                                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                              </>
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center bg-white p-2">
+                                <QRCodeSVG value={item.code} size={72} level="M" />
+                              </div>
+                            )}
+                            {item.voucher?.discount_value && item.voucher?.image_url && (
+                              <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-white/90 backdrop-blur-sm shadow-sm">
+                                <span className="text-[10px] font-bold text-[#8b6f47]">
+                                  {item.voucher.discount_type === "percentage" ? `${item.voucher.discount_value}%` : `RM${item.voucher.discount_value}`}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                          <div className="flex-1 p-3">
-                            <h4 className="font-semibold text-sm">{item.voucher?.name}</h4>
+                          <div className="flex-1 p-3 min-w-0">
+                            <h4 className="font-semibold text-sm line-clamp-1">{item.voucher?.name}</h4>
                             <p className="text-xs text-muted-foreground line-clamp-1">{item.voucher?.description}</p>
                             <div className="flex items-center justify-between mt-2">
                               <p className="text-xs text-primary font-mono bg-primary/10 px-2 py-0.5 rounded">{item.code}</p>

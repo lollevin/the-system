@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useLanguage } from "@/lib/i18n"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Gift, Plus, Edit, Trash2, Loader2, Users, Ticket, Info, Sparkles, Repeat, User, Search, Brain, Clock } from "lucide-react"
+import { Gift, Plus, Edit, Trash2, Loader2, Users, Ticket, Info, Sparkles, Repeat, User, Search, Brain, Clock, Upload, X, Image as ImageIcon } from "lucide-react"
 import { toast } from "sonner"
 import type { Voucher } from "@/lib/supabase/types"
 
@@ -59,9 +59,37 @@ export function RewardsManager({ initialVouchers = [], customers = [] }: Rewards
     max_uses_per_customer: 1 as number | null,
     voucher_type: "global" as "global" | "personal",
     target_customer_id: "" as string,
+    image_url: "" as string,
   })
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const supabase = createClient()
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith("image/")) { toast.error("Please upload an image"); return }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Max 5MB"); return }
+    setIsUploadingImage(true)
+    try {
+      const reader = new FileReader()
+      reader.onload = (ev) => setImagePreview(ev.target?.result as string)
+      reader.readAsDataURL(file)
+      const filePath = `voucher-images/voucher_${Date.now()}_${Math.random().toString(36).substring(7)}.${file.name.split(".").pop()}`
+      const { error } = await supabase.storage.from("uploads").upload(filePath, file, { cacheControl: "3600", upsert: false })
+      if (error) throw error
+      const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(filePath)
+      setFormData(prev => ({ ...prev, image_url: urlData.publicUrl }))
+      toast.success("Image uploaded")
+    } catch (error: any) {
+      toast.error(error.message || "Upload failed")
+      setImagePreview(null)
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
 
   // Separate vouchers by type
   const globalVouchers = vouchers.filter(v => v.voucher_type === "global" || !v.voucher_type)
@@ -86,9 +114,11 @@ export function RewardsManager({ initialVouchers = [], customers = [] }: Rewards
       max_uses_per_customer: 1,
       voucher_type: "global",
       target_customer_id: "",
+      image_url: "",
     })
     setEditingVoucher(null)
     setCustomerSearch("")
+    setImagePreview(null)
   }
 
   const openCreateDialog = (type: "global" | "personal" = "global") => {
@@ -115,7 +145,9 @@ export function RewardsManager({ initialVouchers = [], customers = [] }: Rewards
       max_uses_per_customer: voucher.max_uses ?? 1,
       voucher_type: voucher.voucher_type || "global",
       target_customer_id: voucher.target_customer_id || "",
+      image_url: voucher.image_url || "",
     })
+    setImagePreview(voucher.image_url || null)
     setIsDialogOpen(true)
   }
 
@@ -144,6 +176,7 @@ export function RewardsManager({ initialVouchers = [], customers = [] }: Rewards
             discount_type: formData.discount_type,
             discount_value: formData.discount_value,
             valid_until: validUntil.toISOString(),
+            image_url: formData.image_url || null,
           })
           .eq("id", editingVoucher.id)
 
@@ -171,6 +204,7 @@ export function RewardsManager({ initialVouchers = [], customers = [] }: Rewards
           is_active: true,
           max_uses: formData.max_uses_per_customer,
           voucher_type: formData.voucher_type,
+          image_url: formData.image_url || null,
         }
 
         if (formData.voucher_type === "personal" && formData.target_customer_id) {
@@ -260,10 +294,16 @@ export function RewardsManager({ initialVouchers = [], customers = [] }: Rewards
   const renderVoucherCard = (voucher: any, isPersonal: boolean) => (
     <Card
       key={voucher.id}
-      className={`bg-card border hover:border-amber-500/50 transition-colors ${
+      className={`bg-card border hover:border-amber-500/50 transition-colors overflow-hidden ${
         !voucher.is_active ? "opacity-60" : ""
       }`}
     >
+      {voucher.image_url && (
+        <div className="relative w-full h-32 overflow-hidden bg-muted">
+          <img src={voucher.image_url} alt={voucher.name} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+        </div>
+      )}
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
@@ -562,6 +602,57 @@ export function RewardsManager({ initialVouchers = [], customers = [] }: Rewards
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 rows={2}
+              />
+            </div>
+
+            {/* Voucher Image Upload */}
+            <div className="space-y-2">
+              <Label className="text-foreground flex items-center gap-2">
+                <ImageIcon className="w-4 h-4" />
+                Voucher Image <span className="text-xs text-muted-foreground font-normal">(optional - makes the voucher more attractive)</span>
+              </Label>
+              {(imagePreview || formData.image_url) ? (
+                <div className="relative w-full h-36 rounded-xl overflow-hidden bg-muted border border-border">
+                  <img 
+                    src={imagePreview || formData.image_url} 
+                    alt="Voucher preview" 
+                    className="w-full h-full object-cover" 
+                  />
+                  <Button 
+                    type="button" 
+                    variant="destructive" 
+                    size="icon" 
+                    className="absolute top-2 right-2 h-7 w-7 rounded-full shadow-lg" 
+                    onClick={() => { setFormData(prev => ({ ...prev, image_url: "" })); setImagePreview(null) }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                    <p className="text-xs text-white">Click × to remove</p>
+                  </div>
+                </div>
+              ) : (
+                <div 
+                  className="w-full h-36 rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {isUploadingImage ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  ) : (
+                    <>
+                      <Upload className="h-8 w-8 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Click to upload voucher image</p>
+                      <p className="text-xs text-muted-foreground">PNG, JPG up to 5MB</p>
+                    </>
+                  )}
+                </div>
+              )}
+              <input 
+                ref={fileInputRef} 
+                type="file" 
+                accept="image/*" 
+                onChange={handleImageUpload} 
+                className="hidden" 
               />
             </div>
 

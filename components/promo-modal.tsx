@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -183,26 +183,37 @@ export function TopBanner() {
   if (images.length === 0) return null
 
   const content = (
-    <div className="relative w-full h-20 sm:h-24 overflow-hidden bg-gradient-to-r from-amber-50 to-orange-50">
+    <div className="relative w-full h-44 sm:h-56 md:h-64 overflow-hidden bg-gradient-to-r from-amber-50 to-orange-50 group">
+      {/* Images */}
       {images.map((img, idx) => (
         <div
           key={idx}
           className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${idx === currentIndex ? "opacity-100" : "opacity-0"}`}
         >
-          <Image src={img} alt={`Promo ${idx + 1}`} fill className="object-cover" priority={idx === 0} />
+          <Image src={img} alt={`Promo ${idx + 1}`} fill className="object-cover group-hover:scale-105 transition-transform duration-700" priority={idx === 0} />
         </div>
       ))}
+      
+      {/* Glass Effect Overlay - Subtle gradient at bottom */}
+      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/30 via-black/10 to-transparent pointer-events-none" />
+      
+      {/* Frosted glass strip at bottom for dots */}
       {images.length > 1 && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
           {images.map((_, idx) => (
             <button
               key={idx}
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCurrentIndex(idx) }}
-              className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? "bg-white w-4 shadow-sm" : "bg-white/50 w-1.5"}`}
+              className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? "bg-white w-5 shadow-sm" : "bg-white/60 w-1.5"}`}
             />
           ))}
         </div>
       )}
+      
+      {/* Top-left glass badge (optional accent) */}
+      <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-md border border-white/40 shadow-sm">
+        <span className="text-[10px] font-semibold text-white drop-shadow-md tracking-wider uppercase">✨ Featured</span>
+      </div>
     </div>
   )
 

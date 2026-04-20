@@ -94,6 +94,7 @@ export interface Voucher {
   target_customer_id: string | null;
   created_by_ai: boolean;
   ai_reason: string | null;
+  image_url: string | null;
 }
 
 export interface CustomerPreferences {
