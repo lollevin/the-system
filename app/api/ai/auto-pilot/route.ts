@@ -515,9 +515,10 @@ Only return JSON. No markdown, no code fences.`
             { role: "user", content: aiPrompt },
           ],
           temperature: 0.7,
-          maxTokens: 1500,
-          maxRetries: 2,
-          timeoutMs: 18000,
+          maxTokens: 1200,
+          maxRetries: 1,
+          timeoutMs: 25000,
+          totalBudgetMs: 45000,
           jsonMode: true,
         })
 

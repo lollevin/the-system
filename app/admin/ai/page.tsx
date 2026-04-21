@@ -622,12 +622,13 @@ export default function AICopilotPage() {
           <button
             onClick={testAIConnection}
             disabled={aiHealth.loading}
+            title={aiHealth.ok ? `Model: ${aiHealth.model}\nLatency: ${aiHealth.latencyMs}ms` : "Click to retry AI health check"}
             className={`w-full p-2.5 rounded-xl border transition-all text-left group ${
               aiHealth.loading
                 ? "bg-amber-500/5 border-amber-500/20"
                 : aiHealth.ok
                   ? "bg-green-500/5 border-green-500/25 hover:bg-green-500/10"
-                  : "bg-red-500/5 border-red-500/25 hover:bg-red-500/10"
+                  : "bg-orange-500/5 border-orange-500/25 hover:bg-orange-500/10"
             }`}
           >
             <div className="flex items-center gap-2">
@@ -636,24 +637,24 @@ export default function AICopilotPage() {
               ) : aiHealth.ok ? (
                 <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />
               ) : (
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <AlertCircle className="w-4 h-4 text-orange-600 shrink-0" />
               )}
               <div className="flex-1 min-w-0">
                 <p className={`text-[11px] font-semibold ${
-                  aiHealth.loading ? "text-amber-700" : aiHealth.ok ? "text-green-700" : "text-red-700"
+                  aiHealth.loading ? "text-amber-700" : aiHealth.ok ? "text-green-700" : "text-orange-700"
                 }`}>
-                  {aiHealth.loading ? "Checking AI..." : aiHealth.ok ? "AI Online" : "AI Offline"}
+                  {aiHealth.loading ? "Checking AI..." : aiHealth.ok ? "AI Online" : "AI Slow / Unavailable"}
                 </p>
                 <p className="text-[10px] text-muted-foreground truncate">
                   {aiHealth.loading
                     ? "Testing connection..."
                     : aiHealth.ok
                       ? `${aiHealth.model} · ${aiHealth.latencyMs}ms`
-                      : aiHealth.error?.slice(0, 40) || "Click to retry"}
+                      : "Click to retry"}
                 </p>
               </div>
               <Activity className={`w-3.5 h-3.5 transition-opacity opacity-50 group-hover:opacity-100 ${
-                aiHealth.loading ? "text-amber-600" : aiHealth.ok ? "text-green-600" : "text-red-600"
+                aiHealth.loading ? "text-amber-600" : aiHealth.ok ? "text-green-600" : "text-orange-600"
               }`} />
             </div>
           </button>

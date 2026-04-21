@@ -375,9 +375,10 @@ Structure every response as:
           { role: "user", content: question },
         ],
         temperature: 0.3,
-        maxTokens: 1800,
-        maxRetries: 2,
-        timeoutMs: 20000,
+        maxTokens: 1500,
+        maxRetries: 1,
+        timeoutMs: 25000,
+        totalBudgetMs: 45000,
       })
 
       return NextResponse.json({

@@ -183,9 +183,10 @@ IMPORTANT: Only include recommendations where the target segment actually has cu
           { role: "user", content: prompt },
         ],
         temperature: 0.7,
-        maxTokens: 2000,
-        maxRetries: 2,
-        timeoutMs: 20000,
+        maxTokens: 1800,
+        maxRetries: 1,
+        timeoutMs: 25000,
+        totalBudgetMs: 45000,
         jsonMode: true,
       })
       aiRaw = result.content

@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { pingAI, PRIMARY_MODEL, FALLBACK_MODELS } from "@/lib/ai-client"
 
+export const maxDuration = 60
+export const dynamic = "force-dynamic"
+
 export async function GET(_request: NextRequest) {
   try {
     const supabase = await createClient()

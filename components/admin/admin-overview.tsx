@@ -8,7 +8,8 @@ import {
   Loader2, MapPin, Users, Bot,
   RefreshCw, Store, X, Phone, Globe, Clock, ChefHat,
   ExternalLink, Sparkles, Navigation2,
-  Settings, LogOut, PanelRightOpen, PanelRightClose
+  Settings, LogOut, PanelRightOpen, PanelRightClose,
+  AlertTriangle
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -60,6 +61,7 @@ export function AdminOverview() {
   const [competitors, setCompetitors] = useState<Competitor[]>([])
   const [loading, setLoading] = useState(true)
   const [competitorLoading, setCompetitorLoading] = useState(false)
+  const [competitorError, setCompetitorError] = useState<string | null>(null)
   const [selectedCompetitor, setSelectedCompetitor] = useState<Competitor | null>(null)
   const [threatLevels, setThreatLevels] = useState<Record<string, { level: string; reason: string; deepAnalysis?: string }>>({})
   const [threatLoading, setThreatLoading] = useState(false)
@@ -91,14 +93,28 @@ export function AdminOverview() {
 
   const fetchCompetitors = async (lat: number, lng: number, rKm: number) => {
     setCompetitorLoading(true)
+    setCompetitorError(null)
     try {
-      const r = await fetch(`/api/admin/competitors?lat=${lat}&lng=${lng}&radius=${rKm * 1000}`)
-      if (r.ok) {
-        const data = await r.json()
+      const r = await fetch(`/api/admin/competitors?lat=${lat}&lng=${lng}&radius=${rKm * 1000}`, {
+        cache: "no-store",
+      })
+      const data = await r.json().catch(() => ({}))
+      if (r.ok && Array.isArray(data)) {
         setCompetitors(data)
-        analyzeThreatLevels(data)
+        if (data.length === 0) {
+          setCompetitorError("No F&B places found within this radius")
+        } else {
+          analyzeThreatLevels(data)
+        }
+      } else {
+        const msg = data?.hint || data?.error || "Failed to load F&B competitors"
+        setCompetitorError(msg)
+        console.error("[Overview] Competitors fetch failed:", msg)
       }
-    } catch { /* silent */ } finally {
+    } catch (err: any) {
+      setCompetitorError("Network error loading F&B data")
+      console.error("[Overview] Competitors network error:", err)
+    } finally {
       setCompetitorLoading(false)
     }
   }
@@ -239,6 +255,29 @@ export function AdminOverview() {
               />
             )}
           </div>
+
+          {/* Loading indicator - top center */}
+          {competitorLoading && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-white/95 backdrop-blur-md rounded-full px-4 py-2 shadow-lg border border-black/5 flex items-center gap-2 text-xs">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#8b6f47]" />
+              <span className="text-muted-foreground">Loading F&B places nearby...</span>
+            </div>
+          )}
+
+          {/* Error state - top center */}
+          {!competitorLoading && competitorError && enrichedCompetitors.length === 0 && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-white/95 backdrop-blur-md rounded-xl px-4 py-2.5 shadow-lg border border-orange-500/20 flex items-center gap-2 text-xs max-w-sm">
+              <AlertTriangle className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+              <span className="text-foreground">{competitorError}</span>
+              <button
+                onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
+                className="ml-1 flex items-center gap-1 text-[#8b6f47] hover:text-[#8b6f47]/80 font-medium"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Retry
+              </button>
+            </div>
+          )}
 
           {/* Floating threat stats pill — bottom-left */}
           {enrichedCompetitors.length > 0 && (

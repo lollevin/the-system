@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase/server"
 import { rateLimitResponse } from "@/lib/rate-limit"
 import { NextResponse } from "next/server"
 
+export const maxDuration = 60
+export const dynamic = "force-dynamic"
+
 function haversineDistance(
   lat1: number, lng1: number,
   lat2: number, lng2: number
@@ -36,47 +39,63 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "lat and lng are required" }, { status: 400 })
   }
 
-  const query = `[out:json][timeout:10];(node["amenity"~"restaurant|cafe|fast_food"](around:${radius},${lat},${lng}););out body;`
+  // Also search for more amenities to catch all F&B places
+  const query = `[out:json][timeout:25];(node["amenity"~"restaurant|cafe|fast_food|food_court|bar|pub|ice_cream|bakery"](around:${radius},${lat},${lng});node["shop"~"bakery|confectionery|coffee"](around:${radius},${lat},${lng}););out body;`
 
   try {
     const overpassEndpoints = [
       "https://overpass-api.de/api/interpreter",
       "https://overpass.kumi.systems/api/interpreter",
       "https://overpass.openstreetmap.ru/api/interpreter",
+      "https://overpass.private.coffee/api/interpreter",
     ]
 
     let data: any = null
     let lastErrorStatus: number | null = null
+    let lastErrorMessage: string = ""
 
     for (const endpoint of overpassEndpoints) {
       try {
         const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 8000)
+        const timeout = setTimeout(() => controller.abort(), 20000)
 
         const res = await fetch(endpoint, {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "JP&Co-Admin/1.0",
+          },
           body: `data=${encodeURIComponent(query)}`,
           signal: controller.signal,
+          cache: "no-store",
         })
 
         clearTimeout(timeout)
 
         if (!res.ok) {
           lastErrorStatus = res.status
+          lastErrorMessage = `${endpoint}: status ${res.status}`
+          console.warn(`[Competitors] ${endpoint} returned ${res.status}`)
           continue
         }
 
         data = await res.json()
         break
-      } catch {
+      } catch (err: any) {
+        lastErrorMessage = `${endpoint}: ${err?.name === "AbortError" ? "timeout" : err?.message || "network error"}`
+        console.warn(`[Competitors] ${lastErrorMessage}`)
         continue
       }
     }
 
     if (!data) {
+      console.error(`[Competitors] All Overpass endpoints failed. Last: ${lastErrorMessage}`)
       return NextResponse.json(
-        { error: "Overpass API unavailable", detail: lastErrorStatus ? `last_status_${lastErrorStatus}` : "timeout_or_network" },
+        {
+          error: "Overpass API unavailable",
+          detail: lastErrorStatus ? `last_status_${lastErrorStatus}` : "timeout_or_network",
+          hint: "The OpenStreetMap Overpass service is temporarily slow or unreachable. Try again in a moment.",
+        },
         { status: 502 }
       )
     }
@@ -84,27 +103,39 @@ export async function GET(request: Request) {
     const elements = data.elements || []
 
     const competitors = elements
-      .map((el: any) => ({
-        name: el.tags?.name || "Unknown",
-        lat: el.lat,
-        lng: el.lon,
-        distance_km: haversineDistance(lat, lng, el.lat, el.lon),
-        category: el.tags?.amenity || "restaurant",
-        address: el.tags?.["addr:street"]
-          ? `${el.tags["addr:street"]} ${el.tags["addr:housenumber"] || ""}`.trim()
-          : el.tags?.["addr:full"] || "",
-        website: el.tags?.website || el.tags?.["contact:website"] || "",
-        phone: el.tags?.phone || el.tags?.["contact:phone"] || "",
-        opening_hours: el.tags?.opening_hours || "",
-        cuisine: el.tags?.cuisine || "",
-        brand: el.tags?.brand || "",
-      }))
-      .filter((c: any) => c.name !== "Unknown")
-      .sort((a: any, b: any) => a.distance_km - b.distance_km)
-      .slice(0, 50)
+      .map((el: any) => {
+        const amenity = el.tags?.amenity
+        const shop = el.tags?.shop
+        let category: string = "restaurant"
+        if (amenity) category = amenity
+        else if (shop === "bakery") category = "bakery" 
+        else if (shop === "coffee") category = "cafe"
+        else if (shop === "confectionery") category = "bakery"
 
+        return {
+          name: el.tags?.name || "",
+          lat: el.lat,
+          lng: el.lon,
+          distance_km: haversineDistance(lat, lng, el.lat, el.lon),
+          category,
+          address: el.tags?.["addr:street"]
+            ? `${el.tags["addr:street"]} ${el.tags["addr:housenumber"] || ""}`.trim()
+            : el.tags?.["addr:full"] || "",
+          website: el.tags?.website || el.tags?.["contact:website"] || "",
+          phone: el.tags?.phone || el.tags?.["contact:phone"] || "",
+          opening_hours: el.tags?.opening_hours || "",
+          cuisine: el.tags?.cuisine || "",
+          brand: el.tags?.brand || "",
+        }
+      })
+      .filter((c: any) => c.name && c.name.trim().length > 0)
+      .sort((a: any, b: any) => a.distance_km - b.distance_km)
+      .slice(0, 80)
+
+    console.log(`[Competitors] Found ${competitors.length} places within ${radius}m of ${lat},${lng}`)
     return NextResponse.json(competitors)
-  } catch {
-    return NextResponse.json({ error: "Failed to fetch competitors" }, { status: 500 })
+  } catch (err: any) {
+    console.error(`[Competitors] Unexpected error:`, err)
+    return NextResponse.json({ error: "Failed to fetch competitors", detail: err?.message }, { status: 500 })
   }
 }

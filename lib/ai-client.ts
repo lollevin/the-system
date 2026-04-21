@@ -82,7 +82,10 @@ async function callChatOnce(
           Authorization: `Bearer ${OPENAI_API_KEY}`,
         },
         body: JSON.stringify(body),
-      },
+        cache: "no-store",
+        // @ts-ignore - Next.js extends fetch with this option
+        next: { revalidate: 0 },
+      } as any,
       opts.timeoutMs
     )
 
@@ -271,12 +274,12 @@ export async function pingAI(): Promise<{ ok: boolean; model?: string; error?: s
   const start = Date.now()
   try {
     const r = await callAI({
-      messages: [{ role: "user", content: "Say 'OK' and nothing else." }],
+      messages: [{ role: "user", content: "Hi" }],
       temperature: 0,
-      maxTokens: 10,
+      maxTokens: 5,
       maxRetries: 1,
-      timeoutMs: 12000,
-      totalBudgetMs: 25000,
+      timeoutMs: 25000,
+      totalBudgetMs: 45000,
     })
     return { ok: true, model: r.model, latencyMs: Date.now() - start }
   } catch (err: any) {

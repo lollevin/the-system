@@ -149,12 +149,30 @@ export default function AIAutoPilot() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch("/api/ai/auto-pilot")
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 55000)
+
+      const response = await fetch("/api/ai/auto-pilot", {
+        signal: controller.signal,
+        cache: "no-store",
+      })
+      clearTimeout(timeoutId)
+
+      const contentType = response.headers.get("content-type") || ""
+      if (!contentType.includes("application/json")) {
+        const text = await response.text().catch(() => "")
+        throw new Error(
+          response.status === 504
+            ? "Server timeout - AI service is slow. Please try again."
+            : `Unexpected ${response.status}: ${text.slice(0, 80)}`
+        )
+      }
+
+      const data = await response.json()
       if (!response.ok) {
-        const data = await response.json()
         throw new Error(data.error || "Failed to fetch alerts")
       }
-      const data = await response.json()
+
       setAlerts(data.alerts || [])
       setSummary(
         data.summary || {
@@ -170,8 +188,11 @@ export default function AIAutoPilot() {
       setAiError(data.aiError || null)
       setLastRefresh(new Date())
     } catch (err: any) {
-      setError(err.message || "Failed to fetch alerts")
-      toast.error("Failed to load auto-pilot alerts")
+      const msg = err?.name === "AbortError"
+        ? "Request timed out after 55s. Please try again."
+        : err?.message || "Failed to fetch alerts"
+      setError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }

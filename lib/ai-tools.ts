@@ -274,7 +274,10 @@ async function callChatWithRetry(
             Authorization: `Bearer ${OPENAI_API_KEY}`,
           },
           body: JSON.stringify(body),
-        },
+          cache: "no-store",
+          // @ts-ignore - Next.js extends fetch
+          next: { revalidate: 0 },
+        } as any,
         options.timeoutMs
       )
 
