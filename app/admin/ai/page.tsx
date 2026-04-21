@@ -378,10 +378,27 @@ export default function AICopilotPage() {
         }),
       })
 
-      const data = await response.json()
+      // Robust response parsing - handle HTML error pages
+      const contentType = response.headers.get("content-type") || ""
+      let data: any
+      if (contentType.includes("application/json")) {
+        data = await response.json()
+      } else {
+        const text = await response.text()
+        const snippet = text.slice(0, 200)
+        throw new Error(
+          response.status === 504
+            ? "AI request timed out. The service is slow — try a shorter prompt or try again."
+            : response.status >= 500
+              ? `Server error (${response.status}). Try again in a moment.`
+              : response.status === 429
+                ? "Rate limit exceeded. Please wait a minute."
+                : `Unexpected response from server (${response.status}): ${snippet}`
+        )
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || "Generation failed")
+        throw new Error(data.error || data.message || "Generation failed")
       }
 
       // Parse customer actions

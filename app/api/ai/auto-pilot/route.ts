@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getVoucherLink, getPointsLink, getMenuLink, getReferralLink } from "@/lib/pwa-links"
 import { callAI } from "@/lib/ai-client"
 
+export const maxDuration = 60
+
 export interface AutoPilotAlert {
   id: string
   type:
@@ -513,9 +515,9 @@ Only return JSON. No markdown, no code fences.`
             { role: "user", content: aiPrompt },
           ],
           temperature: 0.7,
-          maxTokens: 2000,
+          maxTokens: 1500,
           maxRetries: 2,
-          timeoutMs: 30000,
+          timeoutMs: 18000,
           jsonMode: true,
         })
 

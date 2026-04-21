@@ -318,6 +318,7 @@ export async function aiCallWithTools({
   maxTokens = 2500,
   retries = 3,
   timeoutMs = 45000,
+  totalBudgetMs = 50000,
 }: {
   messages: any[]
   maxRounds?: number
@@ -325,14 +326,26 @@ export async function aiCallWithTools({
   maxTokens?: number
   retries?: number
   timeoutMs?: number
+  totalBudgetMs?: number
 }): Promise<{ content: string; toolsUsed: string[]; model?: string }> {
   const toolsUsed: string[] = []
   const errors: string[] = []
+  const startTime = Date.now()
+  const isOutOfTime = () => Date.now() - startTime > totalBudgetMs
 
   for (const model of FALLBACK_MODELS) {
+    if (isOutOfTime()) {
+      errors.push(`Out of time budget before trying ${model}`)
+      break
+    }
     let hasError = false
 
     for (let round = 0; round < maxRounds; round++) {
+      if (isOutOfTime()) {
+        errors.push(`[${model}] out of time budget at round ${round + 1}`)
+        hasError = true
+        break
+      }
       const useTools = round < maxRounds - 1
       const result = await callChatWithRetry(model, messages, {
         temperature,

@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { NextRequest, NextResponse } from "next/server"
 import { callAI } from "@/lib/ai-client"
 
+export const maxDuration = 60
+
 interface AIRecommendationResponse {
   type: "personal" | "global"
   title: string
@@ -181,9 +183,9 @@ IMPORTANT: Only include recommendations where the target segment actually has cu
           { role: "user", content: prompt },
         ],
         temperature: 0.7,
-        maxTokens: 2500,
-        maxRetries: 3,
-        timeoutMs: 45000,
+        maxTokens: 2000,
+        maxRetries: 2,
+        timeoutMs: 20000,
         jsonMode: true,
       })
       aiRaw = result.content

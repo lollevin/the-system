@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { NextRequest, NextResponse } from "next/server"
 import { callAI } from "@/lib/ai-client"
 
+export const maxDuration = 60
+
 export async function POST(request: NextRequest) {
   try {
     // ── Auth ──────────────────────────────────────────────────────────
@@ -373,9 +375,9 @@ Structure every response as:
           { role: "user", content: question },
         ],
         temperature: 0.3,
-        maxTokens: 2000,
-        maxRetries: 3,
-        timeoutMs: 45000,
+        maxTokens: 1800,
+        maxRetries: 2,
+        timeoutMs: 20000,
       })
 
       return NextResponse.json({

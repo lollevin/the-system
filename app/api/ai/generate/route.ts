@@ -5,9 +5,12 @@ import { rateLimitResponse } from "@/lib/rate-limit";
 import { getVoucherLink, getPointsLink, getMenuLink } from "@/lib/pwa-links";
 import { aiCallWithTools } from "@/lib/ai-tools";
 
+// Allow up to 60 seconds for AI generation (matches Nginx default proxy_read_timeout)
+export const maxDuration = 60;
+
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
-const AI_MODEL = process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "deepseek-chat";
+const AI_MODEL = process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 export async function POST(request: NextRequest) {
   // Rate limit: 20 req/min for AI
@@ -393,9 +396,12 @@ You have access to these tools. Use them when the admin's question needs externa
 
       const result = await aiCallWithTools({
         messages: chatMessages,
-        maxRounds: 4,
+        maxRounds: 2,
         temperature: 0.8,
-        maxTokens: 2500,
+        maxTokens: 2000,
+        retries: 2,
+        timeoutMs: 20000,
+        totalBudgetMs: 50000,
       });
 
       generatedMessage = result.content || "Sorry, I couldn't generate a response. Please try again.";

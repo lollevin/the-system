@@ -31,6 +31,7 @@ export interface AICallOptions {
   withTools?: boolean
   maxToolRounds?: number
   timeoutMs?: number
+  totalBudgetMs?: number
 }
 
 function sleep(ms: number) {
@@ -120,20 +121,31 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     temperature = 0.7,
     maxTokens = 2000,
     jsonMode = false,
-    maxRetries = 3,
+    maxRetries = 2,
     withTools = false,
-    maxToolRounds = 3,
-    timeoutMs = 45000,
+    maxToolRounds = 2,
+    timeoutMs = 20000,
+    totalBudgetMs = 50000,
   } = options
 
   if (withTools) {
-    return callAIWithTools({ messages, temperature, maxTokens, maxRetries, maxRounds: maxToolRounds, timeoutMs })
+    return callAIWithTools({ messages, temperature, maxTokens, maxRetries, maxRounds: maxToolRounds, timeoutMs, totalBudgetMs })
   }
 
   const errors: string[] = []
+  const startTime = Date.now()
+  const isOutOfTime = () => Date.now() - startTime > totalBudgetMs
 
   for (const model of FALLBACK_MODELS) {
+    if (isOutOfTime()) {
+      errors.push(`Out of time budget before trying ${model}`)
+      break
+    }
     for (let attempt = 0; attempt < maxRetries; attempt++) {
+      if (isOutOfTime()) {
+        errors.push(`[${model}] out of time budget`)
+        break
+      }
       const result = await callChatOnce(model, messages, { temperature, maxTokens, jsonMode, timeoutMs })
 
       if (result.ok) {
@@ -152,7 +164,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         break
       }
 
-      const backoff = Math.min(1000 * Math.pow(2, attempt), 8000)
+      const backoff = Math.min(500 * Math.pow(2, attempt), 3000)
       await sleep(backoff)
     }
   }
@@ -167,6 +179,7 @@ async function callAIWithTools({
   maxRetries,
   maxRounds,
   timeoutMs,
+  totalBudgetMs,
 }: {
   messages: any[]
   temperature: number
@@ -174,15 +187,23 @@ async function callAIWithTools({
   maxRetries: number
   maxRounds: number
   timeoutMs: number
+  totalBudgetMs: number
 }): Promise<AIResponse> {
   const toolsUsed: string[] = []
   const errors: string[] = []
   let chosenModel: string | null = null
+  const startTime = Date.now()
+  const isOutOfTime = () => Date.now() - startTime > totalBudgetMs
 
   for (const model of FALLBACK_MODELS) {
+    if (isOutOfTime()) break
     let failed = false
 
     for (let round = 0; round < maxRounds; round++) {
+      if (isOutOfTime()) {
+        failed = true
+        break
+      }
       const tools = round < maxRounds - 1 ? toolDefinitions : undefined
 
       let result: any = null
@@ -253,8 +274,9 @@ export async function pingAI(): Promise<{ ok: boolean; model?: string; error?: s
       messages: [{ role: "user", content: "Say 'OK' and nothing else." }],
       temperature: 0,
       maxTokens: 10,
-      maxRetries: 2,
-      timeoutMs: 20000,
+      maxRetries: 1,
+      timeoutMs: 12000,
+      totalBudgetMs: 25000,
     })
     return { ok: true, model: r.model, latencyMs: Date.now() - start }
   } catch (err: any) {
