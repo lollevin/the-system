@@ -57,6 +57,8 @@ export function RewardsHub({
 
   const [config, setConfig] = useState<RewardsConfig>(DEFAULT_REWARDS)
   const [isClaimingLikeShare, setIsClaimingLikeShare] = useState(false)
+  const [isClaimingCheckIn, setIsClaimingCheckIn] = useState(false)
+  const [isClaimingBirthday, setIsClaimingBirthday] = useState(false)
 
   // Fetch rewards config set by admin
   useEffect(() => {
@@ -124,8 +126,55 @@ export function RewardsHub({
     }
   }
 
-  // Handle birthday click when no birthday set
+  // Generic claim via API
+  const claimTask = async (
+    task: "daily_checkin" | "birthday_gift",
+    setLoading: (v: boolean) => void,
+    successLabel: string
+  ) => {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/customer/claim-task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task }),
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (res.ok && data.success) {
+        toast.success(`+${data.points} ${t("customer", "pointsUnit") || "points"}!`, {
+          description: successLabel,
+        })
+        onPointsEarned?.(data.new_balance)
+      } else if (data.error === "cooldown") {
+        toast.info(data.message || "Already claimed recently")
+      } else if (data.error === "no_birthday") {
+        toast.info(data.message || "Please set your birthday first", {
+          action: onEditProfile
+            ? { label: "Set now", onClick: () => onEditProfile() }
+            : undefined,
+        })
+      } else if (data.error === "not_birthday") {
+        toast.info(data.message || "Not your birthday yet")
+      } else {
+        toast.error(data.error || "Failed to claim reward")
+      }
+    } catch {
+      toast.error("Network error. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle Daily Check-In claim
+  const handleCheckInClaim = () => {
+    if (isClaimingCheckIn) return
+    claimTask("daily_checkin", setIsClaimingCheckIn, t("customer", "taskDailyCheckInDesc") || "Daily check-in reward")
+  }
+
+  // Handle Birthday claim
   const handleBirthdayClick = () => {
+    if (isClaimingBirthday) return
     if (!hasBirthday) {
       toast.info("Please fill in your birthday to unlock this reward", {
         action: onEditProfile
@@ -134,6 +183,7 @@ export function RewardsHub({
       })
       return
     }
+    claimTask("birthday_gift", setIsClaimingBirthday, t("customer", "birthdayGift") || "Happy Birthday!")
   }
 
   const tasks = [
@@ -145,7 +195,8 @@ export function RewardsHub({
       reward: `+${config.daily_checkin} ${t("customer", "perDay")}`,
       bg: "bg-purple-500/10",
       iconColor: "text-purple-600",
-      onClick: onShowCheckIn,
+      onClick: handleCheckInClaim,
+      loading: isClaimingCheckIn,
       disabled: config.daily_checkin <= 0,
     },
     {
@@ -182,6 +233,7 @@ export function RewardsHub({
       bg: hasBirthday ? "bg-pink-500/10" : "bg-muted",
       iconColor: hasBirthday ? "text-pink-600" : "text-muted-foreground",
       onClick: handleBirthdayClick,
+      loading: isClaimingBirthday,
       needsBirthday: !hasBirthday,
       disabled: config.birthday_gift <= 0,
     },
@@ -193,7 +245,7 @@ export function RewardsHub({
       reward: `+${config.streak_bonus} ${t("customer", "bonus")}`,
       bg: "bg-orange-500/10",
       iconColor: "text-orange-600",
-      onClick: onShowCheckIn,
+      onClick: onShowCheckIn, // streak just goes to home (view-only)
       disabled: config.streak_bonus <= 0,
     },
   ]

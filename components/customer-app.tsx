@@ -156,6 +156,68 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
     fetchData()
   }, [])
 
+  // Re-fetch when user returns to the tab (e.g. after staff adds points)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        fetchData()
+      }
+    }
+    const onFocus = () => fetchData()
+    document.addEventListener("visibilitychange", onVisible)
+    window.addEventListener("focus", onFocus)
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible)
+      window.removeEventListener("focus", onFocus)
+    }
+  }, [])
+
+  // Real-time subscription so customer sees point updates instantly
+  useEffect(() => {
+    if (!user.id) return
+
+    const profileChannel = supabase
+      .channel(`profile-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as any
+          if (updated) {
+            setProfile((prev) => ({ ...prev, ...updated }))
+          }
+        }
+      )
+      .subscribe()
+
+    const txChannel = supabase
+      .channel(`transactions-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "transactions",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          // Refresh everything when a new transaction lands
+          fetchData()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(profileChannel)
+      supabase.removeChannel(txChannel)
+    }
+  }, [user.id])
+
   const fetchData = async () => {
     setIsLoading(true)
     

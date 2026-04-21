@@ -81,40 +81,31 @@ export function CheckIn({ userId, onCheckIn }: CheckInProps) {
   const handleCheckIn = async () => {
     if (isCheckedIn) return
     setIsLoading(true)
-    
+
     try {
-      const { error: txError } = await supabase.from("transactions").insert({
-        user_id: userId,
-        type: "earn",
-        points: 10,
-        amount: 0,
-        reason: "Daily Check-in",
+      const res = await fetch("/api/customer/claim-task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task: "daily_checkin" }),
       })
+      const data = await res.json().catch(() => ({}))
 
-      if (txError) {
-        toast.error(t("customer", "checkInFailed"), { description: txError.message })
-        setIsLoading(false)
-        return
+      if (res.ok && data.success) {
+        setIsCheckedIn(true)
+        toast.success(t("customer", "checkInSuccess"), {
+          description: `+${data.points} ${t("customer", "pointsUnit") || "points"}`,
+        })
+        fetchWeeklyStreak()
+        onCheckIn?.()
+      } else if (data.error === "cooldown") {
+        setIsCheckedIn(true)
+        toast.info(data.message || "Already checked in today")
+      } else {
+        toast.error(t("customer", "checkInFailed"), {
+          description: data.error || "Please try again",
+        })
       }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("points_balance")
-        .eq("id", userId)
-        .single()
-
-      if (profile) {
-        await supabase
-          .from("profiles")
-          .update({ points_balance: profile.points_balance + 10 })
-          .eq("id", userId)
-      }
-
-      setIsCheckedIn(true)
-      toast.success(t("customer", "checkInSuccess"), { description: t("customer", "checkInEarned") })
-      fetchWeeklyStreak()
-      onCheckIn?.()
-    } catch (err) {
+    } catch {
       toast.error(t("customer", "checkInFailed"))
     } finally {
       setIsLoading(false)

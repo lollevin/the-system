@@ -45,9 +45,8 @@ export async function GET(request: Request) {
   try {
     const overpassEndpoints = [
       "https://overpass-api.de/api/interpreter",
-      "https://overpass.kumi.systems/api/interpreter",
       "https://overpass.openstreetmap.ru/api/interpreter",
-      "https://overpass.private.coffee/api/interpreter",
+      "https://overpass.kumi.systems/api/interpreter",
     ]
 
     let data: any = null
@@ -57,13 +56,17 @@ export async function GET(request: Request) {
     for (const endpoint of overpassEndpoints) {
       try {
         const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 20000)
+        // Fail fast on secondary mirrors so we move on quickly
+        const timeoutMs = endpoint.includes("overpass-api.de") ? 25000 : 8000
+        const timeout = setTimeout(() => controller.abort(), timeoutMs)
 
+        // Overpass-api.de blocks generic bot UAs with 406 — masquerade as curl (recommended by their guidelines)
         const res = await fetch(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": "JP&Co-Admin/1.0",
+            "Accept": "*/*",
+            "User-Agent": "curl/8.4.0",
           },
           body: `data=${encodeURIComponent(query)}`,
           signal: controller.signal,

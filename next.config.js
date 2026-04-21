@@ -30,9 +30,11 @@ const nextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://*.supabase.co https://*.basemaps.cartocdn.com https://unpkg.com",
+              // Map tiles (Carto, OSM, Leaflet icons), Supabase storage, avatar services
+              "img-src 'self' data: blob: https://*.supabase.co https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org https://unpkg.com https://*.tile.openstreetmap.fr https://server.arcgisonline.com",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://readymark.vercel.app https://overpass-api.de",
+              // Supabase realtime (wss). Overpass calls happen server-side so no connect-src needed for them.
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://readymark.vercel.app",
               "frame-ancestors 'none'",
             ].join("; "),
           },
