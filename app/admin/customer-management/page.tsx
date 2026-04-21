@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Gift, Share2, ArrowLeft, ChevronRight, Loader2, Users } from "lucide-react"
+import { Gift, Share2, ChevronRight, Loader2, Users } from "lucide-react"
 import { RewardsManager } from "@/app/admin/rewards/rewards-manager"
 import ReferralPage from "@/app/admin/referrals/page"
 import CustomerListPage from "@/app/admin/customer-list/page"
@@ -69,19 +69,7 @@ function CustomerManagementContent() {
     <div className="flex flex-col lg:flex-row h-[calc(100vh-120px)] bg-background rounded-2xl border border-border/50 overflow-hidden shadow-sm">
       {/* Left Sidebar - Simple navigation */}
       <aside className="w-full lg:w-56 border-b lg:border-b-0 lg:border-r border-border bg-card/30 flex flex-col shrink-0">
-        <div className="p-4">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-accent/50 px-2 mb-4"
-            onClick={() => router.push("/admin")}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-        </div>
-
-        <nav className="flex-1 px-3 space-y-1">
+        <nav className="flex-1 px-3 py-3 space-y-1">
           <button
             onClick={() => handleTabChange("customers")}
             className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group ${
@@ -131,9 +119,6 @@ function CustomerManagementContent() {
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto bg-card/10">
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50 px-6 py-4">
-          <h1 className="text-xl font-bold">Customer Management</h1>
-        </div>
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}

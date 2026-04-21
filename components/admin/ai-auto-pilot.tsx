@@ -137,6 +137,9 @@ export default function AIAutoPilot() {
   const [sendingAlerts, setSendingAlerts] = useState<Set<string>>(new Set())
   const [filterType, setFilterType] = useState<string>("all")
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+  const [aiOverview, setAiOverview] = useState<string | null>(null)
+  const [aiEnhanced, setAiEnhanced] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchAlerts()
@@ -162,6 +165,9 @@ export default function AIAutoPilot() {
           byType: {},
         }
       )
+      setAiOverview(data.aiOverview || null)
+      setAiEnhanced(!!data.aiEnhanced)
+      setAiError(data.aiError || null)
       setLastRefresh(new Date())
     } catch (err: any) {
       setError(err.message || "Failed to fetch alerts")
@@ -324,6 +330,39 @@ export default function AIAutoPilot() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Strategic Overview */}
+      {!loading && (aiOverview || aiError) && (
+        <Card className={`backdrop-blur-sm ${aiError ? "border-red-500/30 bg-red-500/5" : "border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/5"}`}>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${aiError ? "bg-red-500/15" : "bg-amber-500/20"}`}>
+                <Brain className={`w-5 h-5 ${aiError ? "text-red-600" : "text-amber-600"}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h3 className="font-semibold text-sm">
+                    {aiError ? "AI Analysis Unavailable" : "JP&Co AI Strategic Overview"}
+                  </h3>
+                  {aiEnhanced && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-700 border-green-500/30">
+                      AI ENHANCED
+                    </Badge>
+                  )}
+                </div>
+                {aiOverview && (
+                  <p className="text-sm text-muted-foreground leading-relaxed">{aiOverview}</p>
+                )}
+                {aiError && (
+                  <p className="text-xs text-red-600 leading-relaxed">
+                    AI enhancement failed: {aiError}. Rule-based alerts still work. Try refresh.
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filter Bar */}
       <Card className="bg-card/50 backdrop-blur-sm">

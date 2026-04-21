@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextRequest, NextResponse } from "next/server"
 import { getVoucherLink, getPointsLink, getMenuLink, getReferralLink } from "@/lib/pwa-links"
+import { callAI } from "@/lib/ai-client"
 
 export interface AutoPilotAlert {
   id: string
@@ -447,6 +448,103 @@ export async function GET(request: NextRequest) {
     }
     alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
 
+    // ─── AI ENHANCEMENT LAYER ──────────────────────────────────────────
+    // Use AI to generate a strategic overview + personalize the top 5 most
+    // important alert messages. This makes Auto-Pilot truly AI-driven.
+    let aiOverview: string | null = null
+    let aiEnhanced = false
+    let aiError: string | null = null
+
+    if (alerts.length > 0) {
+      try {
+        const topAlerts = alerts.slice(0, 5)
+        const alertsForAI = topAlerts.map((a) => ({
+          id: a.id,
+          type: a.type,
+          severity: a.severity,
+          title: a.title,
+          customer: {
+            name: a.customer.name,
+            tier: a.customer.tier,
+            points: a.customer.points,
+            totalSpent: a.customer.totalSpent,
+            visits: a.customer.visits,
+            lastVisit: a.customer.lastVisit,
+          },
+        }))
+
+        const businessSnapshot = {
+          totalCustomers: allCustomers.length,
+          totalAlerts: alerts.length,
+          urgent: alerts.filter((a) => a.severity === "urgent").length,
+          warning: alerts.filter((a) => a.severity === "warning").length,
+          top10SpendThreshold: top10Threshold === Infinity ? 0 : top10Threshold,
+        }
+
+        const aiPrompt = `You are JP&Co's AI marketing strategist for a Malaysian F&B business.
+
+Today's business snapshot:
+${JSON.stringify(businessSnapshot, null, 2)}
+
+Top 5 customer alerts requiring attention:
+${JSON.stringify(alertsForAI, null, 2)}
+
+Your task:
+1. Write a 2-3 sentence strategic overview of what the admin should focus on today
+2. For each of the top 5 alerts, write a personalized, warm WhatsApp message (max 80 words each) in English that:
+   - Uses the customer's name
+   - References specific behavior (visits, spending, tier)
+   - Has a clear call-to-action
+   - Is warm and human, NOT robotic
+
+Respond in STRICT JSON format:
+{
+  "overview": "strategic overview text here",
+  "messages": [
+    { "id": "alert-id-here", "message": "personalized message here" }
+  ]
+}
+
+Only return JSON. No markdown, no code fences.`
+
+        const aiResult = await callAI({
+          messages: [
+            { role: "system", content: "You are an expert F&B marketing strategist. Respond only with valid JSON." },
+            { role: "user", content: aiPrompt },
+          ],
+          temperature: 0.7,
+          maxTokens: 2000,
+          maxRetries: 2,
+          timeoutMs: 30000,
+          jsonMode: true,
+        })
+
+        const parsed = JSON.parse(aiResult.content)
+        aiOverview = parsed.overview || null
+
+        if (Array.isArray(parsed.messages)) {
+          const messageMap = new Map<string, string>()
+          for (const m of parsed.messages) {
+            if (m.id && m.message) messageMap.set(m.id, m.message)
+          }
+
+          for (const alert of alerts) {
+            const aiMsg = messageMap.get(alert.id)
+            if (aiMsg) {
+              const linkSuffix = alert.actionType === "send_and_voucher"
+                ? `\n\n📱 View rewards: ${getPointsLink()}\n\n- JP&Co Team`
+                : `\n\n📱 View menu: ${getMenuLink()}\n\n- JP&Co Team`
+              alert.messageTemplate = aiMsg + linkSuffix
+            }
+          }
+          aiEnhanced = true
+        }
+      } catch (err: any) {
+        console.error("[Auto-Pilot] AI enhancement failed:", err.message)
+        aiError = err.message
+      }
+    }
+
     // Build summary
     const summary = {
       total: alerts.length,
@@ -474,7 +572,13 @@ export async function GET(request: NextRequest) {
       },
     }
 
-    return NextResponse.json({ alerts, summary })
+    return NextResponse.json({
+      alerts,
+      summary,
+      aiOverview,
+      aiEnhanced,
+      aiError,
+    })
   } catch (error: any) {
     console.error("[Auto-Pilot] Error:", error)
     return NextResponse.json(

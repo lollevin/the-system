@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { Camera, Loader2, Globe, ArrowLeft, User, Image as ImageIcon, ChevronRight, ChevronDown, Upload, X, Smartphone, Maximize2, Layout, Square, Plus, Trash2 } from "lucide-react"
+import { Loader2, Globe, User, Image as ImageIcon, ChevronRight, ChevronDown, Upload, X, Smartphone, Maximize2, Layout, Square, Plus, Trash2, Gift, Calendar, UserPlus, Heart, Cake, Flame } from "lucide-react"
 import NextImage from "next/image"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
@@ -23,7 +23,7 @@ interface SettingsFormProps {
   profile: Profile | null
 }
 
-type Tab = "profile" | "banner"
+type Tab = "profile" | "banner" | "rewards"
 type BannerType = "login" | "topbar" | "popup"
 
 interface BannerConfig {
@@ -31,6 +31,22 @@ interface BannerConfig {
   imageFile?: File
   link: string
   isActive: boolean
+}
+
+interface RewardsConfig {
+  daily_checkin: number
+  refer_friend: number
+  like_share: number
+  birthday_gift: number
+  streak_bonus: number
+}
+
+const DEFAULT_REWARDS: RewardsConfig = {
+  daily_checkin: 10,
+  refer_friend: 50,
+  like_share: 15,
+  birthday_gift: 100,
+  streak_bonus: 50,
 }
 
 export function SettingsForm({ user, profile }: SettingsFormProps) {
@@ -58,9 +74,43 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
   })
   const [topbarImages, setTopbarImages] = useState<string[]>([])
   const [topbarPreviewIndex, setTopbarPreviewIndex] = useState(0)
+  const [rewardsConfig, setRewardsConfig] = useState<RewardsConfig>(DEFAULT_REWARDS)
+  const [isRewardsSaving, setIsRewardsSaving] = useState(false)
 
   const supabase = createClient()
   const { language, setLanguage, t } = useLanguage()
+
+  // Fetch rewards config
+  useEffect(() => {
+    async function fetchRewardsConfig() {
+      const { data } = await supabase
+        .from("global_settings")
+        .select("value")
+        .eq("key", "rewards_config")
+        .maybeSingle()
+      if (data?.value) {
+        setRewardsConfig({ ...DEFAULT_REWARDS, ...data.value })
+      }
+    }
+    fetchRewardsConfig()
+  }, [])
+
+  const handleSaveRewards = async () => {
+    setIsRewardsSaving(true)
+    try {
+      const { error } = await supabase.from("global_settings").upsert({
+        key: "rewards_config",
+        value: rewardsConfig,
+        updated_at: new Date().toISOString(),
+      })
+      if (error) throw error
+      toast.success("Rewards config saved!")
+    } catch (err: any) {
+      toast.error("Failed to save", { description: err.message })
+    } finally {
+      setIsRewardsSaving(false)
+    }
+  }
 
   useEffect(() => {
     async function fetchBanners() {
@@ -182,9 +232,30 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
   }
 
   const bannerTypes = [
-    { id: "login" as BannerType, label: "Banner when login", desc: "Fullscreen banner when customer opens app", icon: Maximize2 },
-    { id: "topbar" as BannerType, label: "Banner on top of app", desc: "Horizontal banner strip at top", icon: Layout },
-    { id: "popup" as BannerType, label: "Banner of pop out", desc: "Popup banner like game ads", icon: Square },
+    {
+      id: "login" as BannerType,
+      label: "Banner when login",
+      desc: "Fullscreen banner when customer opens app",
+      icon: Maximize2,
+      recommendedSize: "1080 × 1920 px (9:16 portrait)",
+      sizeNote: "Phone fullscreen — use tall portrait image",
+    },
+    {
+      id: "topbar" as BannerType,
+      label: "Banner on top of app",
+      desc: "Horizontal banner strip at top",
+      icon: Layout,
+      recommendedSize: "1200 × 400 px (3:1 landscape)",
+      sizeNote: "Wide horizontal strip — keep text centered",
+    },
+    {
+      id: "popup" as BannerType,
+      label: "Banner of pop out",
+      desc: "Popup banner like game ads",
+      icon: Square,
+      recommendedSize: "1080 × 1350 px (4:5 portrait)",
+      sizeNote: "Pop-up card — slightly taller than wide",
+    },
   ]
 
   const handleSave = async () => {
@@ -219,24 +290,14 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
   const tabs = [
     { id: "profile" as Tab, label: "Profile", icon: User },
     { id: "banner" as Tab, label: "Banner", icon: ImageIcon },
+    { id: "rewards" as Tab, label: "Rewards Points", icon: Gift },
   ]
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen bg-background">
+    <div className="flex flex-col lg:flex-row min-h-[calc(100vh-80px)] bg-background rounded-2xl border border-border/50 overflow-hidden shadow-sm">
       {/* Left Sidebar */}
       <aside className="w-full lg:w-56 border-b lg:border-b-0 lg:border-r border-border bg-card/30 flex flex-col shrink-0">
-        <div className="p-4">
-          <Button 
-            variant="outline" 
-            onClick={() => router.push("/admin")}
-            className="w-full justify-start"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-        </div>
-        
-        <nav className="flex-1 px-3 space-y-1">
+        <nav className="flex-1 px-3 py-3 space-y-1">
           {tabs.map((tab) => {
             const Icon = tab.icon
             return (
@@ -271,7 +332,119 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
             transition={{ duration: 0.2 }}
             className="p-6"
           >
-            {activeTab === "profile" ? (
+            {activeTab === "rewards" ? (
+              <div className="space-y-6 max-w-3xl">
+                <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Gift className="h-5 w-5 text-[#8b6f47]" />
+                      Earn Points Configuration
+                    </CardTitle>
+                    <CardDescription>
+                      Set how many points customers earn from each task. Changes apply immediately to the customer app.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {[
+                      {
+                        key: "daily_checkin" as const,
+                        label: "Daily Check-in",
+                        desc: "Points per day check-in",
+                        icon: Calendar,
+                        color: "bg-purple-500/10 text-purple-600",
+                        unit: "pts / day",
+                      },
+                      {
+                        key: "refer_friend" as const,
+                        label: "Refer a Friend",
+                        desc: "Points when a friend signs up",
+                        icon: UserPlus,
+                        color: "bg-blue-500/10 text-blue-600",
+                        unit: "pts / referral",
+                      },
+                      {
+                        key: "like_share" as const,
+                        label: "Like & Share",
+                        desc: "Points for sharing on social media",
+                        icon: Heart,
+                        color: "bg-rose-500/10 text-rose-600",
+                        unit: "pts / use",
+                      },
+                      {
+                        key: "birthday_gift" as const,
+                        label: "Birthday Reward",
+                        desc: "Points gifted on customer's birthday",
+                        icon: Cake,
+                        color: "bg-pink-500/10 text-pink-600",
+                        unit: "pts / birthday",
+                      },
+                      {
+                        key: "streak_bonus" as const,
+                        label: "Check-in Streak Bonus",
+                        desc: "Bonus points for 7-day streak",
+                        icon: Flame,
+                        color: "bg-orange-500/10 text-orange-600",
+                        unit: "pts / streak",
+                      },
+                    ].map((item) => {
+                      const Icon = item.icon
+                      return (
+                        <div
+                          key={item.key}
+                          className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border/50 bg-background/40"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${item.color} shrink-0`}>
+                              <Icon className="h-5 w-5" strokeWidth={2.2} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-foreground truncate">{item.label}</p>
+                              <p className="text-xs text-muted-foreground truncate">{item.desc}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={9999}
+                              value={rewardsConfig[item.key]}
+                              onChange={(e) =>
+                                setRewardsConfig((prev) => ({
+                                  ...prev,
+                                  [item.key]: Math.max(0, parseInt(e.target.value || "0", 10)),
+                                }))
+                              }
+                              className="w-20 text-center font-bold bg-background"
+                            />
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">{item.unit}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                      <p className="text-xs text-muted-foreground">
+                        These values are used everywhere in the customer app.
+                      </p>
+                      <Button
+                        onClick={handleSaveRewards}
+                        disabled={isRewardsSaving}
+                        className="bg-[#8b6f47] hover:bg-[#7a5f3a] text-white"
+                      >
+                        {isRewardsSaving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Rewards Config"
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : activeTab === "profile" ? (
               <div className="space-y-6">
                 {/* Language */}
                 <Card className="bg-card/50 backdrop-blur-sm border-border/50">
@@ -296,7 +469,7 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                         onClick={() => { setLanguage("zh"); toast.success(t("customer", "langSetZh")); }}
                         className={language === "zh" ? "bg-[#8b6f47] hover:bg-[#7a5f3a]" : ""}
                       >
-                        ??
+                        中文
                       </Button>
                       <Button
                         variant={language === "ms" ? "default" : "outline"}
@@ -317,17 +490,9 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="flex items-center gap-6">
-                      <div className="relative">
-                        <Avatar className="h-20 w-20">
-                          <AvatarFallback className="bg-[#8b6f47] text-white text-xl">{initials}</AvatarFallback>
-                        </Avatar>
-                        <Button 
-                          size="icon" 
-                          className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-[#8b6f47] hover:bg-[#7a5f3a] text-white"
-                        >
-                          <Camera className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Avatar className="h-20 w-20">
+                        <AvatarFallback className="bg-[#8b6f47] text-white text-xl">{initials}</AvatarFallback>
+                      </Avatar>
                       <div>
                         <h3 className="font-medium text-foreground">{profile?.full_name || "Admin"}</h3>
                         <p className="text-sm text-muted-foreground capitalize">{profile?.role || "Administrator"}</p>
@@ -428,6 +593,14 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                                   <div><p className="font-medium">Enable this banner</p><p className="text-xs text-muted-foreground">Show to customers</p></div>
                                   <Switch checked={config.isActive} onCheckedChange={(checked) => setBanners(prev => ({ ...prev, [banner.id]: { ...prev[banner.id], isActive: checked } }))} />
                                 </div>
+                                {/* Size recommendation banner */}
+                                <div className="flex items-start gap-2 p-3 rounded-lg bg-[#8b6f47]/5 border border-[#8b6f47]/20">
+                                  <ImageIcon className="h-4 w-4 text-[#8b6f47] mt-0.5 shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-semibold text-[#8b6f47]">Recommended size: {banner.recommendedSize}</p>
+                                    <p className="text-[11px] text-muted-foreground mt-0.5">{banner.sizeNote}</p>
+                                  </div>
+                                </div>
                                 {/* Different UI for topbar (multi-image) vs others (single image) */}
                                 {banner.id === "topbar" ? (
                                   <div className="space-y-2">
@@ -466,7 +639,9 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                                       </div>
                                     ) : (
                                       <button onClick={() => getInputRef(banner.id).current?.click()} className="w-full h-40 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 hover:border-[#8b6f47] hover:bg-[#8b6f47]/5 transition-colors">
-                                        <Upload className="h-8 w-8 text-muted-foreground" /><p className="text-sm text-muted-foreground">Click to upload</p><p className="text-xs text-muted-foreground">PNG, JPG up to 5MB</p>
+                                        <Upload className="h-8 w-8 text-muted-foreground" />
+                                        <p className="text-sm text-muted-foreground">Click to upload</p>
+                                        <p className="text-xs text-muted-foreground">PNG, JPG up to 5MB · {banner.recommendedSize.split(" (")[0]}</p>
                                       </button>
                                     )}
                                   </div>

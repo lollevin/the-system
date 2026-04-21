@@ -6,7 +6,6 @@ import { Header } from "@/components/header"
 import { CustomerSkeleton } from "@/components/customer-skeleton"
 import { AnimatedGreeting } from "@/components/animated-greeting"
 // StoryPromos removed
-import { MembershipCard } from "@/components/membership-card"
 import { QuickActions } from "@/components/quick-actions"
 import { CheckIn } from "@/components/check-in"
 import { QRCodeSection } from "@/components/qr-code-section"
@@ -27,13 +26,30 @@ import type { User as SupabaseUser } from "@supabase/supabase-js"
 import type { Profile } from "@/lib/supabase/types"
 import { PromoModal, TopBanner } from "@/components/promo-modal"
 import { useLanguage } from "@/lib/i18n"
+import { BottomTabBar, type MainTab } from "@/components/customer/bottom-tab-bar"
+import { RewardsHub } from "@/components/customer/rewards-hub"
+import { MeTab } from "@/components/customer/me-tab"
 
 interface CustomerAppProps {
   user: SupabaseUser
   profile: Profile
 }
 
-type ActiveView = "home" | "qr" | "vouchers" | "history" | "profile" | "settings" | "notifications" | "menu" | "support" | "referral"
+type ActiveView =
+  | "home"
+  | "qr"
+  | "vouchers"
+  | "history"
+  | "profile"
+  | "settings"
+  | "notifications"
+  | "menu"
+  | "support"
+  | "referral"
+  | "rewards"
+  | "me"
+
+const MAIN_TABS: MainTab[] = ["home", "menu", "rewards", "me"]
 
 export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps) {
   const [profile, setProfile] = useState(initialProfile)
@@ -57,7 +73,7 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
   // Handle deep link URL params (?view=vouchers&code=XX)
   useEffect(() => {
     const viewParam = searchParams.get("view") as ActiveView | null
-    if (viewParam && ["home", "qr", "vouchers", "history", "profile", "settings", "notifications", "menu", "support", "referral"].includes(viewParam)) {
+    if (viewParam && ["home", "qr", "vouchers", "history", "profile", "settings", "notifications", "menu", "support", "referral", "rewards", "me"].includes(viewParam)) {
       setActiveView(viewParam)
     }
   }, [searchParams])
@@ -303,6 +319,29 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
       </div>
     </header>
   )
+
+  // Calculate notification count (unread notifications)
+  const calculateUnreadCount = () => {
+    const readTime = lastNotificationRead?.getTime() || 0
+    const unreadTransactions = transactions.filter(tx => {
+      const txTime = new Date(tx.created_at).getTime()
+      return txTime > readTime
+    }).length
+    const unreadMessages = receivedMessages.filter(msg => {
+      const msgTime = new Date(msg.created_at).getTime()
+      return msgTime > readTime
+    }).length
+    return unreadTransactions + unreadMessages
+  }
+
+  const notificationCount = calculateUnreadCount()
+
+  const handleNotificationClick = () => {
+    const now = new Date()
+    setLastNotificationRead(now)
+    localStorage.setItem(`lastNotificationRead_${user.id}`, now.toISOString())
+    setActiveView("notifications")
+  }
 
   // QR Code View
   if (activeView === "qr") {
@@ -578,7 +617,66 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
 
   // Menu View
   if (activeView === "menu") {
-    return <CustomerMenu onBack={() => setActiveView("home")} />
+    return (
+      <>
+        <CustomerMenu onBack={() => setActiveView("home")} />
+        <BottomTabBar activeTab="menu" onTabChange={(tab) => setActiveView(tab)} />
+      </>
+    )
+  }
+
+  // Rewards Hub View (main tab)
+  if (activeView === "rewards") {
+    return (
+      <main className="min-h-screen bg-background">
+        <div className="mx-auto max-w-md sm:max-w-lg">
+          <Header
+            profile={profile}
+            notificationCount={notificationCount}
+            onNotificationClick={handleNotificationClick}
+            onAvatarClick={() => setActiveView("me")}
+          />
+          <RewardsHub
+            profile={profile}
+            vouchers={vouchers}
+            onShowVouchers={() => setActiveView("vouchers")}
+            onShowCheckIn={() => setActiveView("home")}
+            onShowReferral={() => setActiveView("referral")}
+            onEditProfile={() => setActiveView("settings")}
+            onPointsEarned={(newBalance) => {
+              setProfile((prev) => ({ ...prev, points_balance: newBalance }))
+              fetchData()
+            }}
+          />
+        </div>
+        <BottomTabBar activeTab="rewards" onTabChange={(tab) => setActiveView(tab)} />
+      </main>
+    )
+  }
+
+  // Me Tab View (main tab)
+  if (activeView === "me") {
+    return (
+      <main className="min-h-screen bg-background">
+        <div className="mx-auto max-w-md sm:max-w-lg">
+          <Header
+            profile={profile}
+            notificationCount={notificationCount}
+            onNotificationClick={handleNotificationClick}
+            onAvatarClick={() => setActiveView("me")}
+          />
+          <MeTab
+            user={user}
+            profile={profile}
+            notificationCount={notificationCount}
+            onEditProfile={() => setActiveView("settings")}
+            onShowSupport={() => setActiveView("support")}
+            onShowNotifications={() => setActiveView("notifications")}
+          />
+        </div>
+        <BottomTabBar activeTab="me" onTabChange={(tab) => setActiveView(tab)} />
+      </main>
+    )
   }
 
   // Settings View
@@ -912,35 +1010,6 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
     )
   }
 
-  // Calculate notification count (unread notifications)
-  const calculateUnreadCount = () => {
-    const readTime = lastNotificationRead?.getTime() || 0
-    
-    // Count unread transactions
-    const unreadTransactions = transactions.filter(tx => {
-      const txTime = new Date(tx.created_at).getTime()
-      return txTime > readTime
-    }).length
-
-    // Count unread messages
-    const unreadMessages = receivedMessages.filter(msg => {
-      const msgTime = new Date(msg.created_at).getTime()
-      return msgTime > readTime
-    }).length
-
-    return unreadTransactions + unreadMessages
-  }
-
-  const notificationCount = calculateUnreadCount()
-
-  // Mark notifications as read
-  const handleNotificationClick = () => {
-    const now = new Date()
-    setLastNotificationRead(now)
-    localStorage.setItem(`lastNotificationRead_${user.id}`, now.toISOString())
-    setActiveView("notifications")
-  }
-
   // Show skeleton while loading
   if (isLoading && activeView === "home") {
     return <CustomerSkeleton />
@@ -948,28 +1017,18 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
 
   // Home View
   return (
-    <main className="min-h-screen bg-background pb-8">
+    <main className="min-h-screen bg-background">
       <PromoModal />
       <div className="mx-auto max-w-md sm:max-w-lg">
         <Header 
           profile={profile} 
           notificationCount={notificationCount}
           onNotificationClick={handleNotificationClick}
-          onAvatarClick={() => setActiveView("settings")}
+          onAvatarClick={() => setActiveView("me")}
         />
         <TopBanner />
         <div className="flex flex-col gap-3.5 px-4 py-3 stagger-children">
           <AnimatedGreeting profile={profile} vouchers={vouchers} t={t} />
-          <MembershipCard profile={profile} />
-          <QuickActions 
-            onShowQR={() => setActiveView("qr")}
-            onShowVouchers={() => setActiveView("vouchers")}
-            onShowHistory={() => setActiveView("history")}
-            onShowProfile={() => setActiveView("profile")}
-            onShowMenu={() => setActiveView("menu")}
-            onShowSupport={() => setActiveView("support")}
-            onShowReferral={() => setActiveView("referral")}
-          />
           {/* QR Code Card - Easy access for staff to scan */}
           <HomeQRCard 
             profile={profile} 
@@ -985,6 +1044,7 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
           />
         </div>
       </div>
+      <BottomTabBar activeTab="home" onTabChange={(tab) => setActiveView(tab)} />
     </main>
   )
 }

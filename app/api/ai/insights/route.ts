@@ -1,11 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextRequest, NextResponse } from "next/server"
-
-const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY
-const AI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "deepseek-chat"
-const CHAT_ENDPOINT = `${OPENAI_BASE_URL}/chat/completions`
+import { callAI } from "@/lib/ai-client"
 
 export async function POST(request: NextRequest) {
   try {
@@ -333,7 +329,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Call OpenAI via 302.AI proxy ─────────────────────────────────
-    if (!OPENAI_API_KEY) {
+    if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({
         answer:
           "AI service is not configured. Here are the raw business metrics.",
@@ -371,56 +367,29 @@ Structure every response as:
 - Think like a CFO + CMO hybrid — balance financial rigor with marketing opportunity`
 
     try {
-      const aiResponse = await fetch(
-        CHAT_ENDPOINT,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${OPENAI_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: AI_TEXT_MODEL,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: question },
-            ],
-            temperature: 0.3,
-          }),
-        }
-      )
-
-      if (!aiResponse.ok) {
-        const errText = await aiResponse.text()
-        console.error("[AI Insights] OpenAI error:", errText)
-        // Fallback: return raw metrics
-        return NextResponse.json({
-          answer:
-            "AI analysis is temporarily unavailable. Here are the raw business metrics so you can review them directly.",
-          metrics: businessData,
-          model: "JP&Co AI",
-        })
-      }
-
-      const rawText = await aiResponse.text()
-      let aiData: any
-      try { aiData = JSON.parse(rawText) } catch { aiData = rawText }
-      const answer =
-        (typeof aiData === "string" ? aiData : aiData.choices?.[0]?.message?.content) ||
-        "No response generated. Please try again."
+      const aiResult = await callAI({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question },
+        ],
+        temperature: 0.3,
+        maxTokens: 2000,
+        maxRetries: 3,
+        timeoutMs: 45000,
+      })
 
       return NextResponse.json({
-        answer,
+        answer: aiResult.content || "No response generated. Please try again.",
         metrics: businessData,
-        model: "JP&Co AI",
+        model: aiResult.model || "JP&Co AI",
       })
     } catch (aiError: any) {
       console.error("[AI Insights] AI call failed:", aiError.message)
       return NextResponse.json({
-        answer:
-          "AI analysis could not be completed. Here are the raw business metrics for your review.",
+        answer: `## AI Service Temporarily Unavailable\n\nThe AI provider (302.AI) returned errors after multiple retries. Error details: ${aiError.message}\n\n**Fallback metrics are shown below.** Try again in a moment — the service often recovers within 1-2 minutes.`,
         metrics: businessData,
         model: "JP&Co AI",
+        error: aiError.message,
       })
     }
   } catch (error: any) {

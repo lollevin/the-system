@@ -222,6 +222,45 @@ export const translations = {
     language: { en: "Language", zh: "语言", ms: "Bahasa" },
     logout: { en: "Logout", zh: "登出", ms: "Log Keluar" },
 
+    // Rewards Hub (earn points tasks)
+    rewardsCenter: { en: "Rewards Center", zh: "奖励中心", ms: "Pusat Ganjaran" },
+    earnPoints: { en: "Earn Points", zh: "赚取积分", ms: "Kumpul Mata" },
+    myVouchersShort: { en: "My Vouchers", zh: "我的优惠券", ms: "Baucar Saya" },
+    viewAll: { en: "View All", zh: "查看全部", ms: "Lihat Semua" },
+    taskDailyCheckIn: { en: "Daily Check-in", zh: "每日签到", ms: "Daftar Masuk Harian" },
+    taskDailyCheckInDesc: { en: "Check in every day to earn points", zh: "每天登入签到即可获得积分", ms: "Daftar masuk setiap hari untuk mata" },
+    taskReferFriend: { en: "Refer a Friend", zh: "推荐好友", ms: "Rujuk Rakan" },
+    taskReferFriendDesc: { en: "Friends earn too when they join", zh: "好友成功注册并消费即可", ms: "Rakan juga dapat apabila menyertai" },
+    taskLikeShare: { en: "Like & Share", zh: "点赞 & 分享", ms: "Suka & Kongsi" },
+    taskLikeShareDesc: { en: "Like our page and share for points", zh: "点赞并分享到社交媒体", ms: "Suka laman dan kongsi untuk mata" },
+    taskBirthday: { en: "Birthday Reward", zh: "生日奖励", ms: "Ganjaran Hari Lahir" },
+    taskBirthdayDesc: { en: "Special gift on your birthday month", zh: "生日当月自动发放礼包", ms: "Hadiah istimewa di bulan hari lahir" },
+    taskStreak: { en: "Check-in Streak", zh: "连续签到", ms: "Siri Daftar Masuk" },
+    taskStreakDesc: { en: "7-day streak bonus rewards", zh: "连续 7 天签到额外奖励", ms: "Ganjaran bonus siri 7 hari" },
+    perDay: { en: "/day", zh: "/天", ms: "/hari" },
+    perUse: { en: "/use", zh: "/次", ms: "/guna" },
+    perReferral: { en: "/referral", zh: "/位", ms: "/rujukan" },
+    bonus: { en: "bonus", zh: "奖励", ms: "bonus" },
+    birthdayGift: { en: "birthday gift", zh: "生日礼包", ms: "hadiah hari lahir" },
+    pointsTo: { en: "points to", zh: "积分升级至", ms: "mata untuk" },
+
+    // Me / Profile tab (template-style)
+    editProfile: { en: "Edit Profile", zh: "编辑资料", ms: "Edit Profil" },
+    savedAddresses: { en: "Saved Addresses", zh: "收藏地址", ms: "Alamat Disimpan" },
+    paymentMethods: { en: "Payment Methods", zh: "付款方式", ms: "Kaedah Bayaran" },
+    notificationSettings: { en: "Notification Settings", zh: "通知设置", ms: "Tetapan Notifikasi" },
+    myReviews: { en: "My Reviews", zh: "我的评价", ms: "Ulasan Saya" },
+    contactSupport: { en: "Contact Support", zh: "联系客服", ms: "Hubungi Sokongan" },
+    privacySecurity: { en: "Privacy & Security", zh: "隐私与安全", ms: "Privasi & Keselamatan" },
+    changeLanguage: { en: "Change Language", zh: "切换语言", ms: "Tukar Bahasa" },
+    languageSetTo: { en: "Language set to", zh: "语言已设为", ms: "Bahasa ditetapkan ke" },
+
+    // Hero / Home banner
+    newArrival: { en: "New Arrival", zh: "新品上架", ms: "Kemasukan Baharu" },
+    limitedOffer: { en: "Limited time · This week only", zh: "限时优惠 · 本周限定", ms: "Masa terhad · Minggu ini sahaja" },
+    tryNow: { en: "Try Now", zh: "尝鲜", ms: "Cuba Sekarang" },
+    moreRewards: { en: "More Rewards", zh: "更多奖励", ms: "Lebih Ganjaran" },
+
     // Referral / Share & Earn
     shareEarnDesc: { en: "Invite friends to JP&Co and both earn rewards!", zh: "邀请朋友加入 JP&Co，双方都获得奖励！", ms: "Jemput rakan ke JP&Co dan kedua-dua pihak dapat ganjaran!" },
     youGet: { en: "You get", zh: "你获得", ms: "Anda dapat" },

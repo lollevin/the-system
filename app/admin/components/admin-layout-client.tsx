@@ -4,12 +4,14 @@ import { usePathname } from "next/navigation"
 import { AdminMobileNav } from "@/components/admin/admin-mobile-nav"
 import { DashboardHeader } from "@/components/admin/dashboard-header"
 
-// Pages that should render full-screen without admin header
-const FULL_SCREEN_PAGES = ["/admin", "/admin/shop"]
-
 export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isFullScreen = FULL_SCREEN_PAGES.some(p => pathname === p || pathname.startsWith(p + "/"))
+  // Only /admin (map overview) and /admin/shop are full-screen pages.
+  // All other admin pages need the header with back button + page title.
+  const isFullScreen =
+    pathname === "/admin" ||
+    pathname === "/admin/shop" ||
+    pathname.startsWith("/admin/shop/")
 
   if (isFullScreen) {
     // Render children only - no sidebar, no header (page handles its own layout)

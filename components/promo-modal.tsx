@@ -19,6 +19,7 @@ export function PromoModal() {
   const [popupBanner, setPopupBanner] = useState<BannerData | null>(null)
   const [showLogin, setShowLogin] = useState(false)
   const [showPopup, setShowPopup] = useState(false)
+  const [skipCountdown, setSkipCountdown] = useState(3)
   const supabase = createClient()
 
   useEffect(() => {
@@ -63,7 +64,24 @@ export function PromoModal() {
     }
   }
 
+  // Countdown for Skip button (like Zus Coffee)
+  useEffect(() => {
+    if (!showLogin) return
+    setSkipCountdown(3)
+    const interval = setInterval(() => {
+      setSkipCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [showLogin])
+
   const closeLogin = () => {
+    if (skipCountdown > 0) return
     setShowLogin(false)
     sessionStorage.setItem("banner_login_shown", "true")
     const popupShown = sessionStorage.getItem("banner_popup_shown")
@@ -88,17 +106,36 @@ export function PromoModal() {
             className="fixed inset-0 z-[200] bg-black"
           >
             {loginBanner.link ? (
-              <Link href={loginBanner.link} onClick={closeLogin} className="block w-full h-full">
+              <Link
+                href={loginBanner.link}
+                onClick={() => {
+                  sessionStorage.setItem("banner_login_shown", "true")
+                  setShowLogin(false)
+                }}
+                className="block w-full h-full"
+              >
                 <Image src={loginBanner.imageUrl} alt="Welcome" fill className="object-cover" priority />
               </Link>
             ) : (
               <Image src={loginBanner.imageUrl} alt="Welcome" fill className="object-cover" priority />
             )}
+
+            {/* Skip button (like Zus Coffee) - disabled for first 3 seconds */}
             <button
               onClick={closeLogin}
-              className="absolute right-4 top-12 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur transition-transform hover:scale-110"
+              disabled={skipCountdown > 0}
+              className={`absolute right-4 top-12 z-10 flex items-center gap-1.5 px-4 py-2 rounded-full backdrop-blur-md border border-white/30 text-white text-sm font-semibold shadow-lg transition-all ${
+                skipCountdown > 0
+                  ? "bg-black/40 cursor-not-allowed opacity-80"
+                  : "bg-black/50 hover:bg-black/70 active:scale-95"
+              }`}
             >
-              <X className="h-6 w-6" />
+              <span>Skip</span>
+              {skipCountdown > 0 && (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold tabular-nums">
+                  {skipCountdown}
+                </span>
+              )}
             </button>
           </motion.div>
         )}
@@ -112,27 +149,36 @@ export function PromoModal() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={closePopup}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.85 }}
               transition={{ type: "spring", damping: 20 }}
-              className="relative w-full max-w-[300px] aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl bg-white"
+              className="relative w-full max-w-[360px] sm:max-w-[400px]"
             >
               <button
                 onClick={closePopup}
-                className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur transition-transform hover:scale-110"
+                aria-label="Close"
+                className="absolute -right-1 -top-10 sm:-right-10 sm:top-0 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-gray-800 shadow-lg transition-all hover:scale-110 hover:bg-white active:scale-95"
               >
-                <X className="h-5 w-5" />
+                <X className="h-5 w-5" strokeWidth={2.5} />
               </button>
               {popupBanner.link ? (
-                <Link href={popupBanner.link} onClick={closePopup} className="block w-full h-full">
-                  <Image src={popupBanner.imageUrl} alt="Promotion" fill className="object-cover" />
+                <Link href={popupBanner.link} onClick={closePopup} className="block w-full">
+                  <img
+                    src={popupBanner.imageUrl}
+                    alt="Promotion"
+                    className="w-full h-auto max-h-[80vh] object-contain rounded-2xl shadow-2xl"
+                  />
                 </Link>
               ) : (
-                <Image src={popupBanner.imageUrl} alt="Promotion" fill className="object-cover" />
+                <img
+                  src={popupBanner.imageUrl}
+                  alt="Promotion"
+                  className="w-full h-auto max-h-[80vh] object-contain rounded-2xl shadow-2xl"
+                />
               )}
             </motion.div>
           </div>
@@ -210,10 +256,6 @@ export function TopBanner() {
         </div>
       )}
       
-      {/* Top-left glass badge (optional accent) */}
-      <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-md border border-white/40 shadow-sm">
-        <span className="text-[10px] font-semibold text-white drop-shadow-md tracking-wider uppercase">✨ Featured</span>
-      </div>
     </div>
   )
 

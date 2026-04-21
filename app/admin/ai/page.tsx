@@ -33,9 +33,10 @@ import { SmartAICopilot } from "@/components/admin/smart-ai-copilot"
 import { AICustomerAnalyzer } from "@/components/admin/ai-customer-analyzer"
 import AIAutoPilot from "@/components/admin/ai-auto-pilot"
 import { FloatingWhatsApp, checkWhatsAppConnected } from "@/components/admin/floating-whatsapp"
+import { KnowledgeBase } from "@/components/admin/knowledge-base"
 import { createClient } from "@/lib/supabase/client"
 import { useLanguage } from "@/lib/i18n"
-import { History as HistoryIcon, Radar, BarChart3 } from "lucide-react"
+import { History as HistoryIcon, Radar, BarChart3, BookOpen, Activity, CheckCircle, AlertCircle } from "lucide-react"
 
 interface CustomerAction {
   id: string
@@ -89,8 +90,42 @@ export default function AICopilotPage() {
   const [sendingCustomers, setSendingCustomers] = useState<Set<string>>(new Set())
   const [messageStats, setMessageStats] = useState({ todaySent: 0, totalSent: 0 })
   const [recentMessages, setRecentMessages] = useState<any[]>([])
+  const [aiHealth, setAiHealth] = useState<{
+    ok: boolean
+    loading: boolean
+    model?: string
+    error?: string
+    latencyMs?: number
+  }>({ ok: false, loading: true })
   const scrollRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+
+  const testAIConnection = async () => {
+    setAiHealth(prev => ({ ...prev, loading: true }))
+    try {
+      const res = await fetch("/api/ai/test")
+      const data = await res.json()
+      setAiHealth({
+        ok: !!data.ok,
+        loading: false,
+        model: data.workingModel || data.primaryModel,
+        error: data.error,
+        latencyMs: data.latencyMs,
+      })
+      if (data.ok) {
+        toast.success(`AI online: ${data.workingModel || data.primaryModel} (${data.latencyMs}ms)`)
+      } else {
+        toast.error(`AI offline: ${data.error || "Unknown error"}`)
+      }
+    } catch (err: any) {
+      setAiHealth({ ok: false, loading: false, error: err.message })
+      toast.error("Failed to check AI status")
+    }
+  }
+
+  useEffect(() => {
+    testAIConnection()
+  }, [])
 
   // Load message stats
   useEffect(() => {
@@ -544,6 +579,7 @@ export default function AICopilotPage() {
     { id: "analyzer", label: t("ai", "customerAnalyzer"), icon: Brain, desc: t("ai", "analyzeMessage") },
     { id: "smart", label: t("ai", "smartRecommendations"), icon: Sparkles, desc: t("ai", "aiSuggestions") },
     { id: "chat", label: t("ai", "aiChatInsights"), icon: MessageSquare, desc: t("ai", "askAnything") },
+    { id: "knowledge", label: "Knowledge Base", icon: BookOpen, desc: "Upload docs for AI" },
     { id: "history", label: t("ai", "sendHistory"), icon: HistoryIcon, desc: t("ai", "messageRecords") },
   ]
 
@@ -564,6 +600,46 @@ export default function AICopilotPage() {
               </div>
             </div>
           </div>
+
+          {/* AI Health Status */}
+          <button
+            onClick={testAIConnection}
+            disabled={aiHealth.loading}
+            className={`w-full p-2.5 rounded-xl border transition-all text-left group ${
+              aiHealth.loading
+                ? "bg-amber-500/5 border-amber-500/20"
+                : aiHealth.ok
+                  ? "bg-green-500/5 border-green-500/25 hover:bg-green-500/10"
+                  : "bg-red-500/5 border-red-500/25 hover:bg-red-500/10"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {aiHealth.loading ? (
+                <Loader2 className="w-4 h-4 animate-spin text-amber-600 shrink-0" />
+              ) : aiHealth.ok ? (
+                <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className={`text-[11px] font-semibold ${
+                  aiHealth.loading ? "text-amber-700" : aiHealth.ok ? "text-green-700" : "text-red-700"
+                }`}>
+                  {aiHealth.loading ? "Checking AI..." : aiHealth.ok ? "AI Online" : "AI Offline"}
+                </p>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  {aiHealth.loading
+                    ? "Testing connection..."
+                    : aiHealth.ok
+                      ? `${aiHealth.model} · ${aiHealth.latencyMs}ms`
+                      : aiHealth.error?.slice(0, 40) || "Click to retry"}
+                </p>
+              </div>
+              <Activity className={`w-3.5 h-3.5 transition-opacity opacity-50 group-hover:opacity-100 ${
+                aiHealth.loading ? "text-amber-600" : aiHealth.ok ? "text-green-600" : "text-red-600"
+              }`} />
+            </div>
+          </button>
 
           {/* Navigation Buttons - Horizontal on mobile, vertical on desktop */}
           <nav className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 scrollbar-hide">
@@ -620,6 +696,9 @@ export default function AICopilotPage() {
 
         {/* Smart Recommendations */}
         {activeTab === "smart" && <SmartAICopilot />}
+
+        {/* Knowledge Base */}
+        {activeTab === "knowledge" && <KnowledgeBase />}
 
         {/* Send History */}
         {activeTab === "history" && (
