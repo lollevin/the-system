@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Bot, MessageSquare, Users, Gift, Settings } from "lucide-react"
+import { LayoutDashboard, Bot, Store, Users, Settings } from "lucide-react"
 import { useLanguage } from "@/lib/i18n"
 
 export function AdminMobileNav() {
@@ -12,8 +12,8 @@ export function AdminMobileNav() {
   const navItems = [
     { href: "/admin", icon: LayoutDashboard, label: t("admin", "overview") },
     { href: "/admin/ai", icon: Bot, label: t("admin", "ai") },
-    { href: "/admin/customers", icon: Users, label: t("admin", "staffManagement").split(" ")[0] },
-    { href: "/admin/rewards", icon: Gift, label: t("admin", "rewards") },
+    { href: "/admin/shop", icon: Store, label: t("admin", "shopManagement").split(" ")[0] },
+    { href: "/admin/customer-management", icon: Users, label: t("admin", "customerManagement").split(" ")[0] },
     { href: "/admin/settings", icon: Settings, label: t("common", "settings") },
   ]
 
