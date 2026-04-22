@@ -138,7 +138,11 @@ export async function POST(request: NextRequest) {
 
     const controller = new AbortController()
     // Allow longer timeout when image generation/upload is involved.
-    const timeout = setTimeout(() => controller.abort(), imagePrompt || finalImageBase64 ? 50000 : 15000)
+    // NOTE: parentheses matter — without them, `imagePrompt || finalImageBase64 ? 50000 : 15000`
+    // evaluates to the string `imagePrompt` (truthy), which setTimeout coerces to NaN and fires
+    // instantly, aborting the WhatsApp send before it can start.
+    const needsLongTimeout = Boolean(imagePrompt) || Boolean(finalImageBase64)
+    const timeout = setTimeout(() => controller.abort(), needsLongTimeout ? 50000 : 15000)
 
     const response = await fetch(`${WHATSAPP_SERVICE_URL}/api/send`, {
       method: "POST",

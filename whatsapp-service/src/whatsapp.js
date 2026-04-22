@@ -335,6 +335,7 @@ async function sendMessage(phone, message, options = {}) {
   }
 
   const formattedPhone = formatPhone(phone);
+  const rawDigits = formattedPhone.replace('@c.us', '');
   const {
     imageBase64,
     imageMimeType = 'image/png',
@@ -344,37 +345,66 @@ async function sendMessage(phone, message, options = {}) {
   } = options || {};
 
   try {
+    // CRITICAL: verify the number actually has a WhatsApp account BEFORE sending.
+    // Without this, whatsapp-web.js will silently succeed with a messageId for a non-existent
+    // chat — the UI will show "Sent!" but the recipient never receives anything.
+    let verifiedJid = formattedPhone;
+    try {
+      const numberId = await client.getNumberId(rawDigits);
+      if (!numberId) {
+        return {
+          success: false,
+          phone,
+          error: `Number ${rawDigits} is not registered on WhatsApp`,
+        };
+      }
+      verifiedJid = numberId._serialized;
+    } catch (lookupErr) {
+      // If the check itself fails (e.g., WA Web is mid-sync), fall back to the formatted JID
+      // but log so we know. Sending will still fail loudly if the number truly is invalid.
+      console.warn('[WA] getNumberId failed for', rawDigits, '-', lookupErr.message);
+    }
+
     const sentIds = [];
 
     if (imageBase64) {
       const media = new MessageMedia(imageMimeType, imageBase64, imageFilename);
-      const mediaResult = await client.sendMessage(formattedPhone, media, {
+      const mediaResult = await client.sendMessage(verifiedJid, media, {
         caption: imageCaption || message || '',
       });
       sentIds.push(mediaResult?.id?.id);
     } else if (message) {
-      const textResult = await client.sendMessage(formattedPhone, message);
+      const textResult = await client.sendMessage(verifiedJid, message);
       sentIds.push(textResult?.id?.id);
     }
 
     if (ctaUrl) {
-      const ctaResult = await client.sendMessage(formattedPhone, `${ctaUrl}`, {
+      const ctaResult = await client.sendMessage(verifiedJid, `${ctaUrl}`, {
         linkPreview: true,
       });
       sentIds.push(ctaResult?.id?.id);
     }
 
+    if (sentIds.length === 0) {
+      return {
+        success: false,
+        phone,
+        error: 'No content to send (empty message, image, and CTA)',
+      };
+    }
+
     return {
       success: true,
-      phone: phone,
+      phone,
       messageId: sentIds[0] || null,
       messageIds: sentIds.filter(Boolean),
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
+    console.error('[WA] sendMessage error:', error.message);
     return {
       success: false,
-      phone: phone,
+      phone,
       error: error.message,
     };
   }
