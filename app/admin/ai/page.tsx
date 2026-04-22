@@ -898,7 +898,7 @@ export default function AICopilotPage() {
                         <div className="flex items-center gap-2">
                           <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
                           <span className="text-sm text-muted-foreground">
-                            {t("ai", "aiAnalyzingCustomers")}
+                            {t("ai", "aiThinking")}
                           </span>
                         </div>
                       </div>

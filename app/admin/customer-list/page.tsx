@@ -51,11 +51,26 @@ export default function CustomerListPage() {
   const [filter, setFilter] = useState<FilterType>("all")
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [stats, setStats] = useState({ total: 0, active: 0, dormant: 0, vip: 0 })
+  const [tierThresholds, setTierThresholds] = useState({ silver_spent: 1000, gold_spent: 3000, diamond_spent: 5000 })
   
   const supabase = createClient()
   const { t } = useLanguage()
 
   useEffect(() => { loadCustomers() }, [])
+
+  useEffect(() => {
+    async function loadTier() {
+      try {
+        const { data } = await supabase
+          .from("global_settings")
+          .select("value")
+          .eq("key", "tier_config")
+          .maybeSingle()
+        if (data?.value) setTierThresholds({ ...{ silver_spent: 1000, gold_spent: 3000, diamond_spent: 5000 }, ...(data.value as any) })
+      } catch {}
+    }
+    loadTier()
+  }, [])
 
   const loadCustomers = async () => {
     setLoading(true)
@@ -84,9 +99,9 @@ export default function CustomerListPage() {
   }
 
   const getVipTier = (spent: number) => {
-    if (spent >= 5000) return { name: t("admin", "clTierDiamond"), color: "text-blue-500", bg: "bg-blue-500/10" }
-    if (spent >= 3000) return { name: t("admin", "clTierGold"), color: "text-amber-500", bg: "bg-amber-500/10" }
-    if (spent >= 1000) return { name: t("admin", "clTierSilver"), color: "text-gray-400", bg: "bg-gray-400/10" }
+    if (spent >= tierThresholds.diamond_spent) return { name: t("admin", "clTierDiamond"), color: "text-blue-500", bg: "bg-blue-500/10" }
+    if (spent >= tierThresholds.gold_spent) return { name: t("admin", "clTierGold"), color: "text-amber-500", bg: "bg-amber-500/10" }
+    if (spent >= tierThresholds.silver_spent) return { name: t("admin", "clTierSilver"), color: "text-gray-400", bg: "bg-gray-400/10" }
     return { name: t("admin", "clTierBronze"), color: "text-orange-600", bg: "bg-orange-600/10" }
   }
 

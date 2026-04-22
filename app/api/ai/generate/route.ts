@@ -231,6 +231,57 @@ export async function POST(request: NextRequest) {
       `- ${c.full_name || "Unknown"} (${c.phone || "no phone"}) | RM${(c.total_spent || 0).toFixed(0)} spent | ${c.points_balance || 0} pts | ${c.visit_count || 0} visits | Last: ${c.last_visit ? new Date(c.last_visit).toLocaleDateString() : "never"} | Birthday: ${c.birthday || "unknown"}`
     ).join("\n");
 
+    // Knowledge base files overview so AI knows what admin has uploaded
+    let kbFilesSummary = "(no files uploaded yet)";
+    try {
+      const { data: kbRows } = await adminSupabase
+        .from("knowledge_base")
+        .select("file_name, file_type, created_at, status")
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (kbRows && kbRows.length > 0) {
+        kbFilesSummary = kbRows
+          .map((f: any) =>
+            `- ${f.file_name} (${f.file_type || "unknown"}) — ${f.status || "ready"}`
+          )
+          .join("\n");
+      }
+    } catch {}
+
+    // Recent staff audit log — so AI can reason about who did what
+    let auditLogSummary = "(no recent staff activity)";
+    try {
+      const { data: auditRows } = await adminSupabase
+        .from("staff_activity_log")
+        .select(`
+          action_type, details, created_at,
+          staff:profiles!staff_activity_log_staff_id_fkey(full_name),
+          customer:profiles!staff_activity_log_target_customer_id_fkey(full_name)
+        `)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (auditRows && auditRows.length > 0) {
+        auditLogSummary = auditRows
+          .map((r: any) => {
+            const d = r.details || {};
+            const when = new Date(r.created_at).toLocaleDateString();
+            const staff = r.staff?.full_name || "staff";
+            const cust = r.customer?.full_name || "—";
+            if (r.action_type === "add_points") {
+              return `- [${when}] ${staff} added +${d.points || 0} pts (RM${d.amount || 0}) to ${cust}`;
+            }
+            if (r.action_type === "delete_points") {
+              return `- [${when}] ${staff} REVERSED −${d.points_reversed || 0} pts (RM${d.amount_reversed || 0}) from ${cust}`;
+            }
+            if (r.action_type === "redeem_voucher") {
+              return `- [${when}] ${cust} redeemed ${d.voucher_name || "voucher"} via ${staff}`;
+            }
+            return `- [${when}] ${staff} ${r.action_type} → ${cust}`;
+          })
+          .join("\n");
+      }
+    } catch {}
+
     // Build powerful system prompt — language lock at the very top (primacy)
     const systemPrompt = `${languageDirective}
 
@@ -296,6 +347,14 @@ ${birthdayCustomers.length > 0 ? birthdayCustomers.map(c => `- ${c.name} (${c.ph
 
 ### Dormant Customers (30+ days inactive)
 ${dormantCustomers.slice(0, 20).map(c => `- ${c.name} (${c.phone}) | ${c.daysSince ? c.daysSince + "d ago" : "never visited"} | RM${c.totalSpent.toFixed(0)} spent | ${c.points} pts`).join("\n") || "None"}
+
+### Knowledge Base Files (uploaded by admin)
+${kbFilesSummary}
+→ If admin asks about uploaded data, competitors, POS exports, campaign files, or "do you have my file" — USE the \`search_knowledge_base\` tool.
+
+### Recent Staff Audit Log (last 20 actions)
+${auditLogSummary}
+→ Use this to answer "which staff added/deleted points", "was any reversal recently", etc. Also use it to spot patterns (same customer gets points often, many reversals = training issue, etc).
 
 ### VIP Customers (≥RM1000 lifetime spend)
 ${vipCustomers.map(c => `- ${c.name} (${c.phone}) | RM${c.totalSpent.toFixed(0)} spent | ${c.points} pts | ${c.visits} visits`).join("\n") || "None"}

@@ -23,7 +23,7 @@ interface SettingsFormProps {
   profile: Profile | null
 }
 
-type Tab = "profile" | "banner" | "rewards"
+type Tab = "profile" | "banner"
 type BannerType = "login" | "topbar" | "popup"
 
 interface BannerConfig {
@@ -292,7 +292,6 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
   const tabs = [
     { id: "profile" as Tab, label: t("admin", "sfProfile"), icon: User },
     { id: "banner" as Tab, label: t("admin", "sfBanner"), icon: ImageIcon },
-    { id: "rewards" as Tab, label: t("admin", "sfRewardsPoints"), icon: Gift },
   ]
 
   return (
@@ -334,9 +333,9 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
             transition={{ duration: 0.2 }}
             className="p-6"
           >
-            {activeTab === "rewards" ? (
+            {false ? (
               <div className="space-y-6 max-w-3xl">
-                {/* Conversion Rate */}
+                {/* MOVED to Customer Management → Points Settings */}
                 <Card className="bg-card/50 backdrop-blur-sm border-border/50">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">

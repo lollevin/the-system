@@ -262,7 +262,7 @@ export default function ShopManagementPage() {
   const getInitials = (name: string | null) => name ? name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "ST"
 
   return (
-    <div className="fixed inset-0 bg-[#faf8f5] dark:bg-zinc-950 z-[9999] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-[#faf8f5] dark:bg-zinc-950 z-30 overflow-hidden flex flex-col">
       {/* Header - Back button + Title */}
       <motion.header
         initial={{ opacity: 0, y: -20 }}

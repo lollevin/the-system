@@ -3,16 +3,17 @@
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Gift, Share2, ChevronRight, Loader2, Users } from "lucide-react"
+import { Gift, Share2, ChevronRight, Loader2, Users, Coins } from "lucide-react"
 import { RewardsManager } from "@/app/admin/rewards/rewards-manager"
 import ReferralPage from "@/app/admin/referrals/page"
 import CustomerListPage from "@/app/admin/customer-list/page"
+import { PointsSettingsPanel } from "@/components/admin/points-settings-panel"
 import { Button } from "@/components/ui/button"
 
 import { createClient } from "@/lib/supabase/client"
 import { useLanguage } from "@/lib/i18n"
 
-type Tab = "customers" | "rewards" | "referrals"
+type Tab = "customers" | "rewards" | "referrals" | "points-settings"
 
 function CustomerManagementContent() {
   const [activeTab, setActiveTab] = useState<Tab>("customers")
@@ -55,8 +56,8 @@ function CustomerManagementContent() {
 
   useEffect(() => {
     const tab = searchParams.get("tab")
-    if (tab === "customers" || tab === "rewards" || tab === "referrals") {
-      setActiveTab(tab)
+    if (tab === "customers" || tab === "rewards" || tab === "referrals" || tab === "points-settings") {
+      setActiveTab(tab as Tab)
     }
   }, [searchParams])
 
@@ -115,6 +116,21 @@ function CustomerManagementContent() {
             </div>
             {activeTab === "referrals" && <ChevronRight className="h-4 w-4 opacity-50" />}
           </button>
+
+          <button
+            onClick={() => handleTabChange("points-settings")}
+            className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group ${
+              activeTab === "points-settings"
+                ? "bg-[#8b6f47] text-white shadow-md shadow-[#8b6f47]/20"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Coins className={`h-5 w-5 ${activeTab === "points-settings" ? "" : "group-hover:scale-110 transition-transform"}`} />
+              <span className="font-bold">{t("admin", "cmPointsSettings")}</span>
+            </div>
+            {activeTab === "points-settings" && <ChevronRight className="h-4 w-4 opacity-50" />}
+          </button>
         </nav>
 
       </aside>
@@ -138,8 +154,10 @@ function CustomerManagementContent() {
               <CustomerListPage />
             ) : activeTab === "rewards" ? (
               <RewardsManager initialVouchers={vouchers} customers={customers} />
-            ) : (
+            ) : activeTab === "referrals" ? (
               <ReferralPage />
+            ) : (
+              <PointsSettingsPanel />
             )}
           </motion.div>
         </AnimatePresence>

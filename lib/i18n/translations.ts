@@ -303,6 +303,11 @@ export const translations = {
     cmCustomers: { en: "Customers", zh: "客户", ms: "Pelanggan" },
     cmRewards: { en: "Rewards", zh: "奖励", ms: "Ganjaran" },
     cmShareAndEarn: { en: "Share & Earn", zh: "分享赚积分", ms: "Kongsi & Dapat" },
+    cmPointsSettings: { en: "Points Settings", zh: "积分设置", ms: "Tetapan Mata" },
+    psTierTitle: { en: "Tier Upgrade Settings", zh: "等级升级设置", ms: "Tetapan Naik Taraf Tier" },
+    psTierDesc: { en: "Set how much a customer needs to spend (RM) to upgrade tier. Bronze is default for all new customers.", zh: "设置顾客升级所需消费金额（RM）。新顾客默认铜牌。", ms: "Tetapkan jumlah belanja (RM) untuk naik taraf. Gangsa adalah lalai." },
+    psTierSpendRequired: { en: "Total spend required (RM)", zh: "所需消费总额（RM）", ms: "Jumlah belanja diperlukan (RM)" },
+    psTierHint: { en: "Tip: tiers are based on total spend. Silver < Gold < Diamond thresholds must be increasing.", zh: "提示：等级基于总消费。白银 < 黄金 < 钻石 的阈值必须递增。", ms: "Tip: tier berdasarkan jumlah belanja. Perak < Emas < Berlian mesti meningkat." },
 
     // Customer List page
     clManageDesc: { en: "Manage and view all customer profiles", zh: "管理和查看所有顾客资料", ms: "Urus dan lihat semua profil pelanggan" },
@@ -1056,6 +1061,7 @@ export const translations = {
     aiMarketingInsights: { en: "JP&Co AI - Marketing & Insights", zh: "JP&Co AI - 营销和洞察", ms: "JP&Co AI - Pemasaran & Cerapan" },
     jpcoAiAssistant: { en: "JP&Co AI Assistant", zh: "JP&Co AI 助手", ms: "Pembantu AI JP&Co" },
     aiAnalyzingCustomers: { en: "AI is analyzing your customers...", zh: "AI 正在分析您的客户...", ms: "AI sedang menganalisis pelanggan anda..." },
+    aiThinking: { en: "AI is thinking...", zh: "AI 正在思考...", ms: "AI sedang berfikir..." },
     chatPlaceholder: { en: "Ask about customers, revenue, trends, or marketing messages...", zh: "询问客户、收入、趋势或营销消息...", ms: "Tanya tentang pelanggan, hasil, trend atau mesej pemasaran..." },
     chatHelperText: { en: "Ask about customers, revenue, trends, or request marketing messages. AI has full access to your business data.", zh: "询问客户、收入、趋势或请求营销消息。AI 可以访问您的所有业务数据。", ms: "Tanya tentang pelanggan, hasil, trend atau minta mesej pemasaran. AI mempunyai akses penuh kepada data perniagaan anda." },
 
