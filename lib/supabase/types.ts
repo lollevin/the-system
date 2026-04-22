@@ -11,6 +11,7 @@ export interface Profile {
   visit_count: number;
   last_visit: string | null;
   birthday: string | null;
+  birthday_edit_count?: number | null;
   preferred_contact: "whatsapp" | "sms" | "email" | null;
   tags: string[] | null;
   notes: string | null;

@@ -824,6 +824,7 @@ function RegisterForm() {
   const [phone, setPhone] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [birthday, setBirthday] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [referralCode, setReferralCode] = useState("")
   const router = useRouter()
@@ -896,6 +897,12 @@ function RegisterForm() {
           profileUpdate.email = email.trim()
         } else {
           profileUpdate.email = null // Keep email empty if not provided
+        }
+
+        // Birthday is optional. If provided at registration, it counts as the first edit.
+        if (birthday && birthday.trim()) {
+          profileUpdate.birthday = birthday
+          profileUpdate.birthday_edit_count = 1
         }
         
         await supabase
@@ -1056,6 +1063,23 @@ function RegisterForm() {
             onChange={(e) => setEmail(e.target.value)}
             className="pl-10 h-12 bg-secondary border-border focus:border-primary transition-all"
           />
+        </div>
+
+        {/* Birthday (Optional) */}
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground pl-1">
+            🎂 {t("login", "birthdayOptional")}
+          </label>
+          <Input
+            type="date"
+            value={birthday}
+            onChange={(e) => setBirthday(e.target.value)}
+            max={new Date().toISOString().split("T")[0]}
+            className="h-12 bg-secondary border-border focus:border-primary transition-all"
+          />
+          <p className="text-[11px] text-muted-foreground/70 pl-1">
+            {t("login", "birthdayEditHint")}
+          </p>
         </div>
 
         {/* Password */}

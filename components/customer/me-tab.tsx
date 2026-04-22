@@ -4,12 +4,9 @@ import { useState } from "react"
 import {
   User,
   ChevronRight,
-  MapPin,
-  CreditCard,
   Bell,
-  Star,
   Headphones,
-  Shield,
+  UserCog,
   LogOut,
   Globe,
   Loader2,
@@ -69,7 +66,7 @@ export function MeTab({
 
   const menuGroups: Array<
     Array<{
-      icon: typeof MapPin
+      icon: typeof Bell
       label: string
       onClick?: () => void
       iconColor: string
@@ -81,18 +78,11 @@ export function MeTab({
   > = [
     [
       {
-        icon: MapPin,
-        label: t("customer", "savedAddresses"),
-        onClick: () => toast.info(t("customer", "savedAddresses") + " - Coming soon"),
-        iconColor: "text-rose-600",
-        iconBg: "bg-rose-500/10",
-      },
-      {
-        icon: CreditCard,
-        label: t("customer", "paymentMethods"),
-        onClick: () => toast.info(t("customer", "paymentMethods") + " - Coming soon"),
-        iconColor: "text-blue-600",
-        iconBg: "bg-blue-500/10",
+        icon: UserCog,
+        label: t("customer", "profileSettings"),
+        onClick: onEditProfile,
+        iconColor: "text-slate-600",
+        iconBg: "bg-slate-500/10",
       },
       {
         icon: Bell,
@@ -101,15 +91,6 @@ export function MeTab({
         iconColor: "text-amber-600",
         iconBg: "bg-amber-500/10",
         badge: notificationCount > 0 ? notificationCount : undefined,
-      },
-    ],
-    [
-      {
-        icon: Star,
-        label: t("customer", "myReviews"),
-        onClick: () => toast.info(t("customer", "myReviews") + " - Coming soon"),
-        iconColor: "text-yellow-600",
-        iconBg: "bg-yellow-500/10",
       },
       {
         icon: Headphones,
@@ -127,13 +108,6 @@ export function MeTab({
         iconColor: "text-teal-600",
         iconBg: "bg-teal-500/10",
         rightText: currentLangLabel,
-      },
-      {
-        icon: Shield,
-        label: t("customer", "privacySecurity"),
-        onClick: () => toast.info(t("customer", "privacySecurity") + " - Coming soon"),
-        iconColor: "text-slate-600",
-        iconBg: "bg-slate-500/10",
       },
     ],
   ]

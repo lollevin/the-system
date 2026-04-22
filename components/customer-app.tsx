@@ -1129,6 +1129,10 @@ function SettingsView({ user, profile, onBack, onProfileUpdate, SubPageHeader, l
   const [email, setEmail] = useState("")
   const [birthday, setBirthday] = useState(profile.birthday || "")
   const [isLoading, setIsLoading] = useState(false)
+  const initialBirthday = profile.birthday || ""
+  const birthdayEditCount = (profile as any).birthday_edit_count || 0
+  const birthdayLocked = birthdayEditCount >= 2
+  const birthdayEditsLeft = Math.max(0, 2 - birthdayEditCount)
   const [isLogoutLoading, setIsLogoutLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -1152,14 +1156,26 @@ function SettingsView({ user, profile, onBack, onProfileUpdate, SubPageHeader, l
     setIsLoading(true)
 
     try {
-      // Update profile
+      const birthdayChanged = (birthday || "") !== (initialBirthday || "")
+      if (birthdayChanged && birthdayLocked) {
+        toast.error(t("customer", "birthdayLockHint"))
+        setBirthday(initialBirthday)
+        setIsLoading(false)
+        return
+      }
+
+      const updatePayload: any = {
+        full_name: fullName,
+        phone: phone,
+      }
+      if (birthdayChanged) {
+        updatePayload.birthday = birthday || null
+        updatePayload.birthday_edit_count = birthdayEditCount + 1
+      }
+
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({
-          full_name: fullName,
-          phone: phone,
-          birthday: birthday || null,
-        })
+        .update(updatePayload)
         .eq("id", user.id)
 
       if (profileError) throw profileError
@@ -1232,7 +1248,7 @@ function SettingsView({ user, profile, onBack, onProfileUpdate, SubPageHeader, l
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-md">
-        <SubPageHeader title={t("common", "settings")} onBack={onBack} />
+        <SubPageHeader title={t("customer", "profileSettings")} onBack={onBack} />
         <div className="p-4 space-y-6">
           {/* Profile Settings */}
           <Card>
@@ -1271,15 +1287,27 @@ function SettingsView({ user, profile, onBack, onProfileUpdate, SubPageHeader, l
 
               {/* Birthday */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  {t("customer", "birthday")} 🎂
+                <label className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+                  <span>{t("customer", "birthday")} 🎂</span>
+                  {birthdayLocked ? (
+                    <span className="text-[11px] text-red-500 font-semibold">2/2</span>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">
+                      {birthdayEditsLeft} {t("customer", "birthdayEditsLeft")}
+                    </span>
+                  )}
                 </label>
                 <Input
                   type="date"
                   value={birthday}
                   onChange={(e) => setBirthday(e.target.value)}
-                  className="w-full"
+                  disabled={birthdayLocked}
+                  max={new Date().toISOString().split("T")[0]}
+                  className="w-full disabled:opacity-60 disabled:cursor-not-allowed"
                 />
+                {birthdayLocked && (
+                  <p className="text-[11px] text-red-500">{t("customer", "birthdayLockHint")}</p>
+                )}
               </div>
 
               <Button 

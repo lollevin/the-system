@@ -252,6 +252,9 @@ export const translations = {
     myReviews: { en: "My Reviews", zh: "我的评价", ms: "Ulasan Saya" },
     contactSupport: { en: "Contact Support", zh: "联系客服", ms: "Hubungi Sokongan" },
     privacySecurity: { en: "Privacy & Security", zh: "隐私与安全", ms: "Privasi & Keselamatan" },
+    profileSettings: { en: "Profile Settings", zh: "个人资料设置", ms: "Tetapan Profil" },
+    birthdayLockHint: { en: "Birthday locked — edit limit reached (2/2).", zh: "生日已锁定 — 编辑次数已达上限 (2/2)。", ms: "Hari lahir dikunci — had edit dicapai (2/2)." },
+    birthdayEditsLeft: { en: "edits left", zh: "次编辑剩余", ms: "edit tinggal" },
     changeLanguage: { en: "Change Language", zh: "切换语言", ms: "Tukar Bahasa" },
     languageSetTo: { en: "Language set to", zh: "语言已设为", ms: "Bahasa ditetapkan ke" },
 
@@ -1270,6 +1273,8 @@ export const translations = {
     phoneNumber: { en: "Phone Number", zh: "电话号码", ms: "Nombor Telefon" },
     emailAddress: { en: "Email Address", zh: "邮箱地址", ms: "Alamat Emel" },
     emailOptional: { en: "Email Address (optional)", zh: "邮箱地址（可选）", ms: "Alamat Emel (pilihan)" },
+    birthdayOptional: { en: "Birthday (optional)", zh: "生日（可选）", ms: "Hari Lahir (pilihan)" },
+    birthdayEditHint: { en: "You can edit birthday only 2 times total.", zh: "生日只能编辑两次。", ms: "Hari lahir hanya boleh diedit 2 kali." },
     password: { en: "Password", zh: "密码", ms: "Kata Laluan" },
     signingIn: { en: "Signing in...", zh: "登录中...", ms: "Sedang log masuk..." },
     signIn: { en: "Sign In", zh: "登录", ms: "Log Masuk" },
