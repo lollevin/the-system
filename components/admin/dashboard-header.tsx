@@ -26,6 +26,7 @@ export function DashboardHeader() {
   const pageTitle = (() => {
     if (pathname === "/admin") return null
     if (pathname.startsWith("/admin/ai")) return t("admin", "ai")
+    if (pathname.startsWith("/admin/audit-log")) return t("admin", "alTitle")
     if (pathname.startsWith("/admin/customer-management")) return t("admin", "customerManagement")
     if (pathname.startsWith("/admin/settings")) return t("admin", "settings")
     if (pathname.startsWith("/admin/customer-list")) return t("admin", "customers")

@@ -9,7 +9,7 @@ import {
   RefreshCw, Store, X, Phone, Globe, Clock, ChefHat,
   ExternalLink, Sparkles, Navigation2,
   Settings, LogOut, PanelRightOpen, PanelRightClose,
-  AlertTriangle
+  AlertTriangle, Activity
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -39,6 +39,7 @@ function useSidebarItems() {
     { href: "/admin/ai", icon: <Bot className="h-5 w-5" />, label: t("admin", "ai"), desc: t("admin", "smartCampaigns"), color: "bg-amber-500/10 text-amber-600" },
     { href: "/admin/shop", icon: <Store className="h-5 w-5" />, label: t("admin", "shopManagement"), desc: t("admin", "menuAndStaff"), color: "bg-orange-500/10 text-orange-600" },
     { href: "/admin/customer-management", icon: <Users className="h-5 w-5" />, label: t("admin", "customerManagement"), desc: t("admin", "customerManagementDesc"), color: "bg-teal-500/10 text-teal-600" },
+    { href: "/admin/audit-log", icon: <Activity className="h-5 w-5" />, label: t("admin", "alTitle"), desc: t("admin", "sfAuditLogDesc"), color: "bg-rose-500/10 text-rose-600" },
     { href: "/admin/settings", icon: <Settings className="h-5 w-5" />, label: t("admin", "settings"), desc: t("admin", "settingsDesc"), color: "bg-gray-500/10 text-gray-600" },
   ]
 }

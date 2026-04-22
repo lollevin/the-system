@@ -33,6 +33,8 @@ import type { User } from "@supabase/supabase-js"
 import type { Profile } from "@/lib/supabase/types"
 import { formatCurrency, calculatePoints } from "@/lib/utils"
 import { useLanguage } from "@/lib/i18n"
+import { usePointsRate } from "@/lib/use-points-rate"
+import { Trash2 } from "lucide-react"
 
 const quickAmounts = [
   { label: "RM 20", value: 20 },
@@ -78,6 +80,9 @@ export function StaffTerminal({ user, profile }: StaffTerminalProps) {
   const supabase = createClient()
   const { toast } = useToast()
   const { language, setLanguage, t } = useLanguage()
+  const { rmPerPoint } = usePointsRate()
+  const [deleteTargetTxId, setDeleteTargetTxId] = useState<string | null>(null)
+  const [isDeletingTx, setIsDeletingTx] = useState(false)
 
   // Fetch recent activity and AI vouchers
   useEffect(() => {
@@ -105,11 +110,42 @@ export function StaffTerminal({ user, profile }: StaffTerminalProps) {
 
     if (data) {
       setRecentActivity(data.map((tx: any) => ({
+        id: tx.id,
         name: tx.user?.full_name || "Customer",
         points: tx.points,
         type: tx.type,
+        amount: tx.amount,
         time: getTimeAgo(tx.created_at),
       })))
+    }
+  }
+
+  const handleDeleteTransaction = async () => {
+    if (!deleteTargetTxId) return
+    setIsDeletingTx(true)
+    try {
+      const res = await fetch("/api/staff/delete-transaction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId: deleteTargetTxId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || "Delete failed")
+
+      toast({
+        title: t("staff", "staffDeleted"),
+        description: `-${data.points_reversed || 0} pts`,
+      })
+      setDeleteTargetTxId(null)
+      fetchRecentActivity()
+    } catch (err: any) {
+      toast({
+        title: t("staff", "staffDeleteFailed"),
+        description: err?.message || "",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeletingTx(false)
     }
   }
 
@@ -448,7 +484,7 @@ export function StaffTerminal({ user, profile }: StaffTerminalProps) {
 
     // Smart guard: high amount warning
     if (amount > 500) {
-      setConfirmMessage(`High amount: RM ${amount} (${calculatePoints(amount)} pts). Confirm?`)
+      setConfirmMessage(`High amount: RM ${amount} (${calculatePoints(amount, rmPerPoint)} pts). Confirm?`)
       setPendingAction(() => () => executeAddPoints(amount))
       setShowConfirmDialog(true)
       return
@@ -480,7 +516,7 @@ export function StaffTerminal({ user, profile }: StaffTerminalProps) {
         return
       }
 
-      const points = calculatePoints(amount)
+      const points = calculatePoints(amount, rmPerPoint)
 
       // Create transaction
       const { error: txError } = await supabase.from("transactions").insert({
@@ -1090,7 +1126,7 @@ export function StaffTerminal({ user, profile }: StaffTerminalProps) {
           {currentAmount > 0 && (
             <div className="text-center py-3 bg-[#8b6f47]/10 rounded-xl">
               <p className="text-zinc-500 text-sm">{t("staff", "pointsToAdd")}</p>
-              <p className="text-3xl font-bold text-[#8b6f47]">+{calculatePoints(currentAmount)}</p>
+              <p className="text-3xl font-bold text-[#8b6f47]">+{calculatePoints(currentAmount, rmPerPoint)}</p>
             </div>
           )}
 
@@ -1143,7 +1179,20 @@ export function StaffTerminal({ user, profile }: StaffTerminalProps) {
                         )}
                       </span>
                     </div>
-                    <span className="text-zinc-400 text-sm">{activity.time}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-400 text-sm">{activity.time}</span>
+                      {activity.type === "earn" && activity.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteTargetTxId(activity.id)}
+                          className="size-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                          title={t("staff", "staffDelete")}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))
               ) : (
@@ -1431,6 +1480,55 @@ export function StaffTerminal({ user, profile }: StaffTerminalProps) {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Transaction Dialog */}
+      {deleteTargetTxId && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={() => !isDeletingTx && setDeleteTargetTxId(null)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-full">
+                <Trash2 className="size-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900">
+                {t("staff", "staffDeletePoints")}
+              </h3>
+            </div>
+            <p className="text-zinc-600 mb-6 text-sm">
+              {t("staff", "staffDeletePointsDesc")}
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteTargetTxId(null)}
+                disabled={isDeletingTx}
+                className="flex-1 h-12 rounded-xl"
+              >
+                {t("staff", "staffCancel")}
+              </Button>
+              <Button
+                onClick={handleDeleteTransaction}
+                disabled={isDeletingTx}
+                className="flex-1 h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white"
+              >
+                {isDeletingTx ? (
+                  <Loader2 className="size-5 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="size-4 mr-2" />
+                    {t("staff", "staffDelete")}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Dialog */}
       {showConfirmDialog && (

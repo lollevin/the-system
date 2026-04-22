@@ -19,9 +19,11 @@ export function formatDate(date: string | Date): string {
   }).format(new Date(date))
 }
 
-export function calculatePoints(amount: number): number {
-  // 1 point per RM 10 spent
-  return Math.floor(amount / 10)
+export function calculatePoints(amount: number, rmPerPoint: number = 10): number {
+  // Customer earns 1 point per `rmPerPoint` ringgit spent.
+  // Admin can configure `rmPerPoint` in Settings → Rewards Points.
+  const divisor = Number(rmPerPoint) > 0 ? Number(rmPerPoint) : 10
+  return Math.floor(amount / divisor)
 }
 
 /**

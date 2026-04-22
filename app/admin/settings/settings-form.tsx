@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { Loader2, Globe, User, Image as ImageIcon, ChevronRight, ChevronDown, Upload, X, Smartphone, Maximize2, Layout, Square, Plus, Trash2, Gift, Calendar, UserPlus, Heart, Cake, Flame } from "lucide-react"
+import { Loader2, Globe, User, Image as ImageIcon, ChevronRight, ChevronDown, Upload, X, Smartphone, Maximize2, Layout, Square, Plus, Trash2, Gift, Calendar, UserPlus, Heart, Cake, Flame, Coins } from "lucide-react"
 import NextImage from "next/image"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
@@ -39,6 +39,7 @@ interface RewardsConfig {
   like_share: number
   birthday_gift: number
   streak_bonus: number
+  rm_per_point: number
 }
 
 const DEFAULT_REWARDS: RewardsConfig = {
@@ -47,6 +48,7 @@ const DEFAULT_REWARDS: RewardsConfig = {
   like_share: 15,
   birthday_gift: 100,
   streak_bonus: 50,
+  rm_per_point: 10,
 }
 
 export function SettingsForm({ user, profile }: SettingsFormProps) {
@@ -334,6 +336,36 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
           >
             {activeTab === "rewards" ? (
               <div className="space-y-6 max-w-3xl">
+                {/* Conversion Rate */}
+                <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Coins className="h-5 w-5 text-[#8b6f47]" />
+                      {t("admin", "sfRmPerPoint")}
+                    </CardTitle>
+                    <CardDescription>{t("admin", "sfRmPerPointDesc")}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-background/40">
+                      <div className="text-sm font-semibold text-muted-foreground">{t("admin", "sfUnitRm")}</div>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={9999}
+                        value={rewardsConfig.rm_per_point}
+                        onChange={(e) =>
+                          setRewardsConfig((prev) => ({
+                            ...prev,
+                            rm_per_point: Math.max(1, parseInt(e.target.value || "1", 10)),
+                          }))
+                        }
+                        className="w-24 text-center font-bold bg-background"
+                      />
+                      <div className="text-sm font-medium">= 1 {t("common", "pts")}</div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 <Card className="bg-card/50 backdrop-blur-sm border-border/50">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
