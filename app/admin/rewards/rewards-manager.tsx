@@ -609,7 +609,7 @@ export function RewardsManager({ initialVouchers = [], customers = [] }: Rewards
             <div className="space-y-2">
               <Label className="text-foreground flex items-center gap-2">
                 <ImageIcon className="w-4 h-4" />
-                {t("admin", "voucherImageLabel")} <span className="text-xs text-muted-foreground font-normal">{t("admin", "voucherImageOptional")}</span>
+                {t("ai", "voucherImageLabel")} <span className="text-xs text-muted-foreground font-normal">{t("ai", "voucherImageOptional")}</span>
               </Label>
               {(imagePreview || formData.image_url) ? (
                 <div className="relative w-full h-36 rounded-xl overflow-hidden bg-muted border border-border">
@@ -628,7 +628,7 @@ export function RewardsManager({ initialVouchers = [], customers = [] }: Rewards
                     <X className="h-4 w-4" />
                   </Button>
                   <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                    <p className="text-xs text-white">{t("admin", "clickToRemove")}</p>
+                    <p className="text-xs text-white">{t("ai", "clickToRemove")}</p>
                   </div>
                 </div>
               ) : (
@@ -641,8 +641,8 @@ export function RewardsManager({ initialVouchers = [], customers = [] }: Rewards
                   ) : (
                     <>
                       <Upload className="h-8 w-8 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">{t("admin", "clickToUploadVoucherImage")}</p>
-                      <p className="text-xs text-muted-foreground">{t("admin", "pngJpgUpTo5mb")}</p>
+                      <p className="text-sm text-muted-foreground">{t("ai", "clickToUploadVoucherImage")}</p>
+                      <p className="text-xs text-muted-foreground">{t("ai", "pngJpgUpTo5mb")}</p>
                     </>
                   )}
                 </div>

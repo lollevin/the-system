@@ -197,7 +197,7 @@ export default function AICopilotPage() {
     if (!connected) {
       openWaFallback(phone, action.message)
       toast.warning(t("ai", "waNotConnected"), {
-        description: t("admin", "waSwitchedToWaMe"),
+        description: t("ai", "waSwitchedToWaMe"),
         duration: 5000,
       })
       return
@@ -245,7 +245,7 @@ export default function AICopilotPage() {
     } catch (err: any) {
       openWaFallback(phone, action.message)
       toast.warning(`${t("ai", "failedToSendTo")} ${action.name}`, {
-        description: `${err.message || "Send failed"}. ${t("admin", "waSwitchedToWaMe")}`,
+        description: `${err.message || "Send failed"}. ${t("ai", "waSwitchedToWaMe")}`,
       })
     } finally {
       setSendingCustomers(prev => {
@@ -603,7 +603,7 @@ export default function AICopilotPage() {
     { id: "analyzer", label: t("ai", "customerAnalyzer"), icon: Brain, desc: t("ai", "analyzeMessage") },
     { id: "smart", label: t("ai", "smartRecommendations"), icon: Sparkles, desc: t("ai", "aiSuggestions") },
     { id: "chat", label: t("ai", "aiChatInsights"), icon: MessageSquare, desc: t("ai", "askAnything") },
-    { id: "knowledge", label: t("admin", "knowledgeBase"), icon: BookOpen, desc: t("admin", "kbUploadDesc") },
+    { id: "knowledge", label: t("admin", "knowledgeBase"), icon: BookOpen, desc: t("ai", "kbUploadDesc") },
     { id: "history", label: t("ai", "sendHistory"), icon: HistoryIcon, desc: t("ai", "messageRecords") },
   ]
 

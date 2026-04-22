@@ -172,8 +172,8 @@ export function AICustomerAnalyzer() {
     if (birthday.length > 0) {
       groups.push({
         id: "birthday",
-        title: t("admin", "batchBirthdayTitle"),
-        description: t("admin", "batchBirthdayDesc"),
+        title: t("ai", "batchBirthdayTitle"),
+        description: t("ai", "batchBirthdayDesc"),
         icon: Cake,
         color: "text-pink-500",
         bgColor: "bg-pink-500/10 border-pink-500/30",
@@ -188,8 +188,8 @@ export function AICustomerAnalyzer() {
     if (d7to14.length > 0) {
       groups.push({
         id: "dormant7",
-        title: `${d7to14.length} ${t("admin", "batch7dTitle")}`,
-        description: t("admin", "batch7dDesc"),
+        title: `${d7to14.length} ${t("ai", "batch7dTitle")}`,
+        description: t("ai", "batch7dDesc"),
         icon: Clock,
         color: "text-amber-500",
         bgColor: "bg-amber-500/10 border-amber-500/30",
@@ -204,8 +204,8 @@ export function AICustomerAnalyzer() {
     if (d30to60.length > 0) {
       groups.push({
         id: "dormant30",
-        title: `${d30to60.length} ${t("admin", "batch30dTitle")}`,
-        description: t("admin", "batch30dDesc"),
+        title: `${d30to60.length} ${t("ai", "batch30dTitle")}`,
+        description: t("ai", "batch30dDesc"),
         icon: Moon,
         color: "text-orange-500",
         bgColor: "bg-orange-500/10 border-orange-500/30",
@@ -220,8 +220,8 @@ export function AICustomerAnalyzer() {
     if (d60plus.length > 0) {
       groups.push({
         id: "dormant60",
-        title: `${d60plus.length} ${t("admin", "batch60dTitle")}`,
-        description: t("admin", "batch60dDesc"),
+        title: `${d60plus.length} ${t("ai", "batch60dTitle")}`,
+        description: t("ai", "batch60dDesc"),
         icon: AlertTriangle,
         color: "text-red-500",
         bgColor: "bg-red-500/10 border-red-500/30",
@@ -233,8 +233,8 @@ export function AICustomerAnalyzer() {
     if (vips.length > 0) {
       groups.push({
         id: "vip",
-        title: `${vips.length} ${t("admin", "batchVipTitle")}`,
-        description: t("admin", "batchVipDesc"),
+        title: `${vips.length} ${t("ai", "batchVipTitle")}`,
+        description: t("ai", "batchVipDesc"),
         icon: Star,
         color: "text-amber-500",
         bgColor: "bg-amber-500/10 border-amber-500/30",
@@ -246,8 +246,8 @@ export function AICustomerAnalyzer() {
     if (newbies.length > 0) {
       groups.push({
         id: "new",
-        title: `${newbies.length} ${t("admin", "batchNewTitle")}`,
-        description: t("admin", "batchNewDesc"),
+        title: `${newbies.length} ${t("ai", "batchNewTitle")}`,
+        description: t("ai", "batchNewDesc"),
         icon: UserPlus,
         color: "text-blue-500",
         bgColor: "bg-blue-500/10 border-blue-500/30",
@@ -259,8 +259,8 @@ export function AICustomerAnalyzer() {
     if (neverCame.length > 0) {
       groups.push({
         id: "never",
-        title: `${neverCame.length} ${t("admin", "batchNeverTitle")}`,
-        description: t("admin", "batchNeverDesc"),
+        title: `${neverCame.length} ${t("ai", "batchNeverTitle")}`,
+        description: t("ai", "batchNeverDesc"),
         icon: AlertTriangle,
         color: "text-gray-500",
         bgColor: "bg-gray-500/10 border-gray-500/30",
@@ -272,8 +272,8 @@ export function AICustomerAnalyzer() {
     if (highPoints.length > 0) {
       groups.push({
         id: "highPoints",
-        title: `${highPoints.length} ${t("admin", "batchHighPointsTitle")}`,
-        description: t("admin", "batchHighPointsDesc"),
+        title: `${highPoints.length} ${t("ai", "batchHighPointsTitle")}`,
+        description: t("ai", "batchHighPointsDesc"),
         icon: Zap,
         color: "text-purple-500",
         bgColor: "bg-purple-500/10 border-purple-500/30",
@@ -293,9 +293,9 @@ export function AICustomerAnalyzer() {
       setExpandedBatches(new Set(groups.slice(0, 2).map(g => g.id)))
       setIsGrouping(false)
       if (groups.length === 0) {
-        toast.warning(t("admin", "batchNoneFound"))
+        toast.warning(t("ai", "batchNoneFound"))
       } else {
-        toast.success(`${t("admin", "batchFound")} ${groups.length} ${t("admin", "batchBatches")}`)
+        toast.success(`${t("ai", "batchFound")} ${groups.length} ${t("ai", "batchBatches")}`)
       }
     }, 400)
   }
@@ -930,7 +930,7 @@ Requirements:
       const fallbackText = sc.message || `Hi ${sc.profile.full_name || ""}`
       openWaFallback(phone, fallbackText)
       toast.warning(t("ai", "caWaNotConnectedSend"), {
-        description: t("admin", "waSwitchedToWaMe"),
+        description: t("ai", "waSwitchedToWaMe"),
         duration: 5000,
       })
       return
@@ -992,7 +992,7 @@ Requirements:
       const fallbackText = sc.message || `Hi ${sc.profile.full_name || ""}`
       openWaFallback(phone, fallbackText)
       toast.warning(`${t("ai", "caFailedSendTo")} ${sc.profile.full_name}`, {
-        description: `${error.message || "Send failed"}. ${t("admin", "waSwitchedToWaMe")}`,
+        description: `${error.message || "Send failed"}. ${t("ai", "waSwitchedToWaMe")}`,
       })
     }
   }
@@ -1119,10 +1119,10 @@ Requirements:
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Brain className="w-4 h-4 text-[#8b6f47]" />
-                  <span className="text-sm font-semibold">{t("admin", "batchAiGroupingTitle")}</span>
+                  <span className="text-sm font-semibold">{t("ai", "batchAiGroupingTitle")}</span>
                   {batches.length > 0 && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
-                      {batches.length} {t("admin", "batchBatches")}
+                      {batches.length} {t("ai", "batchBatches")}
                     </Badge>
                   )}
                 </div>
@@ -1138,21 +1138,21 @@ Requirements:
                   ) : (
                     <RefreshCw className="w-3 h-3" />
                   )}
-                  {t("admin", "batchReanalyze")}
+                  {t("ai", "batchReanalyze")}
                 </Button>
               </div>
               <p className="text-[11px] text-muted-foreground leading-tight">
-                {t("admin", "batchAiGroupingDesc")}
+                {t("ai", "batchAiGroupingDesc")}
               </p>
 
               {isGrouping && batches.length === 0 ? (
                 <div className="flex items-center justify-center py-6">
                   <Loader2 className="w-5 h-5 animate-spin text-[#8b6f47]" />
-                  <span className="ml-2 text-xs text-muted-foreground">{t("admin", "batchAnalyzing")}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">{t("ai", "batchAnalyzing")}</span>
                 </div>
               ) : batches.length === 0 ? (
                 <div className="text-center py-4 text-xs text-muted-foreground">
-                  {t("admin", "batchNoneFound")}
+                  {t("ai", "batchNoneFound")}
                 </div>
               ) : (
                 <div className="space-y-1.5">
