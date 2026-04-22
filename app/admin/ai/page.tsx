@@ -65,7 +65,7 @@ interface Message {
 }
 
 export default function AICopilotPage() {
-  const { t, language } = useLanguage()
+  const { t, language, languageRef } = useLanguage()
 
   // Quick prompts - Marketing + Business Insights
   const quickPrompts = [
@@ -113,13 +113,13 @@ export default function AICopilotPage() {
         latencyMs: data.latencyMs,
       })
       if (data.ok) {
-        toast.success(`AI online: ${data.workingModel || data.primaryModel} (${data.latencyMs}ms)`)
+        toast.success(t("ai", "ai_status_online"))
       } else {
-        toast.error(`AI offline: ${data.error || "Unknown error"}`)
+        toast.error(t("ai", "ai_status_unavailable"))
       }
     } catch (err: any) {
       setAiHealth({ ok: false, loading: false, error: err.message })
-      toast.error("Failed to check AI status")
+      toast.error(t("ai", "ai_status_failed_check"))
     }
   }
 
@@ -367,13 +367,20 @@ export default function AICopilotPage() {
         .map(m => `${m.role === "user" ? "Admin" : "AI"}: ${m.content}`)
         .join("\n")
 
+      // Snapshot the locale at SEND time (not stale closure time) so an
+      // in-flight request is never parsed against an old language.
+      const localeAtSend = languageRef.current
+
       const response = await fetch("/api/ai/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        headers: {
+          "Content-Type": "application/json",
+          "X-Locale": localeAtSend,
+        },
+        body: JSON.stringify({
           goal: messageText,
           conversationHistory,
-          language,
+          language: localeAtSend,
           requestId: Date.now()
         }),
       })
@@ -622,7 +629,7 @@ export default function AICopilotPage() {
           <button
             onClick={testAIConnection}
             disabled={aiHealth.loading}
-            title={aiHealth.ok ? `Model: ${aiHealth.model}\nLatency: ${aiHealth.latencyMs}ms` : "Click to retry AI health check"}
+            title={aiHealth.ok ? `${t("ai", "ai_status_online")} · ${aiHealth.latencyMs ?? "—"}ms` : t("ai", "ai_status_subtitle_retry")}
             className={`w-full p-2.5 rounded-xl border transition-all text-left group ${
               aiHealth.loading
                 ? "bg-amber-500/5 border-amber-500/20"
@@ -643,14 +650,18 @@ export default function AICopilotPage() {
                 <p className={`text-[11px] font-semibold ${
                   aiHealth.loading ? "text-amber-700" : aiHealth.ok ? "text-green-700" : "text-orange-700"
                 }`}>
-                  {aiHealth.loading ? "Checking AI..." : aiHealth.ok ? "AI Online" : "AI Slow / Unavailable"}
+                  {aiHealth.loading
+                    ? t("ai", "ai_status_checking")
+                    : aiHealth.ok
+                      ? t("ai", "ai_status_online")
+                      : t("ai", "ai_status_unavailable")}
                 </p>
                 <p className="text-[10px] text-muted-foreground truncate">
                   {aiHealth.loading
-                    ? "Testing connection..."
+                    ? "…"
                     : aiHealth.ok
-                      ? `${aiHealth.model} · ${aiHealth.latencyMs}ms`
-                      : "Click to retry"}
+                      ? t("ai", "ai_status_subtitle_ok")
+                      : t("ai", "ai_status_subtitle_retry")}
                 </p>
               </div>
               <Activity className={`w-3.5 h-3.5 transition-opacity opacity-50 group-hover:opacity-100 ${

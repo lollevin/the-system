@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Optional: generate campaign image using 302.AI(OpenAI compatible) when prompt is provided.
+    // Optional: generate campaign image via the OpenAI-compatible AI gateway when a prompt is provided.
     if (!finalImageBase64 && imagePrompt && OPENAI_API_KEY) {
       try {
         const imgRes = await fetch(`${OPENAI_BASE_URL}/images/generations`, {

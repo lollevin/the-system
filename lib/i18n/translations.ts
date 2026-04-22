@@ -710,6 +710,20 @@ export const translations = {
     // Page titles
     marketingCenter: { en: "AI Marketing Center", zh: "AI 营销中心", ms: "Pusat Pemasaran AI" },
     marketingDesc: { en: "Smart customer analysis, personalized messages, auto-generated vouchers", zh: "智能客户分析、个性化消息、自动生成优惠券", ms: "Analisis pelanggan pintar, mesej peribadi, baucar automatik" },
+
+    // AI status (generic, vendor-agnostic — never expose model names in UI)
+    ai_status_online:        { en: "AI Online",         zh: "AI 在线",        ms: "AI Dalam Talian" },
+    ai_status_checking:      { en: "Checking AI...",    zh: "正在检查 AI…",   ms: "Memeriksa AI..." },
+    ai_status_unavailable:   { en: "AI Unavailable",    zh: "AI 暂不可用",    ms: "AI Tidak Tersedia" },
+    ai_status_subtitle_ok:   { en: "Service ready",     zh: "服务就绪",       ms: "Perkhidmatan sedia" },
+    ai_status_subtitle_retry:{ en: "Click to retry",    zh: "点击重试",       ms: "Klik cuba semula" },
+    ai_status_failed_check:  { en: "Failed to check AI status", zh: "AI 状态检查失败", ms: "Gagal semak status AI" },
+    ai_powered_by:           { en: "AI Analysis",       zh: "AI 分析",        ms: "Analisis AI" },
+
+    // WhatsApp package labels (previously leaked "302.AI")
+    whatsappSendPackage:     { en: "WhatsApp Send Package", zh: "WhatsApp 发送包", ms: "Pakej Hantar WhatsApp" },
+    fixedVoucherImage:       { en: "Fixed voucher image", zh: "固定优惠券图片", ms: "Imej baucar tetap" },
+    aiGeneratedVisual:       { en: "AI generated campaign visual", zh: "AI 生成的营销图", ms: "Visual kempen jana AI" },
     
     // Tabs
     customerAnalyzer: { en: "Customer Analyzer", zh: "客户分析", ms: "Penganalisis Pelanggan" },

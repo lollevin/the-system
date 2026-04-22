@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimitResponse } from "@/lib/rate-limit";
 import { getVoucherLink, getPointsLink, getMenuLink } from "@/lib/pwa-links";
 import { aiCallWithTools } from "@/lib/ai-tools";
+import { buildLanguageDirective, resolveLocaleFromRequest } from "@/lib/i18n/language-directive";
 
 // Allow up to 60 seconds for AI generation (matches Nginx default proxy_read_timeout)
 export const maxDuration = 60;
@@ -41,11 +42,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request body
-    const { goal, conversationHistory, language: userLang } = await request.json();
+    const { goal, conversationHistory, language: bodyLang } = await request.json();
 
     if (!goal) {
       return NextResponse.json({ error: "Please provide a goal" }, { status: 400 });
     }
+
+    // Resolve locale with three-source fallback: body > X-Locale header > cookie > "en"
+    // so an async request is never silently parsed against a stale default.
+    const localeInfo = resolveLocaleFromRequest(request, bodyLang);
+    const userLang = localeInfo.tag;
+    const languageDirective = buildLanguageDirective(userLang);
 
     // Use admin client (service role key) to bypass RLS and fetch ALL customer data
     // This is safe because we already verified the user is admin above
@@ -224,8 +231,12 @@ export async function POST(request: NextRequest) {
       `- ${c.full_name || "Unknown"} (${c.phone || "no phone"}) | RM${(c.total_spent || 0).toFixed(0)} spent | ${c.points_balance || 0} pts | ${c.visit_count || 0} visits | Last: ${c.last_visit ? new Date(c.last_visit).toLocaleDateString() : "never"} | Birthday: ${c.birthday || "unknown"}`
     ).join("\n");
 
-    // Build powerful system prompt
-    const systemPrompt = `You are JP&Co's Senior AI Marketing Strategist — powered by 302.AI. You are a world-class F&B retention marketing expert specializing in customer lifecycle management, behavioral segmentation, and high-conversion WhatsApp campaigns for JP&Co, a trendy casual dining restaurant at Pavilion Bukit Jalil, Kuala Lumpur, Malaysia (burgers, cakes, artisan coffee).
+    // Build powerful system prompt — language lock at the very top (primacy)
+    const systemPrompt = `${languageDirective}
+
+---
+
+You are JP&Co's Senior AI Marketing Strategist. You are a world-class F&B retention marketing expert specializing in customer lifecycle management, behavioral segmentation, and high-conversion WhatsApp campaigns for JP&Co, a trendy casual dining restaurant at Pavilion Bukit Jalil, Kuala Lumpur, Malaysia (burgers, cakes, artisan coffee).
 
 ## YOUR EXPERTISE
 1. **Customer Lifecycle Marketing** — Acquisition → Activation → Retention → Reactivation → Win-back
@@ -293,9 +304,6 @@ ${vipCustomers.map(c => `- ${c.name} (${c.phone}) | RM${c.totalSpent.toFixed(0)}
 ${newCustomers.map(c => `- ${c.name} (${c.phone}) | Joined: ${new Date(c.joinDate).toLocaleDateString()} | ${c.points} pts`).join("\n") || "None"}
 
 ## OUTPUT RULES
-
-### Language
-You MUST respond in ${userLang === "zh" ? "Chinese (简体中文)" : userLang === "ms" ? "Bahasa Melayu" : "English"}. All analysis, headings, and explanations must be in this language. WhatsApp messages for customers should also be written in this language.
 
 ### WhatsApp Message Format
 When generating messages for customers, ALWAYS include this JSON block at the end:
@@ -366,7 +374,17 @@ You have access to these tools. Use them when the admin's question needs externa
 - When multiple customers match, list ALL with personalized messages for each
 - Never give generic advice — always reference specific customers and their data
 - If data is insufficient, say what's missing and suggest how to collect it
-- When using tools, briefly mention what data source you used (e.g. "Based on web search..." or "From your uploaded files...")`;
+- When using tools, briefly mention what data source you used (e.g. "Based on web search..." or "From your uploaded files...")
+
+---
+
+${languageDirective}
+
+Silent pre-send checklist (do not emit this list):
+  □ Is every heading, bullet, JSON string and example in ${localeInfo.label}?
+  □ Did I avoid mentioning model names / providers?
+  □ Did I include at least one specific customer record by name?
+If any box is unchecked → rewrite before responding.`;
 
 
     // Generate response using AI with tool calling
@@ -428,7 +446,7 @@ I'm having trouble connecting to the AI service right now.
 **What you can try:**
 1. Go to **Customer Analyzer** tab for AI-powered messaging
 2. Try again in a moment
-3. Check if 302.AI service is available
+3. Retry once the upstream service recovers
 
 **Your current data:**
 - ${segments.total} total customers

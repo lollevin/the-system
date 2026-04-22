@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { rateLimitResponse } from "@/lib/rate-limit"
 import { NextResponse } from "next/server"
 import { aiCallWithTools } from "@/lib/ai-tools"
+import { buildLanguageDirective, resolveLocaleFromRequest } from "@/lib/i18n/language-directive"
 
 export const maxDuration = 60
 
@@ -31,19 +32,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "name is required" }, { status: 400 })
   }
 
-  const langInstruction = body.language === "zh"
-    ? "Chinese (简体中文)"
-    : body.language === "ms"
-    ? "Bahasa Melayu"
-    : "English"
+  // Three-source locale resolution: body > X-Locale header > cookie > "en"
+  const localeInfo = resolveLocaleFromRequest(request, body.language)
+  const languageDirective = buildLanguageDirective(localeInfo.tag)
 
   try {
     const messages = [
       {
         role: "system",
-        content: `You are JP&Co's Senior Competitive Intelligence Analyst — powered by 302.AI. You specialize in F&B market analysis in the Klang Valley, Malaysia. JP&Co is a trendy casual dining restaurant at Pavilion Bukit Jalil, Kuala Lumpur serving burgers, cakes, and artisan coffee with an AI-powered loyalty system.
+        content: `${languageDirective}
 
-You MUST reply in ${langInstruction}. Be specific, data-driven, and provide tactics JP&Co can execute immediately.
+---
+
+You are JP&Co's Senior Competitive Intelligence Analyst. You specialize in F&B market analysis in the Klang Valley, Malaysia. JP&Co is a trendy casual dining restaurant at Pavilion Bukit Jalil, Kuala Lumpur serving burgers, cakes, and artisan coffee with an AI-powered loyalty system.
+
+Be specific, data-driven, and provide tactics JP&Co can execute immediately.
 
 ## TOOLS
 You have access to these tools — USE THEM to get real data:
@@ -51,7 +54,13 @@ You have access to these tools — USE THEM to get real data:
 - **scrape_url** — Read their website or food delivery pages for actual menu items and prices
 - **search_knowledge_base** — Check if admin uploaded any data about this competitor
 
-ALWAYS use web_search first to find real current information about the competitor before writing your analysis. This gives much better results than guessing.`,
+ALWAYS use web_search first to find real current information about the competitor before writing your analysis. This gives much better results than guessing.
+
+---
+
+${languageDirective}
+
+Silent pre-send checklist: every section heading, bullet, and tactic must be in ${localeInfo.label}. Rewrite if any line is not.`,
       },
       {
         role: "user",

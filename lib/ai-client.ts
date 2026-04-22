@@ -2,15 +2,15 @@ import { toolDefinitions, executeTool } from "./ai-tools"
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
-const AI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "gpt-3.5-turbo"
+const AI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini"
 const CHAT_ENDPOINT = `${OPENAI_BASE_URL}/chat/completions`
 
-// Models to try in order if the primary model fails.
-// 302.AI has unstable upstream, so fall back to alternatives.
+// Primary + fallback chain. Provider-specific notes belong in README,
+// NOT in shipped comments or strings.
 const FALLBACK_MODELS = [
   AI_TEXT_MODEL,
-  "gpt-3.5-turbo",
   "gpt-4o-mini",
+  "gpt-3.5-turbo",
   "deepseek-chat",
 ].filter((v, i, a) => a.indexOf(v) === i)
 

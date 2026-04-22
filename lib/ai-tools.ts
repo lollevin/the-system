@@ -2,13 +2,15 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
-const API_302_BASE = "https://api.302.ai"
-const AI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "gpt-3.5-turbo"
+// Tool gateway base URL — kept in env so the provider can be swapped
+// without code changes. Default points to the configured upstream.
+const TOOL_GATEWAY_BASE = process.env.AI_TOOL_GATEWAY_BASE || "https://api.302.ai"
+const AI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini"
 
 const FALLBACK_MODELS = [
   AI_TEXT_MODEL,
-  "gpt-3.5-turbo",
   "gpt-4o-mini",
+  "gpt-3.5-turbo",
   "deepseek-chat",
 ].filter((v, i, a) => a.indexOf(v) === i)
 
@@ -96,11 +98,11 @@ export const toolDefinitions = [
 
 export async function executeWebSearch(query: string): Promise<string> {
   if (!OPENAI_API_KEY) {
-    return "[Web search unavailable - OPENAI_API_KEY (302.AI) not configured]"
+    return "[Web search unavailable - AI API key not configured]"
   }
 
   try {
-    const res = await fetch(`${API_302_BASE}/tavily/search`, {
+    const res = await fetch(`${TOOL_GATEWAY_BASE}/tavily/search`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

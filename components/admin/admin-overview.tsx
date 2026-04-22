@@ -448,7 +448,7 @@ function CompetitorPanel({
           <div className="flex items-center gap-1.5 mb-3">
             <Sparkles className="h-4 w-4 text-[#8b6f47]" />
             <span className="text-sm font-semibold">{t("admin", "aiAnalysis")}</span>
-            <Badge variant="outline" className="text-[9px] h-4 ml-auto">302.AI</Badge>
+            <Badge variant="outline" className="text-[9px] h-4 ml-auto">{t("ai", "ai_powered_by")}</Badge>
           </div>
 
           {deepLoading && (

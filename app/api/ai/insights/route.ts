@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextRequest, NextResponse } from "next/server"
 import { callAI } from "@/lib/ai-client"
+import { buildLanguageDirective, resolveLocaleFromRequest } from "@/lib/i18n/language-directive"
 
 export const maxDuration = 60
 
@@ -28,13 +29,18 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Parse body ───────────────────────────────────────────────────
-    const { question, language: userLang } = await request.json()
+    const { question, language: bodyLang } = await request.json()
     if (!question) {
       return NextResponse.json(
         { error: "Please provide a question" },
         { status: 400 }
       )
     }
+
+    // Three-source locale resolution: body > X-Locale header > cookie > "en"
+    const localeInfo = resolveLocaleFromRequest(request, bodyLang)
+    const userLang = localeInfo.tag
+    const languageDirective = buildLanguageDirective(userLang)
 
     // ── Admin client (bypasses RLS) ──────────────────────────────────
     let admin
@@ -330,17 +336,20 @@ export async function POST(request: NextRequest) {
       },
     }
 
-    // ── Call OpenAI via 302.AI proxy ─────────────────────────────────
+    // ── Call AI provider ─────────────────────────────────────────────
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({
         answer:
           "AI service is not configured. Here are the raw business metrics.",
         metrics: businessData,
-        model: "JP&Co AI",
       })
     }
 
-    const systemPrompt = `You are JP&Co's AI Business Intelligence Analyst — powered by 302.AI. You transform raw data into strategic decisions for a casual dining restaurant at Pavilion Bukit Jalil, Kuala Lumpur, Malaysia.
+    const systemPrompt = `${languageDirective}
+
+---
+
+You are JP&Co's AI Business Intelligence Analyst. You transform raw data into strategic decisions for a casual dining restaurant at Pavilion Bukit Jalil, Kuala Lumpur, Malaysia.
 
 ## LIVE BUSINESS DATA
 ${JSON.stringify(businessData, null, 2)}
@@ -362,11 +371,16 @@ Structure every response as:
 - **⚡ Action Items:** 2-3 immediate steps to take
 
 ## RULES
-- You MUST respond in ${userLang === "zh" ? "Chinese (简体中文)" : userLang === "ms" ? "Bahasa Melayu" : "English"}. All headings, analysis, and action items must be in this language.
 - Be specific — never say "revenue is good", say "revenue is RM X, up Y% from last month"
 - For F&B context: mention peak hours, popular items, seasonal trends when relevant
 - If data is insufficient for a confident answer, say what's missing and suggest how to collect it
-- Think like a CFO + CMO hybrid — balance financial rigor with marketing opportunity`
+- Think like a CFO + CMO hybrid — balance financial rigor with marketing opportunity
+
+---
+
+${languageDirective}
+
+Silent pre-send checklist: every heading, bullet, and action item must be in ${localeInfo.label}. If not, rewrite before responding.`
 
     try {
       const aiResult = await callAI({
@@ -384,14 +398,12 @@ Structure every response as:
       return NextResponse.json({
         answer: aiResult.content || "No response generated. Please try again.",
         metrics: businessData,
-        model: aiResult.model || "JP&Co AI",
       })
     } catch (aiError: any) {
       console.error("[AI Insights] AI call failed:", aiError.message)
       return NextResponse.json({
-        answer: `## AI Service Temporarily Unavailable\n\nThe AI provider (302.AI) returned errors after multiple retries. Error details: ${aiError.message}\n\n**Fallback metrics are shown below.** Try again in a moment — the service often recovers within 1-2 minutes.`,
+        answer: `## AI Service Temporarily Unavailable\n\nThe AI service returned errors after multiple retries. Error details: ${aiError.message}\n\n**Fallback metrics are shown below.** Try again in a moment — the service often recovers within 1-2 minutes.`,
         metrics: businessData,
-        model: "JP&Co AI",
         error: aiError.message,
       })
     }

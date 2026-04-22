@@ -634,7 +634,7 @@ Requirements:
     // Re-enable after fixing Nginx: client_max_body_size 50M;
     const fixedImageUrl = null // was: process.env.NEXT_PUBLIC_WHATSAPP_FIXED_IMAGE_URL || "/images/jpco-voucher.png"
 
-    // Visual style prompt for 302.AI image generation (disabled for now to avoid 413)
+    // Visual style prompt for AI image generation (disabled for now to avoid 413)
     const imagePrompt = null
 
     return {
@@ -1269,8 +1269,8 @@ Requirements:
                               const sendPack = buildSmartWhatsAppPayload(sc)
                               return (
                                 <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/25 text-xs space-y-1">
-                                  <p className="font-medium text-blue-700">WhatsApp Send Package</p>
-                                  <p>🖼️ Image: {sendPack.imageUrl ? "Fixed voucher image URL" : "AI generated campaign visual (302.AI)"}</p>
+                                  <p className="font-medium text-blue-700">{t("ai", "whatsappSendPackage")}</p>
+                                  <p>🖼️ {sendPack.imageUrl ? t("ai", "fixedVoucherImage") : t("ai", "aiGeneratedVisual")}</p>
                                   <p>🔘 CTA: Disabled (as requested)</p>
                                   <p className="truncate">🔗 Link in chat: Disabled</p>
                                 </div>
