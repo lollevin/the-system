@@ -130,76 +130,225 @@ export function AICustomerAnalyzer() {
   })
 
   // ========================================================================
-  // SMART SEGMENTS — auto-detect customer habits and batch-select
+  // AI AUTO-GROUPING — dynamically detect customer patterns and build batches
+  // Batches only appear if customers actually match. Admin can tick whole batch
+  // or individual customers inside a batch.
   // ========================================================================
-  type SegmentId = "all" | "birthday" | "dormant30" | "dormant60" | "vip" | "new" | "highPoints"
-
-  const matchesSegment = (c: Profile, seg: SegmentId): boolean => {
-    const now = new Date()
-    const daysSinceLastVisit = c.last_visit
-      ? Math.floor((now.getTime() - new Date(c.last_visit).getTime()) / (1000 * 60 * 60 * 24))
-      : 999
-    const totalSpent = c.total_spent || 0
-    const visitCount = c.visit_count || 0
-    const points = c.points_balance || 0
-
-    switch (seg) {
-      case "all":
-        return true
-      case "birthday": {
-        if (!c.birthday) return false
-        const bday = new Date(c.birthday)
-        const thisYear = new Date(now.getFullYear(), bday.getMonth(), bday.getDate())
-        const diff = (thisYear.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-        return diff >= -1 && diff <= 7
-      }
-      case "dormant30":
-        return daysSinceLastVisit >= 30 && daysSinceLastVisit < 60
-      case "dormant60":
-        return daysSinceLastVisit >= 60 && daysSinceLastVisit < 999
-      case "vip":
-        return totalSpent >= 1000
-      case "new":
-        return visitCount <= 2
-      case "highPoints":
-        return points >= 500
-      default:
-        return false
-    }
+  interface BatchGroup {
+    id: string
+    title: string
+    description: string
+    icon: any
+    color: string
+    bgColor: string
+    members: Profile[]
   }
 
-  const segments: Array<{ id: SegmentId; label: string; icon: any; color: string }> = [
-    { id: "all", label: t("admin", "segAll"), icon: Users, color: "text-foreground" },
-    { id: "birthday", label: t("admin", "segBirthday"), icon: Cake, color: "text-pink-500" },
-    { id: "dormant30", label: t("admin", "segDormant30"), icon: Moon, color: "text-orange-500" },
-    { id: "dormant60", label: t("admin", "segDormant60"), icon: Moon, color: "text-red-500" },
-    { id: "vip", label: t("admin", "segVip"), icon: Star, color: "text-amber-500" },
-    { id: "new", label: t("admin", "segNew"), icon: UserPlus, color: "text-blue-500" },
-    { id: "highPoints", label: t("admin", "segHighPoints"), icon: Zap, color: "text-purple-500" },
-  ]
+  const [batches, setBatches] = useState<BatchGroup[]>([])
+  const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set())
+  const [isGrouping, setIsGrouping] = useState(false)
 
-  const segmentCounts = segments.reduce((acc, s) => {
-    acc[s.id] = customers.filter(c => matchesSegment(c, s.id)).length
-    return acc
-  }, {} as Record<SegmentId, number>)
+  const daysSince = (date: string | null | undefined): number => {
+    if (!date) return 999
+    return Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24))
+  }
 
-  const applySegment = (seg: SegmentId) => {
-    const matched = customers.filter(c => matchesSegment(c, seg))
-    if (matched.length === 0) {
-      toast.warning(t("admin", "segNoMatch"))
-      return
+  const isBirthdayWithin = (bday: string | null | undefined, days: number): boolean => {
+    if (!bday) return false
+    const now = new Date()
+    const b = new Date(bday)
+    const thisYear = new Date(now.getFullYear(), b.getMonth(), b.getDate())
+    const diff = (thisYear.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    return diff >= -1 && diff <= days
+  }
+
+  // Build dynamic batches based on actual customer data.
+  // Only non-empty batches are shown. A customer may appear in multiple batches.
+  const buildBatches = (): BatchGroup[] => {
+    const all = customers
+    const groups: BatchGroup[] = []
+
+    const birthday = all.filter(c => isBirthdayWithin(c.birthday, 7))
+    if (birthday.length > 0) {
+      groups.push({
+        id: "birthday",
+        title: t("admin", "batchBirthdayTitle"),
+        description: t("admin", "batchBirthdayDesc"),
+        icon: Cake,
+        color: "text-pink-500",
+        bgColor: "bg-pink-500/10 border-pink-500/30",
+        members: birthday,
+      })
     }
-    setSelectedCustomers(matched.map(c => ({
-      profile: c,
-      analysis: null,
-      message: "",
-      voucher: null,
-      isAnalyzing: false,
-      messageSent: false,
-    })))
-    setExpandedCustomerId(null)
-    const segLabel = segments.find(s => s.id === seg)?.label || seg
-    toast.success(`${t("admin", "segAutoSelected")} ${matched.length} ${t("admin", "segForSegment")}: ${segLabel}`)
+
+    const d7to14 = all.filter(c => {
+      const d = daysSince(c.last_visit)
+      return d >= 7 && d < 30
+    })
+    if (d7to14.length > 0) {
+      groups.push({
+        id: "dormant7",
+        title: `${d7to14.length} ${t("admin", "batch7dTitle")}`,
+        description: t("admin", "batch7dDesc"),
+        icon: Clock,
+        color: "text-amber-500",
+        bgColor: "bg-amber-500/10 border-amber-500/30",
+        members: d7to14,
+      })
+    }
+
+    const d30to60 = all.filter(c => {
+      const d = daysSince(c.last_visit)
+      return d >= 30 && d < 60
+    })
+    if (d30to60.length > 0) {
+      groups.push({
+        id: "dormant30",
+        title: `${d30to60.length} ${t("admin", "batch30dTitle")}`,
+        description: t("admin", "batch30dDesc"),
+        icon: Moon,
+        color: "text-orange-500",
+        bgColor: "bg-orange-500/10 border-orange-500/30",
+        members: d30to60,
+      })
+    }
+
+    const d60plus = all.filter(c => {
+      const d = daysSince(c.last_visit)
+      return d >= 60 && d < 999
+    })
+    if (d60plus.length > 0) {
+      groups.push({
+        id: "dormant60",
+        title: `${d60plus.length} ${t("admin", "batch60dTitle")}`,
+        description: t("admin", "batch60dDesc"),
+        icon: AlertTriangle,
+        color: "text-red-500",
+        bgColor: "bg-red-500/10 border-red-500/30",
+        members: d60plus,
+      })
+    }
+
+    const vips = all.filter(c => (c.total_spent || 0) >= 1000)
+    if (vips.length > 0) {
+      groups.push({
+        id: "vip",
+        title: `${vips.length} ${t("admin", "batchVipTitle")}`,
+        description: t("admin", "batchVipDesc"),
+        icon: Star,
+        color: "text-amber-500",
+        bgColor: "bg-amber-500/10 border-amber-500/30",
+        members: vips,
+      })
+    }
+
+    const newbies = all.filter(c => (c.visit_count || 0) <= 2 && (c.visit_count || 0) > 0)
+    if (newbies.length > 0) {
+      groups.push({
+        id: "new",
+        title: `${newbies.length} ${t("admin", "batchNewTitle")}`,
+        description: t("admin", "batchNewDesc"),
+        icon: UserPlus,
+        color: "text-blue-500",
+        bgColor: "bg-blue-500/10 border-blue-500/30",
+        members: newbies,
+      })
+    }
+
+    const neverCame = all.filter(c => !c.last_visit && (c.visit_count || 0) === 0)
+    if (neverCame.length > 0) {
+      groups.push({
+        id: "never",
+        title: `${neverCame.length} ${t("admin", "batchNeverTitle")}`,
+        description: t("admin", "batchNeverDesc"),
+        icon: AlertTriangle,
+        color: "text-gray-500",
+        bgColor: "bg-gray-500/10 border-gray-500/30",
+        members: neverCame,
+      })
+    }
+
+    const highPoints = all.filter(c => (c.points_balance || 0) >= 500)
+    if (highPoints.length > 0) {
+      groups.push({
+        id: "highPoints",
+        title: `${highPoints.length} ${t("admin", "batchHighPointsTitle")}`,
+        description: t("admin", "batchHighPointsDesc"),
+        icon: Zap,
+        color: "text-purple-500",
+        bgColor: "bg-purple-500/10 border-purple-500/30",
+        members: highPoints,
+      })
+    }
+
+    return groups
+  }
+
+  const runAutoGrouping = () => {
+    setIsGrouping(true)
+    // Small delay so the UI shows the loading state briefly — feels "AI-like"
+    setTimeout(() => {
+      const groups = buildBatches()
+      setBatches(groups)
+      setExpandedBatches(new Set(groups.slice(0, 2).map(g => g.id)))
+      setIsGrouping(false)
+      if (groups.length === 0) {
+        toast.warning(t("admin", "batchNoneFound"))
+      } else {
+        toast.success(`${t("admin", "batchFound")} ${groups.length} ${t("admin", "batchBatches")}`)
+      }
+    }, 400)
+  }
+
+  // Re-run grouping automatically once customers load
+  useEffect(() => {
+    if (!loading && customers.length > 0 && batches.length === 0) {
+      runAutoGrouping()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, customers.length])
+
+  const toggleBatchExpanded = (id: string) => {
+    setExpandedBatches(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const isCustomerSelected = (id: string) =>
+    selectedCustomers.some(sc => sc.profile.id === id)
+
+  const addCustomersToSelection = (list: Profile[]) => {
+    setSelectedCustomers(prev => {
+      const existingIds = new Set(prev.map(sc => sc.profile.id))
+      const additions = list
+        .filter(c => !existingIds.has(c.id))
+        .map(c => ({
+          profile: c,
+          analysis: null,
+          message: "",
+          voucher: null,
+          isAnalyzing: false,
+          messageSent: false,
+        }))
+      return [...prev, ...additions]
+    })
+  }
+
+  const removeCustomersFromSelection = (list: Profile[]) => {
+    const ids = new Set(list.map(c => c.id))
+    setSelectedCustomers(prev => prev.filter(sc => !ids.has(sc.profile.id)))
+  }
+
+  const toggleBatchSelection = (batch: BatchGroup) => {
+    const allSelected = batch.members.every(m => isCustomerSelected(m.id))
+    if (allSelected) {
+      removeCustomersFromSelection(batch.members)
+    } else {
+      addCustomersToSelection(batch.members)
+    }
   }
 
   // Toggle customer selection
@@ -965,45 +1114,123 @@ Requirements:
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Smart Segments — auto-detect & batch select */}
-            <div className="p-3 rounded-lg bg-gradient-to-br from-[#8b6f47]/8 to-transparent border border-[#8b6f47]/20 space-y-2">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#8b6f47]" />
-                <span className="text-sm font-semibold">{t("admin", "segSmartSegments")}</span>
+            {/* AI Auto-Grouping — dynamic batch cards */}
+            <div className="p-3 rounded-lg bg-gradient-to-br from-[#8b6f47]/8 to-transparent border border-[#8b6f47]/20 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-[#8b6f47]" />
+                  <span className="text-sm font-semibold">{t("admin", "batchAiGroupingTitle")}</span>
+                  {batches.length > 0 && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                      {batches.length} {t("admin", "batchBatches")}
+                    </Badge>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={runAutoGrouping}
+                  disabled={isGrouping || loading}
+                  className="h-7 text-xs gap-1"
+                >
+                  {isGrouping ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-3 h-3" />
+                  )}
+                  {t("admin", "batchReanalyze")}
+                </Button>
               </div>
               <p className="text-[11px] text-muted-foreground leading-tight">
-                {t("admin", "segSmartSegmentsDesc")}
+                {t("admin", "batchAiGroupingDesc")}
               </p>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {segments.map(s => {
-                  const Icon = s.icon
-                  const count = segmentCounts[s.id]
-                  const disabled = count === 0 && s.id !== "all"
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => applySegment(s.id)}
-                      disabled={disabled}
-                      className={`
-                        inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium
-                        border transition-all
-                        ${disabled
-                          ? "bg-muted/30 border-border/30 text-muted-foreground/50 cursor-not-allowed"
-                          : "bg-card hover:bg-[#8b6f47]/10 border-border hover:border-[#8b6f47]/40"}
-                      `}
-                    >
-                      <Icon className={`w-3.5 h-3.5 ${disabled ? "" : s.color}`} />
-                      <span>{s.label}</span>
-                      <span className={`
-                        px-1.5 py-0.5 rounded-full text-[10px] font-bold
-                        ${disabled ? "bg-muted" : "bg-[#8b6f47]/15 text-[#8b6f47]"}
-                      `}>
-                        {count}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
+
+              {isGrouping && batches.length === 0 ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="w-5 h-5 animate-spin text-[#8b6f47]" />
+                  <span className="ml-2 text-xs text-muted-foreground">{t("admin", "batchAnalyzing")}</span>
+                </div>
+              ) : batches.length === 0 ? (
+                <div className="text-center py-4 text-xs text-muted-foreground">
+                  {t("admin", "batchNoneFound")}
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {batches.map(batch => {
+                    const Icon = batch.icon
+                    const selectedInBatch = batch.members.filter(m => isCustomerSelected(m.id)).length
+                    const allSelected = selectedInBatch === batch.members.length && batch.members.length > 0
+                    const someSelected = selectedInBatch > 0 && !allSelected
+                    const isExpanded = expandedBatches.has(batch.id)
+                    return (
+                      <div
+                        key={batch.id}
+                        className={`rounded-lg border transition-all ${batch.bgColor}`}
+                      >
+                        <div className="flex items-center gap-2 p-2.5">
+                          <Checkbox
+                            checked={allSelected}
+                            onCheckedChange={() => toggleBatchSelection(batch)}
+                            className={someSelected ? "opacity-60" : ""}
+                          />
+                          <Icon className={`w-4 h-4 ${batch.color} shrink-0`} />
+                          <div
+                            className="flex-1 min-w-0 cursor-pointer"
+                            onClick={() => toggleBatchExpanded(batch.id)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold truncate">{batch.title}</span>
+                              {selectedInBatch > 0 && (
+                                <Badge className="bg-[#8b6f47] text-white text-[10px] px-1.5 py-0 h-4">
+                                  {selectedInBatch}/{batch.members.length}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {batch.description}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => toggleBatchExpanded(batch.id)}
+                            className="p-1 rounded hover:bg-background/50"
+                          >
+                            {isExpanded ? (
+                              <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                            )}
+                          </button>
+                        </div>
+                        {isExpanded && (
+                          <div className="border-t border-border/30 px-2 py-1.5 space-y-0.5 max-h-[180px] overflow-y-auto">
+                            {batch.members.map(m => {
+                              const selected = isCustomerSelected(m.id)
+                              return (
+                                <div
+                                  key={m.id}
+                                  onClick={() => toggleCustomer(m)}
+                                  className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors ${
+                                    selected ? "bg-[#8b6f47]/15" : "hover:bg-background/50"
+                                  }`}
+                                >
+                                  <Checkbox checked={selected} className="h-3.5 w-3.5" />
+                                  <User className="w-3 h-3 text-muted-foreground" />
+                                  <span className="text-[11px] font-medium truncate flex-1">
+                                    {m.full_name || t("ai", "caUnknown")}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground shrink-0">
+                                    {m.points_balance || 0} pts
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Search */}
