@@ -36,7 +36,10 @@ import {
   ChevronUp,
   Edit,
   Save,
-  MessageCircle
+  MessageCircle,
+  Moon,
+  UserPlus,
+  Zap,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
@@ -125,6 +128,79 @@ export function AICustomerAnalyzer() {
     const q = searchQuery.toLowerCase()
     return c.full_name?.toLowerCase().includes(q) || c.phone?.includes(q)
   })
+
+  // ========================================================================
+  // SMART SEGMENTS — auto-detect customer habits and batch-select
+  // ========================================================================
+  type SegmentId = "all" | "birthday" | "dormant30" | "dormant60" | "vip" | "new" | "highPoints"
+
+  const matchesSegment = (c: Profile, seg: SegmentId): boolean => {
+    const now = new Date()
+    const daysSinceLastVisit = c.last_visit
+      ? Math.floor((now.getTime() - new Date(c.last_visit).getTime()) / (1000 * 60 * 60 * 24))
+      : 999
+    const totalSpent = c.total_spent || 0
+    const visitCount = c.visit_count || 0
+    const points = c.points_balance || 0
+
+    switch (seg) {
+      case "all":
+        return true
+      case "birthday": {
+        if (!c.birthday) return false
+        const bday = new Date(c.birthday)
+        const thisYear = new Date(now.getFullYear(), bday.getMonth(), bday.getDate())
+        const diff = (thisYear.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        return diff >= -1 && diff <= 7
+      }
+      case "dormant30":
+        return daysSinceLastVisit >= 30 && daysSinceLastVisit < 60
+      case "dormant60":
+        return daysSinceLastVisit >= 60 && daysSinceLastVisit < 999
+      case "vip":
+        return totalSpent >= 1000
+      case "new":
+        return visitCount <= 2
+      case "highPoints":
+        return points >= 500
+      default:
+        return false
+    }
+  }
+
+  const segments: Array<{ id: SegmentId; label: string; icon: any; color: string }> = [
+    { id: "all", label: t("admin", "segAll"), icon: Users, color: "text-foreground" },
+    { id: "birthday", label: t("admin", "segBirthday"), icon: Cake, color: "text-pink-500" },
+    { id: "dormant30", label: t("admin", "segDormant30"), icon: Moon, color: "text-orange-500" },
+    { id: "dormant60", label: t("admin", "segDormant60"), icon: Moon, color: "text-red-500" },
+    { id: "vip", label: t("admin", "segVip"), icon: Star, color: "text-amber-500" },
+    { id: "new", label: t("admin", "segNew"), icon: UserPlus, color: "text-blue-500" },
+    { id: "highPoints", label: t("admin", "segHighPoints"), icon: Zap, color: "text-purple-500" },
+  ]
+
+  const segmentCounts = segments.reduce((acc, s) => {
+    acc[s.id] = customers.filter(c => matchesSegment(c, s.id)).length
+    return acc
+  }, {} as Record<SegmentId, number>)
+
+  const applySegment = (seg: SegmentId) => {
+    const matched = customers.filter(c => matchesSegment(c, seg))
+    if (matched.length === 0) {
+      toast.warning(t("admin", "segNoMatch"))
+      return
+    }
+    setSelectedCustomers(matched.map(c => ({
+      profile: c,
+      analysis: null,
+      message: "",
+      voucher: null,
+      isAnalyzing: false,
+      messageSent: false,
+    })))
+    setExpandedCustomerId(null)
+    const segLabel = segments.find(s => s.id === seg)?.label || seg
+    toast.success(`${t("admin", "segAutoSelected")} ${matched.length} ${t("admin", "segForSegment")}: ${segLabel}`)
+  }
 
   // Toggle customer selection
   const toggleCustomer = (customer: Profile) => {
@@ -705,7 +781,7 @@ Requirements:
       const fallbackText = sc.message || `Hi ${sc.profile.full_name || ""}`
       openWaFallback(phone, fallbackText)
       toast.warning(t("ai", "caWaNotConnectedSend"), {
-        description: "Switched to wa.me manual send fallback.",
+        description: t("admin", "waSwitchedToWaMe"),
         duration: 5000,
       })
       return
@@ -767,7 +843,7 @@ Requirements:
       const fallbackText = sc.message || `Hi ${sc.profile.full_name || ""}`
       openWaFallback(phone, fallbackText)
       toast.warning(`${t("ai", "caFailedSendTo")} ${sc.profile.full_name}`, {
-        description: `${error.message || "Send failed"}. Switched to wa.me manual send fallback.`,
+        description: `${error.message || "Send failed"}. ${t("admin", "waSwitchedToWaMe")}`,
       })
     }
   }
@@ -889,6 +965,47 @@ Requirements:
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Smart Segments — auto-detect & batch select */}
+            <div className="p-3 rounded-lg bg-gradient-to-br from-[#8b6f47]/8 to-transparent border border-[#8b6f47]/20 space-y-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#8b6f47]" />
+                <span className="text-sm font-semibold">{t("admin", "segSmartSegments")}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                {t("admin", "segSmartSegmentsDesc")}
+              </p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {segments.map(s => {
+                  const Icon = s.icon
+                  const count = segmentCounts[s.id]
+                  const disabled = count === 0 && s.id !== "all"
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => applySegment(s.id)}
+                      disabled={disabled}
+                      className={`
+                        inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium
+                        border transition-all
+                        ${disabled
+                          ? "bg-muted/30 border-border/30 text-muted-foreground/50 cursor-not-allowed"
+                          : "bg-card hover:bg-[#8b6f47]/10 border-border hover:border-[#8b6f47]/40"}
+                      `}
+                    >
+                      <Icon className={`w-3.5 h-3.5 ${disabled ? "" : s.color}`} />
+                      <span>{s.label}</span>
+                      <span className={`
+                        px-1.5 py-0.5 rounded-full text-[10px] font-bold
+                        ${disabled ? "bg-muted" : "bg-[#8b6f47]/15 text-[#8b6f47]"}
+                      `}>
+                        {count}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

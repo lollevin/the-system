@@ -1006,6 +1006,31 @@ export const translations = {
     caAllSent: { en: "All messages sent successfully!", zh: "所有消息已成功发送！", ms: "Semua mesej berjaya dihantar!" },
     caSentFailed: { en: "Sent", zh: "已发送", ms: "Dihantar" },
     caFailed: { en: "failed", zh: "失败", ms: "gagal" },
+
+    // Smart segments (auto-detect customer groups)
+    segSmartSegments: { en: "Smart Segments", zh: "智能分组", ms: "Segmen Pintar" },
+    segSmartSegmentsDesc: { en: "Auto-detect customer habits and batch-select matching customers", zh: "自动检测客户习惯并批量选择匹配的客户", ms: "Kesan tabiat pelanggan secara automatik dan pilih kumpulan sepadan" },
+    segAll: { en: "All", zh: "全部", ms: "Semua" },
+    segBirthday: { en: "Birthday (7d)", zh: "生日 (7天内)", ms: "Hari Lahir (7h)" },
+    segDormant30: { en: "Dormant 30+ days", zh: "休眠 30+ 天", ms: "Tidak Aktif 30+ hari" },
+    segDormant60: { en: "Dormant 60+ days", zh: "休眠 60+ 天", ms: "Tidak Aktif 60+ hari" },
+    segVip: { en: "VIP Customers", zh: "VIP 顾客", ms: "Pelanggan VIP" },
+    segNew: { en: "New Customers", zh: "新顾客", ms: "Pelanggan Baharu" },
+    segHighPoints: { en: "High Points (500+)", zh: "高积分 (500+)", ms: "Mata Tinggi (500+)" },
+    segClearSelection: { en: "Clear selection", zh: "清除选择", ms: "Kosongkan pilihan" },
+    segMatched: { en: "matched", zh: "匹配", ms: "sepadan" },
+    segAutoSelected: { en: "Auto-selected", zh: "自动选择", ms: "Dipilih automatik" },
+    segForSegment: { en: "for segment", zh: "客户于分组", ms: "untuk segmen" },
+    segNoMatch: { en: "No customers match this segment", zh: "没有客户匹配此分组", ms: "Tiada pelanggan sepadan segmen ini" },
+
+    // Misc
+    kbUploadDesc: { en: "Upload docs for AI", zh: "上传文档供 AI 使用", ms: "Muat naik dokumen untuk AI" },
+    waSwitchedToWaMe: { en: "Switched to wa.me manual send fallback.", zh: "已切换至 wa.me 手动发送备用方案。", ms: "Beralih ke hantaran manual wa.me." },
+    voucherImageLabel: { en: "Voucher Image", zh: "优惠券图片", ms: "Imej Baucar" },
+    voucherImageOptional: { en: "(optional - makes the voucher more attractive)", zh: "（可选 - 让优惠券更吸引人）", ms: "(pilihan - menjadikan baucar lebih menarik)" },
+    clickToRemove: { en: "Click × to remove", zh: "点击 × 移除", ms: "Klik × untuk buang" },
+    clickToUploadVoucherImage: { en: "Click to upload voucher image", zh: "点击上传优惠券图片", ms: "Klik untuk muat naik imej baucar" },
+    pngJpgUpTo5mb: { en: "PNG, JPG up to 5MB", zh: "PNG、JPG，最大 5MB", ms: "PNG, JPG sehingga 5MB" },
   },
 
   // Login

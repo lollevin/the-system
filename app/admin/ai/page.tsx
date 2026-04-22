@@ -197,7 +197,7 @@ export default function AICopilotPage() {
     if (!connected) {
       openWaFallback(phone, action.message)
       toast.warning(t("ai", "waNotConnected"), {
-        description: "Switched to wa.me manual send fallback.",
+        description: t("admin", "waSwitchedToWaMe"),
         duration: 5000,
       })
       return
@@ -245,7 +245,7 @@ export default function AICopilotPage() {
     } catch (err: any) {
       openWaFallback(phone, action.message)
       toast.warning(`${t("ai", "failedToSendTo")} ${action.name}`, {
-        description: `${err.message || "Send failed"}. Switched to wa.me manual send fallback.`,
+        description: `${err.message || "Send failed"}. ${t("admin", "waSwitchedToWaMe")}`,
       })
     } finally {
       setSendingCustomers(prev => {
@@ -603,7 +603,7 @@ export default function AICopilotPage() {
     { id: "analyzer", label: t("ai", "customerAnalyzer"), icon: Brain, desc: t("ai", "analyzeMessage") },
     { id: "smart", label: t("ai", "smartRecommendations"), icon: Sparkles, desc: t("ai", "aiSuggestions") },
     { id: "chat", label: t("ai", "aiChatInsights"), icon: MessageSquare, desc: t("ai", "askAnything") },
-    { id: "knowledge", label: "Knowledge Base", icon: BookOpen, desc: "Upload docs for AI" },
+    { id: "knowledge", label: t("admin", "knowledgeBase"), icon: BookOpen, desc: t("admin", "kbUploadDesc") },
     { id: "history", label: t("ai", "sendHistory"), icon: HistoryIcon, desc: t("ai", "messageRecords") },
   ]
 
@@ -884,10 +884,10 @@ export default function AICopilotPage() {
                         )}
 
                         <p className="text-xs opacity-50 mt-2">
-                          {message.timestamp.toLocaleTimeString("en-US", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {message.timestamp.toLocaleTimeString(
+                            language === "zh" ? "zh-CN" : language === "ms" ? "ms-MY" : "en-US",
+                            { hour: "2-digit", minute: "2-digit" }
+                          )}
                         </p>
                       </div>
                     </div>
