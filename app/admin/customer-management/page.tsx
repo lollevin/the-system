@@ -10,6 +10,7 @@ import CustomerListPage from "@/app/admin/customer-list/page"
 import { Button } from "@/components/ui/button"
 
 import { createClient } from "@/lib/supabase/client"
+import { useLanguage } from "@/lib/i18n"
 
 type Tab = "customers" | "rewards" | "referrals"
 
@@ -21,6 +22,7 @@ function CustomerManagementContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
+  const { t } = useLanguage()
 
   useEffect(() => {
     async function fetchData() {
@@ -80,7 +82,7 @@ function CustomerManagementContent() {
           >
             <div className="flex items-center gap-3">
               <Users className={`h-5 w-5 ${activeTab === "customers" ? "" : "group-hover:scale-110 transition-transform"}`} />
-              <span className="font-bold">Customers</span>
+              <span className="font-bold">{t("admin", "cmCustomers")}</span>
             </div>
             {activeTab === "customers" && <ChevronRight className="h-4 w-4 opacity-50" />}
           </button>
@@ -94,7 +96,7 @@ function CustomerManagementContent() {
           >
             <div className="flex items-center gap-3">
               <Gift className={`h-5 w-5 ${activeTab === "rewards" ? "" : "group-hover:scale-110 transition-transform"}`} />
-              <span className="font-bold">Rewards</span>
+              <span className="font-bold">{t("admin", "cmRewards")}</span>
             </div>
             {activeTab === "rewards" && <ChevronRight className="h-4 w-4 opacity-50" />}
           </button>
@@ -109,7 +111,7 @@ function CustomerManagementContent() {
           >
             <div className="flex items-center gap-3">
               <Share2 className={`h-5 w-5 ${activeTab === "referrals" ? "" : "group-hover:scale-110 transition-transform"}`} />
-              <span className="font-bold">Share & Earn</span>
+              <span className="font-bold">{t("admin", "cmShareAndEarn")}</span>
             </div>
             {activeTab === "referrals" && <ChevronRight className="h-4 w-4 opacity-50" />}
           </button>

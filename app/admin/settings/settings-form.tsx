@@ -104,9 +104,9 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
         updated_at: new Date().toISOString(),
       })
       if (error) throw error
-      toast.success("Rewards config saved!")
+      toast.success(t("admin", "sfRewardsSaved"))
     } catch (err: any) {
-      toast.error("Failed to save", { description: err.message })
+      toast.error(t("admin", "sfRewardsSaveFailed"), { description: err.message })
     } finally {
       setIsRewardsSaving(false)
     }
@@ -159,15 +159,15 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, bannerType: BannerType) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return }
-    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be less than 5MB"); return }
+    if (!file.type.startsWith("image/")) { toast.error(t("admin", "sfPleaseSelectImage")); return }
+    if (file.size > 5 * 1024 * 1024) { toast.error(t("admin", "sfImageTooLarge")); return }
     setIsUploading(true)
     try {
       const localUrl = URL.createObjectURL(file)
       setBanners(prev => ({ ...prev, [bannerType]: { ...prev[bannerType], imageUrl: localUrl, imageFile: file } }))
       setPreviewBanner(bannerType)
-      toast.success("Image loaded! Click Save to upload.")
-    } catch { toast.error("Failed to load image") }
+      toast.success(t("admin", "sfImageLoaded"))
+    } catch { toast.error(t("admin", "sfFailedLoadImage")) }
     finally { setIsUploading(false) }
   }
 
@@ -175,8 +175,8 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
   const handleTopbarImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return }
-    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be less than 5MB"); return }
+    if (!file.type.startsWith("image/")) { toast.error(t("admin", "sfPleaseSelectImage")); return }
+    if (file.size > 5 * 1024 * 1024) { toast.error(t("admin", "sfImageTooLarge")); return }
     setIsUploading(true)
     try {
       const imageUrl = await uploadImage(file, "topbar")
@@ -234,27 +234,27 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
   const bannerTypes = [
     {
       id: "login" as BannerType,
-      label: "Banner when login",
-      desc: "Fullscreen banner when customer opens app",
+      label: t("admin", "sfBannerLoginLabel"),
+      desc: t("admin", "sfBannerLoginDesc"),
       icon: Maximize2,
       recommendedSize: "1080 × 1920 px (9:16 portrait)",
-      sizeNote: "Phone fullscreen — use tall portrait image",
+      sizeNote: t("admin", "sfBannerLoginNote"),
     },
     {
       id: "topbar" as BannerType,
-      label: "Banner on top of app",
-      desc: "Horizontal banner strip at top",
+      label: t("admin", "sfBannerTopLabel"),
+      desc: t("admin", "sfBannerTopDesc"),
       icon: Layout,
       recommendedSize: "1200 × 400 px (3:1 landscape)",
-      sizeNote: "Wide horizontal strip — keep text centered",
+      sizeNote: t("admin", "sfBannerTopNote"),
     },
     {
       id: "popup" as BannerType,
-      label: "Banner of pop out",
-      desc: "Popup banner like game ads",
+      label: t("admin", "sfBannerPopupLabel"),
+      desc: t("admin", "sfBannerPopupDesc"),
       icon: Square,
       recommendedSize: "1080 × 1350 px (4:5 portrait)",
-      sizeNote: "Pop-up card — slightly taller than wide",
+      sizeNote: t("admin", "sfBannerPopupNote"),
     },
   ]
 
@@ -277,7 +277,7 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
       
       toast.success(t("customer", "settingsSaved"))
     } catch (err: any) {
-      toast.error("Failed to save settings", { description: err.message })
+      toast.error(t("admin", "sfFailedToSaveSettings"), { description: err.message })
     } finally {
       setIsLoading(false)
     }
@@ -288,9 +288,9 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
     : 'AD'
 
   const tabs = [
-    { id: "profile" as Tab, label: "Profile", icon: User },
-    { id: "banner" as Tab, label: "Banner", icon: ImageIcon },
-    { id: "rewards" as Tab, label: "Rewards Points", icon: Gift },
+    { id: "profile" as Tab, label: t("admin", "sfProfile"), icon: User },
+    { id: "banner" as Tab, label: t("admin", "sfBanner"), icon: ImageIcon },
+    { id: "rewards" as Tab, label: t("admin", "sfRewardsPoints"), icon: Gift },
   ]
 
   return (
@@ -320,7 +320,7 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto bg-card/10">
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50 px-6 py-4">
-          <h1 className="text-xl font-bold">Settings</h1>
+          <h1 className="text-xl font-bold">{t("admin", "sfSettings")}</h1>
         </div>
 
         <AnimatePresence mode="wait">
@@ -338,53 +338,53 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Gift className="h-5 w-5 text-[#8b6f47]" />
-                      Earn Points Configuration
+                      {t("admin", "sfEarnPointsConfig")}
                     </CardTitle>
                     <CardDescription>
-                      Set how many points customers earn from each task. Changes apply immediately to the customer app.
+                      {t("admin", "sfEarnPointsDesc")}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {[
                       {
                         key: "daily_checkin" as const,
-                        label: "Daily Check-in",
-                        desc: "Points per day check-in",
+                        label: t("admin", "sfRewardDailyCheckin"),
+                        desc: t("admin", "sfRewardDailyCheckinDesc"),
                         icon: Calendar,
                         color: "bg-purple-500/10 text-purple-600",
-                        unit: "pts / day",
+                        unit: t("admin", "sfUnitPerDay"),
                       },
                       {
                         key: "refer_friend" as const,
-                        label: "Refer a Friend",
-                        desc: "Points when a friend signs up",
+                        label: t("admin", "sfRewardRefer"),
+                        desc: t("admin", "sfRewardReferDesc"),
                         icon: UserPlus,
                         color: "bg-blue-500/10 text-blue-600",
-                        unit: "pts / referral",
+                        unit: t("admin", "sfUnitPerReferral"),
                       },
                       {
                         key: "like_share" as const,
-                        label: "Like & Share",
-                        desc: "Points for sharing on social media",
+                        label: t("admin", "sfRewardLikeShare"),
+                        desc: t("admin", "sfRewardLikeShareDesc"),
                         icon: Heart,
                         color: "bg-rose-500/10 text-rose-600",
-                        unit: "pts / use",
+                        unit: t("admin", "sfUnitPerUse"),
                       },
                       {
                         key: "birthday_gift" as const,
-                        label: "Birthday Reward",
-                        desc: "Points gifted on customer's birthday",
+                        label: t("admin", "sfRewardBirthday"),
+                        desc: t("admin", "sfRewardBirthdayDesc"),
                         icon: Cake,
                         color: "bg-pink-500/10 text-pink-600",
-                        unit: "pts / birthday",
+                        unit: t("admin", "sfUnitPerBirthday"),
                       },
                       {
                         key: "streak_bonus" as const,
-                        label: "Check-in Streak Bonus",
-                        desc: "Bonus points for 7-day streak",
+                        label: t("admin", "sfRewardStreak"),
+                        desc: t("admin", "sfRewardStreakDesc"),
                         icon: Flame,
                         color: "bg-orange-500/10 text-orange-600",
-                        unit: "pts / streak",
+                        unit: t("admin", "sfUnitPerStreak"),
                       },
                     ].map((item) => {
                       const Icon = item.icon
@@ -424,7 +424,7 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
 
                     <div className="flex items-center justify-between pt-4 border-t border-border/50">
                       <p className="text-xs text-muted-foreground">
-                        These values are used everywhere in the customer app.
+                        {t("admin", "sfRewardsFooter")}
                       </p>
                       <Button
                         onClick={handleSaveRewards}
@@ -434,10 +434,10 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                         {isRewardsSaving ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving...
+                            {t("admin", "sfSaving")}
                           </>
                         ) : (
-                          "Save Rewards Config"
+                          t("admin", "sfSaveRewardsConfig")
                         )}
                       </Button>
                     </div>
@@ -494,8 +494,8 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                         <AvatarFallback className="bg-[#8b6f47] text-white text-xl">{initials}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <h3 className="font-medium text-foreground">{profile?.full_name || "Admin"}</h3>
-                        <p className="text-sm text-muted-foreground capitalize">{profile?.role || "Administrator"}</p>
+                        <h3 className="font-medium text-foreground">{profile?.full_name || t("admin", "sfAdmin")}</h3>
+                        <p className="text-sm text-muted-foreground capitalize">{profile?.role || t("admin", "sfAdministrator")}</p>
                       </div>
                     </div>
 
@@ -521,7 +521,7 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email">{t("admin", "sfEmail")}</Label>
                         <Input 
                           id="email" 
                           type="email" 
@@ -581,7 +581,7 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            {config.isActive && <span className="px-2 py-1 text-xs bg-green-500/10 text-green-600 rounded-full">Active</span>}
+                            {config.isActive && <span className="px-2 py-1 text-xs bg-green-500/10 text-green-600 rounded-full">{t("admin", "sfActive")}</span>}
                             <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}><ChevronDown className="h-5 w-5 text-muted-foreground" /></motion.div>
                           </div>
                         </button>
@@ -590,14 +590,14 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
                               <div className="p-4 pt-0 space-y-4 border-t border-border/50">
                                 <div className="flex items-center justify-between pt-4">
-                                  <div><p className="font-medium">Enable this banner</p><p className="text-xs text-muted-foreground">Show to customers</p></div>
+                                  <div><p className="font-medium">{t("admin", "sfEnableBanner")}</p><p className="text-xs text-muted-foreground">{t("admin", "sfShowToCustomers")}</p></div>
                                   <Switch checked={config.isActive} onCheckedChange={(checked) => setBanners(prev => ({ ...prev, [banner.id]: { ...prev[banner.id], isActive: checked } }))} />
                                 </div>
                                 {/* Size recommendation banner */}
                                 <div className="flex items-start gap-2 p-3 rounded-lg bg-[#8b6f47]/5 border border-[#8b6f47]/20">
                                   <ImageIcon className="h-4 w-4 text-[#8b6f47] mt-0.5 shrink-0" />
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-semibold text-[#8b6f47]">Recommended size: {banner.recommendedSize}</p>
+                                    <p className="text-xs font-semibold text-[#8b6f47]">{t("admin", "sfRecommendedSize")}: {banner.recommendedSize}</p>
                                     <p className="text-[11px] text-muted-foreground mt-0.5">{banner.sizeNote}</p>
                                   </div>
                                 </div>
@@ -625,7 +625,7 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                                   </div>
                                 ) : (
                                   <div className="space-y-2">
-                                    <Label>Banner Image</Label>
+                                    <Label>{t("admin", "sfBannerImage")}</Label>
                                     <input ref={getInputRef(banner.id)} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, banner.id)} />
                                     {config.imageUrl ? (
                                       <div className="relative group">
@@ -647,11 +647,11 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                                   </div>
                                 )}
                                 <div className="space-y-2">
-                                  <Label>Click Link (Optional)</Label>
+                                  <Label>{t("admin", "sfClickLinkOptional")}</Label>
                                   <Input placeholder="/pwa?view=menu" value={config.link} onChange={(e) => setBanners(prev => ({ ...prev, [banner.id]: { ...prev[banner.id], link: e.target.value } }))} className="bg-background/50" />
                                 </div>
                                 <Button onClick={() => handleSaveBanner(banner.id)} disabled={isLoading || isUploading} className="w-full bg-[#8b6f47] hover:bg-[#7a5f3a] text-white">
-                                  {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Banner"}
+                                  {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("admin", "sfSaving")}</> : t("admin", "sfSaveBanner")}
                                 </Button>
                               </div>
                             </motion.div>
@@ -664,7 +664,7 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                 {/* Phone Preview */}
                 <div className="xl:w-80 shrink-0">
                   <div className="sticky top-24">
-                    <div className="flex items-center gap-2 mb-4"><Smartphone className="h-5 w-5 text-[#8b6f47]" /><h2 className="text-lg font-semibold">Preview</h2></div>
+                    <div className="flex items-center gap-2 mb-4"><Smartphone className="h-5 w-5 text-[#8b6f47]" /><h2 className="text-lg font-semibold">{t("admin", "sfPreview")}</h2></div>
                     <div className="relative mx-auto w-[280px]">
                       <div className="relative bg-black rounded-[3rem] p-3 shadow-2xl">
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-black rounded-b-3xl z-20" />
@@ -747,7 +747,7 @@ export function SettingsForm({ user, profile }: SettingsFormProps) {
                         </button>
                       ))}
                     </div>
-                    <p className="text-xs text-center text-muted-foreground mt-3">Click to preview each banner type</p>
+                    <p className="text-xs text-center text-muted-foreground mt-3">{t("admin", "sfClickToPreview")}</p>
                   </div>
                 </div>
               </div>

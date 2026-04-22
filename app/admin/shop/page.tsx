@@ -51,16 +51,19 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import type { MenuItem, Profile } from "@/lib/supabase/types"
+import { useLanguage } from "@/lib/i18n"
 
 const CATEGORY_VALUES = ["brunch", "rice_bowl", "malaysian", "kids", "coffee", "drinks", "dessert", "high_tea", "other"]
-const CATEGORY_LABELS: Record<string, string> = {
-  brunch: "Brunch", rice_bowl: "Rice Bowls", malaysian: "Malaysian", kids: "Kids Menu",
-  coffee: "Coffee", drinks: "Drinks", dessert: "Desserts", high_tea: "High Tea", other: "Other",
+const CATEGORY_KEY_MAP: Record<string, string> = {
+  brunch: "catBrunch", rice_bowl: "catRiceBowl", malaysian: "catMalaysian", kids: "catKids",
+  coffee: "catCoffee", drinks: "catDrinks", dessert: "catDessert", high_tea: "catHighTea", other: "catOther",
 }
 
 export default function ShopManagementPage() {
   const router = useRouter()
   const supabase = createClient()
+  const { t } = useLanguage()
+  const catLabel = (v: string) => t("admin", CATEGORY_KEY_MAP[v] || "catOther")
 
   // Active tab: menu or staff (vertical tabs on left)
   const [activeTab, setActiveTab] = useState<"menu" | "staff">("menu")
@@ -141,7 +144,7 @@ export default function ShopManagementPage() {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) { toast.error("Invalid image"); return }
+    if (!file || !file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) { toast.error(t("admin", "shopInvalidImage")); return }
     setIsUploading(true)
     try {
       const reader = new FileReader(); reader.onload = (e) => setImagePreview(e.target?.result as string); reader.readAsDataURL(file)
@@ -150,8 +153,8 @@ export default function ShopManagementPage() {
       if (error) throw error
       const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(filePath)
       setMenuForm({ ...menuForm, image_url: urlData.publicUrl })
-      toast.success("Image uploaded")
-    } catch (error: any) { toast.error(error.message || "Upload failed"); setImagePreview(null) }
+      toast.success(t("admin", "shopImageUploaded"))
+    } catch (error: any) { toast.error(error.message || t("admin", "shopUploadFailed")); setImagePreview(null) }
     finally { setIsUploading(false) }
   }
 
@@ -165,15 +168,15 @@ export default function ShopManagementPage() {
         const { data, error } = await supabase.from("menu_items").update(itemData).eq("id", editingMenuItem.id).select().single()
         if (error) throw error
         setMenuItems(menuItems.map(item => item.id === editingMenuItem.id ? data : item))
-        toast.success("Item updated")
+        toast.success(t("admin", "shopItemUpdated"))
       } else {
         const { data, error } = await supabase.from("menu_items").insert(itemData).select().single()
         if (error) throw error
         setMenuItems([...menuItems, data])
-        toast.success("Item added")
+        toast.success(t("admin", "shopItemAdded"))
       }
       setMenuDialogOpen(false); resetMenuForm()
-    } catch (error: any) { toast.error(error.message || "Save failed") }
+    } catch (error: any) { toast.error(error.message || t("admin", "shopSaveFailed")) }
     finally { setMenuSaving(false) }
   }
 
@@ -181,7 +184,7 @@ export default function ShopManagementPage() {
     if (!confirm(`Delete "${item.name}"?`)) return
     const { error } = await supabase.from("menu_items").delete().eq("id", item.id)
     if (!error) { setMenuItems(menuItems.filter(i => i.id !== item.id)); toast.success("Deleted") }
-    else { toast.error("Delete failed") }
+    else { toast.error(t("admin", "shopDeleteFailed")) }
   }
 
   // Staff functions
@@ -208,7 +211,7 @@ export default function ShopManagementPage() {
       if (editingStaff) {
         await supabase.from("profiles").update({ full_name: staffForm.full_name, phone: staffForm.phone, role: staffForm.role }).eq("id", editingStaff.id)
         setStaffMembers(staffMembers.map(s => s.id === editingStaff.id ? { ...s, full_name: staffForm.full_name, phone: staffForm.phone, role: staffForm.role } : s))
-        toast.success("Staff updated"); setStaffDialogOpen(false); resetStaffForm()
+        toast.success(t("admin", "shopStaffUpdated")); setStaffDialogOpen(false); resetStaffForm()
       } else {
         const password = staffForm.password || generatePassword()
         const email = staffForm.email || `staff${Date.now()}@jpco-staff.com`
@@ -222,7 +225,7 @@ export default function ShopManagementPage() {
           toast.success("Staff created!")
         }
       }
-    } catch (error: any) { toast.error(error.message || "Operation failed") }
+    } catch (error: any) { toast.error(error.message || t("admin", "shopOperationFailed")) }
     finally { setStaffSaving(false) }
   }
 
@@ -242,7 +245,7 @@ export default function ShopManagementPage() {
     const res = await fetch("/api/admin/delete-user", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: deletingStaff.id, deleteType }) })
     const data = await res.json()
     if (res.ok) { setStaffMembers(staffMembers.filter(s => s.id !== deletingStaff.id)); toast.success(data.message); setDeleteDialogOpen(false); setDeletingStaff(null) }
-    else { toast.error(data.error || "Delete failed") }
+    else { toast.error(data.error || t("admin", "shopDeleteFailed")) }
     setIsDeleting(false)
   }
 
@@ -250,8 +253,8 @@ export default function ShopManagementPage() {
     if (!resetPasswordStaff || !newPassword) return
     setIsResetting(true)
     const res = await fetch("/api/admin/reset-staff-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: resetPasswordStaff.id, newPassword }) })
-    if (res.ok) { setStaffMembers(staffMembers.map(s => s.id === resetPasswordStaff.id ? { ...s, notes: `pwd:${newPassword}` } : s)); setResetSuccess(true); toast.success("Password reset") }
-    else { toast.error("Reset failed") }
+    if (res.ok) { setStaffMembers(staffMembers.map(s => s.id === resetPasswordStaff.id ? { ...s, notes: `pwd:${newPassword}` } : s)); setResetSuccess(true); toast.success(t("admin", "shopPasswordReset")) }
+    else { toast.error(t("admin", "shopResetFailed")) }
     setIsResetting(false)
   }
 
@@ -300,7 +303,7 @@ export default function ShopManagementPage() {
               />
             )}
             <UtensilsCrossed className="h-6 w-6 mx-auto mb-1" />
-            <span className="text-sm">Menu</span>
+            <span className="text-sm">{t("admin", "shopMenu")}</span>
           </button>
           <button
             onClick={() => setActiveTab("staff")}
@@ -317,7 +320,7 @@ export default function ShopManagementPage() {
               />
             )}
             <Users className="h-6 w-6 mx-auto mb-1" />
-            <span className="text-sm">Staff</span>
+            <span className="text-sm">{t("admin", "shopStaff")}</span>
           </button>
         </motion.div>
 
@@ -336,11 +339,11 @@ export default function ShopManagementPage() {
                 {/* Menu Header */}
                 <div className="flex flex-col sm:flex-row gap-4 justify-between mb-6">
                   <div>
-                    <h2 className="text-xl font-bold text-[#3d3225] dark:text-white">Menu</h2>
-                    <p className="text-sm text-muted-foreground">{menuItems.length} items</p>
+                    <h2 className="text-xl font-bold text-[#3d3225] dark:text-white">{t("admin", "shopMenu")}</h2>
+                    <p className="text-sm text-muted-foreground">{menuItems.length} {t("admin", "shopItems")}</p>
                   </div>
                   <Button onClick={() => openMenuDialog()} className="gap-2 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white shadow-lg">
-                    <Plus className="w-4 h-4" />Add Foods
+                    <Plus className="w-4 h-4" />{t("admin", "shopAddFoods")}
                   </Button>
                 </div>
 
@@ -349,7 +352,7 @@ export default function ShopManagementPage() {
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input 
-                      placeholder="Search Bar" 
+                      placeholder={t("admin", "shopSearchBar")} 
                       value={menuSearch} 
                       onChange={(e) => setMenuSearch(e.target.value)} 
                       className="pl-10 bg-white dark:bg-zinc-800 border-[#8b6f47]/20" 
@@ -357,11 +360,11 @@ export default function ShopManagementPage() {
                   </div>
                   <Select value={menuCategory} onValueChange={setMenuCategory}>
                     <SelectTrigger className="w-full sm:w-[180px] bg-white dark:bg-zinc-800 border-[#8b6f47]/20">
-                      <SelectValue placeholder="Category to select" />
+                      <SelectValue placeholder={t("admin", "shopCategoryToSelect")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {CATEGORY_VALUES.map(v => <SelectItem key={v} value={v}>{CATEGORY_LABELS[v]}</SelectItem>)}
+                      <SelectItem value="all">{t("admin", "shopAllCategories")}</SelectItem>
+                      {CATEGORY_VALUES.map(v => <SelectItem key={v} value={v}>{catLabel(v)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -370,7 +373,7 @@ export default function ShopManagementPage() {
                 {menuLoading ? (
                   <div className="flex items-center justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#8b6f47]" /></div>
                 ) : filteredMenuItems.length === 0 ? (
-                  <div className="text-center py-20"><UtensilsCrossed className="w-16 h-16 mx-auto mb-4 text-[#8b6f47]/30" /><p className="text-muted-foreground">No menu items found</p></div>
+                  <div className="text-center py-20"><UtensilsCrossed className="w-16 h-16 mx-auto mb-4 text-[#8b6f47]/30" /><p className="text-muted-foreground">{t("admin", "shopNoMenuItems")}</p></div>
                 ) : (
                   <div className="space-y-3">
                     {filteredMenuItems.map((item, i) => (
@@ -395,9 +398,9 @@ export default function ShopManagementPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Badge variant="outline" className="text-[10px] bg-[#8b6f47]/10 text-[#8b6f47] border-[#8b6f47]/20">
-                                  {CATEGORY_LABELS[item.category]}
+                                  {catLabel(item.category)}
                                 </Badge>
-                                {!item.is_active && <Badge variant="outline" className="text-[10px]">Hidden</Badge>}
+                                {!item.is_active && <Badge variant="outline" className="text-[10px]">{t("admin", "shopHidden")}</Badge>}
                               </div>
                               <h4 className="font-semibold text-[#3d3225] dark:text-white mt-1">{item.name}</h4>
                               {item.description && <p className="text-xs text-muted-foreground line-clamp-1">{item.description}</p>}
@@ -412,7 +415,7 @@ export default function ShopManagementPage() {
                                 onClick={() => openMenuDialog(item)} 
                                 className="h-8 text-xs border-[#8b6f47]/20 hover:bg-[#8b6f47]/10 hover:text-[#8b6f47]"
                               >
-                                <Edit className="h-3 w-3 mr-1" />Edit
+                                <Edit className="h-3 w-3 mr-1" />{t("admin", "shopEdit")}
                               </Button>
                               <Button 
                                 variant="outline" 
@@ -420,7 +423,7 @@ export default function ShopManagementPage() {
                                 onClick={() => deleteMenuItem(item)} 
                                 className="h-8 text-xs border-red-500/20 hover:bg-red-500/10 hover:text-red-500 text-red-500"
                               >
-                                <Trash2 className="h-3 w-3 mr-1" />Delete
+                                <Trash2 className="h-3 w-3 mr-1" />{t("admin", "shopDelete")}
                               </Button>
                             </div>
                           </CardContent>
@@ -444,17 +447,17 @@ export default function ShopManagementPage() {
                 {/* Staff Header */}
                 <div className="flex flex-col sm:flex-row gap-4 justify-between mb-6">
                   <div>
-                    <h2 className="text-xl font-bold text-[#3d3225] dark:text-white">Staff</h2>
-                    <p className="text-sm text-muted-foreground">{staffMembers.length} members</p>
+                    <h2 className="text-xl font-bold text-[#3d3225] dark:text-white">{t("admin", "shopStaff")}</h2>
+                    <p className="text-sm text-muted-foreground">{staffMembers.length} {t("admin", "shopMembers")}</p>
                   </div>
                   <div className="flex gap-2">
                     {selectedStaff.size > 0 && (
                       <Button variant="destructive" onClick={deleteSelectedStaff} disabled={isDeleting} size="sm">
-                        <Trash2 className="w-4 h-4 mr-1" />Delete ({selectedStaff.size})
+                        <Trash2 className="w-4 h-4 mr-1" />{t("admin", "shopDelete")} ({selectedStaff.size})
                       </Button>
                     )}
                     <Button onClick={() => openStaffDialog()} className="gap-2 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white shadow-lg">
-                      <Plus className="w-4 h-4" />Add Staff
+                      <Plus className="w-4 h-4" />{t("admin", "shopAddStaff")}
                     </Button>
                   </div>
                 </div>
@@ -464,7 +467,7 @@ export default function ShopManagementPage() {
                   <div className="relative max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input 
-                      placeholder="Search Bar" 
+                      placeholder={t("admin", "shopSearchBar")} 
                       value={staffSearch} 
                       onChange={(e) => setStaffSearch(e.target.value)} 
                       className="pl-10 bg-white dark:bg-zinc-800 border-[#8b6f47]/20" 
@@ -476,7 +479,7 @@ export default function ShopManagementPage() {
                 {staffLoading ? (
                   <div className="flex items-center justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#8b6f47]" /></div>
                 ) : filteredStaffMembers.length === 0 ? (
-                  <div className="text-center py-20"><Users className="w-16 h-16 mx-auto mb-4 text-[#8b6f47]/30" /><p className="text-muted-foreground">No staff members found</p></div>
+                  <div className="text-center py-20"><Users className="w-16 h-16 mx-auto mb-4 text-[#8b6f47]/30" /><p className="text-muted-foreground">{t("admin", "shopNoStaff")}</p></div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredStaffMembers.map((member, i) => (
@@ -512,7 +515,7 @@ export default function ShopManagementPage() {
                                   {getInitials(member.full_name)}
                                 </AvatarFallback>
                               </Avatar>
-                              <h4 className="font-semibold text-[#3d3225] dark:text-white mt-3">{member.full_name || "Unnamed"}</h4>
+                              <h4 className="font-semibold text-[#3d3225] dark:text-white mt-3">{member.full_name || t("admin", "shopUnnamed")}</h4>
                               <Badge variant="secondary" className={`mt-1 ${member.role === "admin" ? "bg-[#8b6f47]/20 text-[#8b6f47]" : ""}`}>
                                 {member.role}
                               </Badge>
@@ -526,7 +529,7 @@ export default function ShopManagementPage() {
                                 size="icon" 
                                 onClick={() => { setResetPasswordStaff(member); setNewPassword(generatePassword()); setResetSuccess(false); setResetPasswordDialogOpen(true) }} 
                                 className="h-8 w-8 hover:bg-amber-500/10" 
-                                title="Reset Password"
+                                title={t("admin", "shopResetPassword")}
                               >
                                 <Key className="h-4 w-4 text-amber-500" />
                               </Button>
@@ -535,7 +538,7 @@ export default function ShopManagementPage() {
                                 size="icon" 
                                 onClick={() => { setDeletingStaff(member); setDeleteDialogOpen(true) }} 
                                 className="h-8 w-8 hover:bg-red-500/10" 
-                                title="Delete"
+                                title={t("admin", "shopDelete")}
                               >
                                 <Trash2 className="h-4 w-4 text-red-500" />
                               </Button>
@@ -555,23 +558,23 @@ export default function ShopManagementPage() {
       {/* Menu Dialog */}
       <Dialog open={menuDialogOpen} onOpenChange={setMenuDialogOpen}>
         <DialogContent className="max-w-md bg-white dark:bg-zinc-900">
-          <DialogHeader><DialogTitle>{editingMenuItem ? "Edit Item" : "Add Menu Item"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingMenuItem ? t("admin", "shopEditItem") : t("admin", "shopAddMenuItem")}</DialogTitle></DialogHeader>
           <form onSubmit={saveMenuItem} className="space-y-4">
-            <div><Label>Item Name *</Label><Input value={menuForm.name} onChange={(e) => setMenuForm({ ...menuForm, name: e.target.value })} placeholder="e.g. Classic Burger" required /></div>
-            <div><Label>Category *</Label><Select value={menuForm.category} onValueChange={(v) => setMenuForm({ ...menuForm, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_VALUES.map(v => <SelectItem key={v} value={v}>{CATEGORY_LABELS[v]}</SelectItem>)}</SelectContent></Select></div>
-            <div><Label>Price (RM) *</Label><Input type="number" step="0.01" min="0" value={menuForm.price} onChange={(e) => setMenuForm({ ...menuForm, price: e.target.value })} required /></div>
-            <div><Label>Description</Label><Textarea value={menuForm.description} onChange={(e) => setMenuForm({ ...menuForm, description: e.target.value })} rows={2} /></div>
+            <div><Label>{t("admin", "shopItemName")} *</Label><Input value={menuForm.name} onChange={(e) => setMenuForm({ ...menuForm, name: e.target.value })} placeholder="e.g. Classic Burger" required /></div>
+            <div><Label>{t("admin", "shopCategory")} *</Label><Select value={menuForm.category} onValueChange={(v) => setMenuForm({ ...menuForm, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_VALUES.map(v => <SelectItem key={v} value={v}>{catLabel(v)}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>{t("admin", "shopPrice")} (RM) *</Label><Input type="number" step="0.01" min="0" value={menuForm.price} onChange={(e) => setMenuForm({ ...menuForm, price: e.target.value })} required /></div>
+            <div><Label>{t("admin", "shopDescription")}</Label><Textarea value={menuForm.description} onChange={(e) => setMenuForm({ ...menuForm, description: e.target.value })} rows={2} /></div>
             <div>
-              <Label>Food Image</Label>
+              <Label>{t("admin", "shopFoodImage")}</Label>
               <div className="mt-2">
                 {(imagePreview || menuForm.image_url) ? (
                   <div className="relative w-full h-32 rounded-xl overflow-hidden bg-muted mb-2"><img src={imagePreview || menuForm.image_url} alt="Preview" className="w-full h-full object-cover" /><Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => { setMenuForm({ ...menuForm, image_url: "" }); setImagePreview(null) }}><X className="h-4 w-4" /></Button></div>
-                ) : (<div className="w-full h-32 rounded-xl border-2 border-dashed border-[#8b6f47]/30 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-[#8b6f47] hover:bg-[#8b6f47]/5 transition-colors" onClick={() => fileInputRef.current?.click()}>{isUploading ? <Loader2 className="h-6 w-6 animate-spin text-[#8b6f47]" /> : <><Upload className="h-6 w-6 text-[#8b6f47]/50" /><span className="text-xs text-muted-foreground">Click to upload</span></>}</div>)}
+                ) : (<div className="w-full h-32 rounded-xl border-2 border-dashed border-[#8b6f47]/30 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-[#8b6f47] hover:bg-[#8b6f47]/5 transition-colors" onClick={() => fileInputRef.current?.click()}>{isUploading ? <Loader2 className="h-6 w-6 animate-spin text-[#8b6f47]" /> : <><Upload className="h-6 w-6 text-[#8b6f47]/50" /><span className="text-xs text-muted-foreground">{t("admin", "shopClickToUpload")}</span></>}</div>)}
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
               </div>
             </div>
-            <div className="flex items-center justify-between"><div><Label>Show on Menu</Label><p className="text-xs text-muted-foreground">Toggle visibility</p></div><Switch checked={menuForm.is_active} onCheckedChange={(c) => setMenuForm({ ...menuForm, is_active: c })} /></div>
-            <div className="flex gap-2 pt-2"><Button type="button" variant="outline" onClick={() => setMenuDialogOpen(false)} className="flex-1">Cancel</Button><Button type="submit" disabled={menuSaving} className="flex-1 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white">{menuSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : editingMenuItem ? "Update" : "Add"}</Button></div>
+            <div className="flex items-center justify-between"><div><Label>{t("admin", "shopShowOnMenu")}</Label><p className="text-xs text-muted-foreground">{t("admin", "shopToggleVisibility")}</p></div><Switch checked={menuForm.is_active} onCheckedChange={(c) => setMenuForm({ ...menuForm, is_active: c })} /></div>
+            <div className="flex gap-2 pt-2"><Button type="button" variant="outline" onClick={() => setMenuDialogOpen(false)} className="flex-1">{t("admin", "shopCancel")}</Button><Button type="submit" disabled={menuSaving} className="flex-1 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white">{menuSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : editingMenuItem ? t("admin", "shopUpdate") : t("admin", "shopAdd")}</Button></div>
           </form>
         </DialogContent>
       </Dialog>
@@ -579,34 +582,34 @@ export default function ShopManagementPage() {
       {/* Staff Dialog */}
       <Dialog open={staffDialogOpen} onOpenChange={(o) => { setStaffDialogOpen(o); if (!o) resetStaffForm() }}>
         <DialogContent className="max-w-md bg-white dark:bg-zinc-900">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Users className="w-5 h-5 text-[#8b6f47]" />{editingStaff ? "Edit Staff" : createdCredentials ? "Account Created" : "Add New Staff"}</DialogTitle>{!editingStaff && !createdCredentials && <DialogDescription>Create staff account and save credentials</DialogDescription>}</DialogHeader>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Users className="w-5 h-5 text-[#8b6f47]" />{editingStaff ? t("admin", "shopEditStaff") : createdCredentials ? t("admin", "shopAccountCreated") : t("admin", "shopAddNewStaff")}</DialogTitle>{!editingStaff && !createdCredentials && <DialogDescription>{t("admin", "shopCreateStaffDesc")}</DialogDescription>}</DialogHeader>
           {createdCredentials ? (
             <div className="space-y-4 mt-4">
               <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-                <p className="text-sm text-green-600 font-medium mb-3">Staff created! Save login info:</p>
+                <p className="text-sm text-green-600 font-medium mb-3">{t("admin", "shopStaffCreatedMsg")}</p>
                 <div className="space-y-3">
-                  <div><Label className="text-xs text-muted-foreground">Email</Label><div className="flex gap-2"><Input value={createdCredentials.email} readOnly className="font-mono text-sm" /><Button variant="outline" size="icon" onClick={() => copyToClipboard(createdCredentials.email)}><Copy className="h-4 w-4" /></Button></div></div>
-                  <div><Label className="text-xs text-muted-foreground">Password</Label><div className="flex gap-2"><Input type={showPassword ? "text" : "password"} value={createdCredentials.password} readOnly className="font-mono text-sm" /><Button variant="outline" size="icon" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button variant="outline" size="icon" onClick={() => copyToClipboard(createdCredentials.password)}>{passwordCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}</Button></div></div>
+                  <div><Label className="text-xs text-muted-foreground">{t("admin", "shopEmail")}</Label><div className="flex gap-2"><Input value={createdCredentials.email} readOnly className="font-mono text-sm" /><Button variant="outline" size="icon" onClick={() => copyToClipboard(createdCredentials.email)}><Copy className="h-4 w-4" /></Button></div></div>
+                  <div><Label className="text-xs text-muted-foreground">{t("admin", "shopPassword")}</Label><div className="flex gap-2"><Input type={showPassword ? "text" : "password"} value={createdCredentials.password} readOnly className="font-mono text-sm" /><Button variant="outline" size="icon" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button variant="outline" size="icon" onClick={() => copyToClipboard(createdCredentials.password)}>{passwordCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}</Button></div></div>
                 </div>
               </div>
-              <Button variant="outline" className="w-full" onClick={() => copyToClipboard(`Email: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`)}><Copy className="h-4 w-4 mr-2" />Copy All</Button>
-              <Button onClick={() => { setStaffDialogOpen(false); resetStaffForm() }} className="w-full bg-[#8b6f47] hover:bg-[#7a5f3d] text-white">Done</Button>
+              <Button variant="outline" className="w-full" onClick={() => copyToClipboard(`${t("admin", "shopEmail")}: ${createdCredentials.email}\n${t("admin", "shopPassword")}: ${createdCredentials.password}`)}><Copy className="h-4 w-4 mr-2" />{t("admin", "shopCopyAll")}</Button>
+              <Button onClick={() => { setStaffDialogOpen(false); resetStaffForm() }} className="w-full bg-[#8b6f47] hover:bg-[#7a5f3d] text-white">{t("admin", "shopDone")}</Button>
             </div>
           ) : (
             <form onSubmit={saveStaff} className="space-y-4 mt-2">
-              <div><Label>Full Name</Label><Input value={staffForm.full_name} onChange={(e) => setStaffForm({ ...staffForm, full_name: e.target.value })} placeholder="John Doe" required /></div>
-              {!editingStaff && (<><div><Label>Email</Label><Input type="email" value={staffForm.email} onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })} placeholder="staff@jpco.com" required /></div><div><Label>Password</Label><div className="flex gap-2"><div className="relative flex-1"><Input type={showPassword ? "text" : "password"} value={staffForm.password} onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })} className="pr-10" required minLength={6} /><Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button></div><Button type="button" variant="outline" size="icon" onClick={() => setStaffForm({ ...staffForm, password: generatePassword() })}><RefreshCw className="h-4 w-4" /></Button></div></div></>)}
+              <div><Label>{t("admin", "shopFullName")}</Label><Input value={staffForm.full_name} onChange={(e) => setStaffForm({ ...staffForm, full_name: e.target.value })} placeholder="John Doe" required /></div>
+              {!editingStaff && (<><div><Label>{t("admin", "shopEmail")}</Label><Input type="email" value={staffForm.email} onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })} placeholder="staff@jpco.com" required /></div><div><Label>{t("admin", "shopPassword")}</Label><div className="flex gap-2"><div className="relative flex-1"><Input type={showPassword ? "text" : "password"} value={staffForm.password} onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })} className="pr-10" required minLength={6} /><Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button></div><Button type="button" variant="outline" size="icon" onClick={() => setStaffForm({ ...staffForm, password: generatePassword() })}><RefreshCw className="h-4 w-4" /></Button></div></div></>)}
               {editingStaff && (
                 <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                   <div className="flex items-center gap-2 text-amber-600 text-sm">
                     <Key className="h-4 w-4" />
-                    <span>To reset password, use the Key button</span>
+                    <span>{t("admin", "shopResetHint")}</span>
                   </div>
                 </div>
               )}
-              <div><Label>Phone</Label><Input type="tel" value={staffForm.phone} onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })} placeholder="+60 12 345 6789" /></div>
-              <div><Label>Role</Label><Select value={staffForm.role} onValueChange={(v: "staff" | "admin") => setStaffForm({ ...staffForm, role: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="staff">Staff</SelectItem><SelectItem value="admin">Admin</SelectItem></SelectContent></Select></div>
-              <div className="flex gap-2 pt-2"><Button type="button" variant="outline" onClick={() => setStaffDialogOpen(false)} className="flex-1">Cancel</Button><Button type="submit" disabled={staffSaving} className="flex-1 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white">{staffSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : editingStaff ? "Update" : "Create"}</Button></div>
+              <div><Label>{t("admin", "shopPhone")}</Label><Input type="tel" value={staffForm.phone} onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })} placeholder="+60 12 345 6789" /></div>
+              <div><Label>{t("admin", "shopRole")}</Label><Select value={staffForm.role} onValueChange={(v: "staff" | "admin") => setStaffForm({ ...staffForm, role: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="staff">{t("admin", "shopRoleStaff")}</SelectItem><SelectItem value="admin">{t("admin", "shopRoleAdmin")}</SelectItem></SelectContent></Select></div>
+              <div className="flex gap-2 pt-2"><Button type="button" variant="outline" onClick={() => setStaffDialogOpen(false)} className="flex-1">{t("admin", "shopCancel")}</Button><Button type="submit" disabled={staffSaving} className="flex-1 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white">{staffSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : editingStaff ? t("admin", "shopUpdate") : t("admin", "shopCreate")}</Button></div>
             </form>
           )}
         </DialogContent>
@@ -615,36 +618,36 @@ export default function ShopManagementPage() {
       {/* Delete Staff Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={(o) => { setDeleteDialogOpen(o); if (!o) setDeletingStaff(null) }}>
         <DialogContent className="sm:max-w-md bg-white dark:bg-zinc-900">
-          <DialogHeader><DialogTitle className="flex items-center gap-2 text-red-500"><AlertTriangle className="w-5 h-5" />Delete Staff</DialogTitle><DialogDescription>Choose how to handle <span className="font-semibold">{deletingStaff?.full_name}</span></DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle className="flex items-center gap-2 text-red-500"><AlertTriangle className="w-5 h-5" />{t("admin", "shopDeleteStaff")}</DialogTitle><DialogDescription>{t("admin", "shopChooseHandle")} <span className="font-semibold">{deletingStaff?.full_name}</span></DialogDescription></DialogHeader>
           <div className="space-y-3 mt-4">
-            <button onClick={() => handleDeleteStaff("soft")} disabled={isDeleting} className="w-full p-4 rounded-xl border hover:border-amber-500 hover:bg-amber-500/5 transition-colors text-left"><div className="flex gap-3"><div className="p-2 rounded-full bg-amber-500/20"><UserMinus className="w-5 h-5 text-amber-500" /></div><div><h4 className="font-semibold">Demote to Customer</h4><p className="text-sm text-muted-foreground">Remove staff permissions only</p></div></div></button>
-            <button onClick={() => handleDeleteStaff("hard")} disabled={isDeleting} className="w-full p-4 rounded-xl border border-red-500/30 hover:border-red-500 hover:bg-red-500/5 transition-colors text-left"><div className="flex gap-3"><div className="p-2 rounded-full bg-red-500/20"><UserX className="w-5 h-5 text-red-500" /></div><div><h4 className="font-semibold text-red-500">Delete Completely</h4><p className="text-sm text-muted-foreground">Permanently delete account</p></div></div></button>
+            <button onClick={() => handleDeleteStaff("soft")} disabled={isDeleting} className="w-full p-4 rounded-xl border hover:border-amber-500 hover:bg-amber-500/5 transition-colors text-left"><div className="flex gap-3"><div className="p-2 rounded-full bg-amber-500/20"><UserMinus className="w-5 h-5 text-amber-500" /></div><div><h4 className="font-semibold">{t("admin", "shopDemoteCustomer")}</h4><p className="text-sm text-muted-foreground">{t("admin", "shopRemovePerms")}</p></div></div></button>
+            <button onClick={() => handleDeleteStaff("hard")} disabled={isDeleting} className="w-full p-4 rounded-xl border border-red-500/30 hover:border-red-500 hover:bg-red-500/5 transition-colors text-left"><div className="flex gap-3"><div className="p-2 rounded-full bg-red-500/20"><UserX className="w-5 h-5 text-red-500" /></div><div><h4 className="font-semibold text-red-500">{t("admin", "shopDeleteCompletely")}</h4><p className="text-sm text-muted-foreground">{t("admin", "shopPermDelete")}</p></div></div></button>
           </div>
-          {isDeleting && <div className="flex items-center justify-center py-4"><Loader2 className="w-6 h-6 animate-spin" /><span className="ml-2 text-muted-foreground">Processing...</span></div>}
-          <div className="flex justify-end mt-4"><Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeleting}>Cancel</Button></div>
+          {isDeleting && <div className="flex items-center justify-center py-4"><Loader2 className="w-6 h-6 animate-spin" /><span className="ml-2 text-muted-foreground">{t("admin", "shopProcessing")}</span></div>}
+          <div className="flex justify-end mt-4"><Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeleting}>{t("admin", "shopCancel")}</Button></div>
         </DialogContent>
       </Dialog>
 
       {/* Reset Password Dialog */}
       <Dialog open={resetPasswordDialogOpen} onOpenChange={(o) => { setResetPasswordDialogOpen(o); if (!o) { setResetPasswordStaff(null); setResetSuccess(false) } }}>
         <DialogContent className="sm:max-w-md bg-white dark:bg-zinc-900">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Key className="w-5 h-5 text-amber-500" />Reset Password</DialogTitle><DialogDescription>Set new password for <span className="font-semibold">{resetPasswordStaff?.full_name}</span></DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Key className="w-5 h-5 text-amber-500" />{t("admin", "shopResetPassword")}</DialogTitle><DialogDescription>{t("admin", "shopSetNewFor")} <span className="font-semibold">{resetPasswordStaff?.full_name}</span></DialogDescription></DialogHeader>
           {resetSuccess ? (
             <div className="space-y-4 mt-4">
               <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-                <p className="text-sm text-green-600 font-medium mb-3">Password reset! New credentials:</p>
+                <p className="text-sm text-green-600 font-medium mb-3">{t("admin", "shopPasswordResetMsg")}</p>
                 <div className="space-y-3">
-                  <div><Label className="text-xs text-muted-foreground">Email</Label><div className="flex gap-2"><Input value={resetPasswordStaff?.email || ""} readOnly className="font-mono text-sm" /><Button variant="outline" size="icon" onClick={() => copyToClipboard(resetPasswordStaff?.email || "")}><Copy className="h-4 w-4" /></Button></div></div>
-                  <div><Label className="text-xs text-muted-foreground">New Password</Label><div className="flex gap-2"><Input type={showPassword ? "text" : "password"} value={newPassword} readOnly className="font-mono text-sm" /><Button variant="outline" size="icon" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button variant="outline" size="icon" onClick={() => copyToClipboard(newPassword)}>{passwordCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}</Button></div></div>
+                  <div><Label className="text-xs text-muted-foreground">{t("admin", "shopEmail")}</Label><div className="flex gap-2"><Input value={resetPasswordStaff?.email || ""} readOnly className="font-mono text-sm" /><Button variant="outline" size="icon" onClick={() => copyToClipboard(resetPasswordStaff?.email || "")}><Copy className="h-4 w-4" /></Button></div></div>
+                  <div><Label className="text-xs text-muted-foreground">{t("admin", "shopNewPassword")}</Label><div className="flex gap-2"><Input type={showPassword ? "text" : "password"} value={newPassword} readOnly className="font-mono text-sm" /><Button variant="outline" size="icon" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button variant="outline" size="icon" onClick={() => copyToClipboard(newPassword)}>{passwordCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}</Button></div></div>
                 </div>
               </div>
-              <Button variant="outline" className="w-full" onClick={() => copyToClipboard(`Email: ${resetPasswordStaff?.email}\nNew Password: ${newPassword}`)}><Copy className="h-4 w-4 mr-2" />Copy All</Button>
-              <Button onClick={() => { setResetPasswordDialogOpen(false); setResetSuccess(false) }} className="w-full bg-[#8b6f47] hover:bg-[#7a5f3d] text-white">Done</Button>
+              <Button variant="outline" className="w-full" onClick={() => copyToClipboard(`${t("admin", "shopEmail")}: ${resetPasswordStaff?.email}\n${t("admin", "shopNewPassword")}: ${newPassword}`)}><Copy className="h-4 w-4 mr-2" />{t("admin", "shopCopyAll")}</Button>
+              <Button onClick={() => { setResetPasswordDialogOpen(false); setResetSuccess(false) }} className="w-full bg-[#8b6f47] hover:bg-[#7a5f3d] text-white">{t("admin", "shopDone")}</Button>
             </div>
           ) : (
             <div className="space-y-4 mt-4">
-              <div><Label>New Password</Label><div className="flex gap-2"><div className="relative flex-1"><Input type={showPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="pr-10" minLength={6} /><Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button></div><Button variant="outline" size="icon" onClick={() => setNewPassword(generatePassword())}><RefreshCw className="h-4 w-4" /></Button></div><p className="text-xs text-muted-foreground">At least 6 characters</p></div>
-              <div className="flex gap-2 pt-2"><Button variant="outline" onClick={() => setResetPasswordDialogOpen(false)} className="flex-1" disabled={isResetting}>Cancel</Button><Button onClick={handleResetPassword} disabled={isResetting || newPassword.length < 6} className="flex-1 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white">{isResetting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}{isResetting ? "Resetting..." : "Reset"}</Button></div>
+              <div><Label>{t("admin", "shopNewPassword")}</Label><div className="flex gap-2"><div className="relative flex-1"><Input type={showPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="pr-10" minLength={6} /><Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button></div><Button variant="outline" size="icon" onClick={() => setNewPassword(generatePassword())}><RefreshCw className="h-4 w-4" /></Button></div><p className="text-xs text-muted-foreground">{t("admin", "shopAtLeast6")}</p></div>
+              <div className="flex gap-2 pt-2"><Button variant="outline" onClick={() => setResetPasswordDialogOpen(false)} className="flex-1" disabled={isResetting}>{t("admin", "shopCancel")}</Button><Button onClick={handleResetPassword} disabled={isResetting || newPassword.length < 6} className="flex-1 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white">{isResetting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}{isResetting ? t("admin", "shopResetting") : t("admin", "shopReset")}</Button></div>
             </div>
           )}
         </DialogContent>

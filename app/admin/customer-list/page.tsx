@@ -84,18 +84,18 @@ export default function CustomerListPage() {
   }
 
   const getVipTier = (spent: number) => {
-    if (spent >= 5000) return { name: "Diamond", color: "text-blue-500", bg: "bg-blue-500/10" }
-    if (spent >= 3000) return { name: "Gold", color: "text-amber-500", bg: "bg-amber-500/10" }
-    if (spent >= 1000) return { name: "Silver", color: "text-gray-400", bg: "bg-gray-400/10" }
-    return { name: "Bronze", color: "text-orange-600", bg: "bg-orange-600/10" }
+    if (spent >= 5000) return { name: t("admin", "clTierDiamond"), color: "text-blue-500", bg: "bg-blue-500/10" }
+    if (spent >= 3000) return { name: t("admin", "clTierGold"), color: "text-amber-500", bg: "bg-amber-500/10" }
+    if (spent >= 1000) return { name: t("admin", "clTierSilver"), color: "text-gray-400", bg: "bg-gray-400/10" }
+    return { name: t("admin", "clTierBronze"), color: "text-orange-600", bg: "bg-orange-600/10" }
   }
 
   const getDaysAgo = (date: string | null) => {
-    if (!date) return "Never"
+    if (!date) return t("admin", "clNever")
     const days = Math.floor((Date.now() - new Date(date).getTime()) / 86400000)
-    if (days === 0) return "Today"
-    if (days === 1) return "Yesterday"
-    return `${days}d ago`
+    if (days === 0) return t("admin", "clToday")
+    if (days === 1) return t("admin", "clYesterday")
+    return `${days}${t("admin", "clDaysAgoSuffix")}`
   }
 
   // Filter
@@ -176,11 +176,11 @@ export default function CustomerListPage() {
             <Users className="size-6 text-[#8b6f47]" />
             {t("admin", "customers")}
           </h2>
-          <p className="text-muted-foreground text-sm">Manage and view all customer profiles</p>
+          <p className="text-muted-foreground text-sm">{t("admin", "clManageDesc")}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={exportCSV}>
-            <Download className="size-4 mr-1" /> Export CSV
+            <Download className="size-4 mr-1" /> {t("admin", "clExportCsv")}
           </Button>
           <Button variant="outline" size="sm" onClick={loadCustomers} disabled={loading}>
             <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
@@ -191,10 +191,10 @@ export default function CustomerListPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total", value: stats.total, color: "text-foreground" },
-          { label: "Active (30d)", value: stats.active, color: "text-emerald-500" },
-          { label: "Dormant", value: stats.dormant, color: "text-red-500" },
-          { label: "VIP (1k+)", value: stats.vip, color: "text-amber-500" },
+          { label: t("admin", "clStatTotal"), value: stats.total, color: "text-foreground" },
+          { label: t("admin", "clStatActive30d"), value: stats.active, color: "text-emerald-500" },
+          { label: t("admin", "clStatDormant"), value: stats.dormant, color: "text-red-500" },
+          { label: t("admin", "clStatVip1k"), value: stats.vip, color: "text-amber-500" },
         ].map(s => (
           <Card key={s.label}>
             <CardContent className="p-4 text-center">
@@ -210,24 +210,33 @@ export default function CustomerListPage() {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            placeholder="Search name, phone, email..."
+            placeholder={t("admin", "clSearchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
           />
         </div>
         <div className="flex bg-muted rounded-lg p-0.5">
-          {(["all", "active", "dormant", "vip", "new"] as FilterType[]).map(f => (
+          {(["all", "active", "dormant", "vip", "new"] as FilterType[]).map(f => {
+            const labelMap: Record<FilterType, string> = {
+              all: t("admin", "clFilterAll"),
+              active: t("admin", "clFilterActive"),
+              dormant: t("admin", "clFilterDormant"),
+              vip: t("admin", "clFilterVip"),
+              new: t("admin", "clFilterNew"),
+            }
+            return (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 text-xs rounded-md transition-all capitalize ${
+              className={`px-3 py-1.5 text-xs rounded-md transition-all ${
                 filter === f ? "bg-white shadow text-[#8b6f47] font-medium" : "text-muted-foreground"
               }`}
             >
-              {f}
+              {labelMap[f]}
             </button>
-          ))}
+            )
+          })}
         </div>
       </div>
 
@@ -237,34 +246,34 @@ export default function CustomerListPage() {
           {/* Table Header */}
           <div className="hidden md:grid grid-cols-7 gap-2 px-4 py-3 border-b bg-muted/50 text-xs font-medium text-muted-foreground">
             <button className="flex items-center gap-1 col-span-2" onClick={() => handleSort("full_name")}>
-              Name <SortIcon field="full_name" />
+              {t("admin", "clColName")} <SortIcon field="full_name" />
             </button>
             <button className="flex items-center gap-1" onClick={() => handleSort("points_balance")}>
-              Points <SortIcon field="points_balance" />
+              {t("admin", "clColPoints")} <SortIcon field="points_balance" />
             </button>
             <button className="flex items-center gap-1" onClick={() => handleSort("total_spent")}>
-              Spent <SortIcon field="total_spent" />
+              {t("admin", "clColSpent")} <SortIcon field="total_spent" />
             </button>
             <button className="flex items-center gap-1" onClick={() => handleSort("visit_count")}>
-              Visits <SortIcon field="visit_count" />
+              {t("admin", "clColVisits")} <SortIcon field="visit_count" />
             </button>
             <button className="flex items-center gap-1" onClick={() => handleSort("last_visit")}>
-              Last Visit <SortIcon field="last_visit" />
+              {t("admin", "clColLastVisit")} <SortIcon field="last_visit" />
             </button>
             <button className="flex items-center gap-1" onClick={() => handleSort("created_at")}>
-              Joined <SortIcon field="created_at" />
+              {t("admin", "clColJoined")} <SortIcon field="created_at" />
             </button>
           </div>
 
           {/* Rows */}
           {loading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <RefreshCw className="size-5 animate-spin mr-2" /> Loading...
+              <RefreshCw className="size-5 animate-spin mr-2" /> {t("admin", "clLoading")}
             </div>
           ) : sorted.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Users className="size-12 mx-auto mb-3 opacity-30" />
-              <p>No customers found</p>
+              <p>{t("admin", "clNoCustomers")}</p>
             </div>
           ) : (
             <div className="divide-y">
@@ -286,7 +295,7 @@ export default function CustomerListPage() {
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-medium truncate">{c.full_name || "No Name"}</span>
+                            <span className="font-medium truncate">{c.full_name || t("admin", "clNoName")}</span>
                             <span className={`text-[10px] px-1.5 py-0.5 rounded ${tier.bg} ${tier.color}`}>
                               <Star className="size-2.5 inline mr-0.5" />{tier.name}
                             </span>
@@ -324,9 +333,9 @@ export default function CustomerListPage() {
 
                       {/* Mobile stats row */}
                       <div className="md:hidden flex gap-4 mt-1 text-xs text-muted-foreground pl-12">
-                        <span>{c.points_balance || 0} pts</span>
+                        <span>{c.points_balance || 0} {t("admin", "clColPoints")}</span>
                         <span>RM {c.total_spent || 0}</span>
-                        <span>{c.visit_count || 0} visits</span>
+                        <span>{c.visit_count || 0} {t("admin", "clVisitsSuffix")}</span>
                         <span>{getDaysAgo(c.last_visit)}</span>
                       </div>
                     </button>
@@ -355,7 +364,7 @@ export default function CustomerListPage() {
                           )}
                           <div className="flex items-center gap-2">
                             <Clock className="size-3.5 text-muted-foreground" />
-                            <span>Joined {new Date(c.created_at).toLocaleDateString()}</span>
+                            <span>{t("admin", "clJoinedPrefix")} {new Date(c.created_at).toLocaleDateString()}</span>
                           </div>
                         </div>
                       </div>
@@ -369,7 +378,7 @@ export default function CustomerListPage() {
       </Card>
 
       <p className="text-xs text-muted-foreground text-center">
-        Showing {sorted.length} of {customers.length} customers
+        {t("admin", "clShowingOf")} {sorted.length} {t("admin", "clShowingOfMid")} {customers.length} {t("admin", "clShowingOfEnd")}
       </p>
     </div>
   )
