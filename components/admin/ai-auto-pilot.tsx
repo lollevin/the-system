@@ -28,6 +28,7 @@ import {
   MessageSquare,
 } from "lucide-react"
 import { checkWhatsAppConnected } from "@/components/admin/floating-whatsapp"
+import { useLanguage } from "@/lib/i18n"
 
 // Re-define locally since we can't import server-side types in client components
 interface AutoPilotAlert {
@@ -141,6 +142,8 @@ export default function AIAutoPilot() {
   const [aiEnhanced, setAiEnhanced] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
 
+  const { languageRef } = useLanguage()
+
   useEffect(() => {
     fetchAlerts()
   }, [])
@@ -152,9 +155,13 @@ export default function AIAutoPilot() {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 55000)
 
-      const response = await fetch("/api/ai/auto-pilot", {
+      // Snapshot locale at FETCH time (not module-import time) so async
+      // completion never rehydrates state with stale-language AI content.
+      const localeAtFetch = languageRef.current
+      const response = await fetch(`/api/ai/auto-pilot?locale=${encodeURIComponent(localeAtFetch)}`, {
         signal: controller.signal,
         cache: "no-store",
+        headers: { "X-Locale": localeAtFetch },
       })
       clearTimeout(timeoutId)
 

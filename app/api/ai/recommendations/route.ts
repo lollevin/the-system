@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextRequest, NextResponse } from "next/server"
 import { callAI } from "@/lib/ai-client"
+import {
+  buildLanguageDirective,
+  resolveLocaleFromRequest,
+} from "@/lib/i18n/language-directive"
 
 export const maxDuration = 60
 
@@ -25,6 +29,12 @@ interface AIRecommendationResponse {
 
 export async function GET(_request: NextRequest) {
   try {
+    // Resolve the user's active locale from ?locale, X-Locale header, or cookie.
+    // Fallback order: query > header > cookie > "en".
+    const urlLocale = new URL(_request.url).searchParams.get("locale")
+    const userLocale = resolveLocaleFromRequest(_request, urlLocale)
+    const languageDirective = buildLanguageDirective(userLocale.tag)
+
     const supabase = await createClient()
     const {
       data: { user },
@@ -133,7 +143,9 @@ export async function GET(_request: NextRequest) {
       })),
     }
 
-    const prompt = `You are JP&Co's AI marketing strategist for a Malaysian F&B business (coffee shop / cafe).
+    const prompt = `${languageDirective}
+
+You are the JP&Co marketing strategist for a Malaysian F&B business (coffee shop / cafe).
 
 Business snapshot:
 ${JSON.stringify(businessContext, null, 2)}
@@ -147,29 +159,31 @@ Analyze this data and generate 3-5 HIGH-IMPACT marketing recommendations. Each r
 - Be realistic for a Malaysian cafe (amounts in RM, typical F&B margins)
 - Include a clear business reasoning
 
-Return ONLY valid JSON in this exact format (no markdown, no code fences):
+Return ONLY valid JSON in this exact format (no markdown, no code fences). The JSON STRUCTURE keys MUST remain in English, but every STRING VALUE you write (title, description, estimatedImpact, reasoning, voucher name) MUST be in ${userLocale.label}:
 {
   "recommendations": [
     {
       "type": "personal" | "global",
-      "title": "short catchy title",
-      "description": "1-2 sentence description of the campaign",
+      "title": "short catchy title (in ${userLocale.label})",
+      "description": "1-2 sentence description (in ${userLocale.label})",
       "segment": "one of: dormant | newCustomers | vip | upcomingBirthdays | highValue | all",
       "suggestedVoucher": {
-        "name": "voucher name",
+        "name": "voucher name (in ${userLocale.label})",
         "code": "VOUCHER_CODE_${Date.now().toString().slice(-4)}",
         "discount_type": "percentage" | "fixed",
         "discount_value": number,
         "valid_days": number,
         "points_required": number
       },
-      "estimatedImpact": "one-sentence impact estimate with numbers",
-      "reasoning": "why this will work, reference the data"
+      "estimatedImpact": "one-sentence impact estimate with numbers (in ${userLocale.label})",
+      "reasoning": "why this will work, reference the data (in ${userLocale.label})"
     }
   ]
 }
 
-IMPORTANT: Only include recommendations where the target segment actually has customers (non-zero count). Be strategic — not every segment needs a recommendation.`
+IMPORTANT: Only include recommendations where the target segment actually has customers (non-zero count). Be strategic — not every segment needs a recommendation.
+
+${languageDirective}`
 
     let aiRaw: string
     try {
@@ -177,8 +191,7 @@ IMPORTANT: Only include recommendations where the target segment actually has cu
         messages: [
           {
             role: "system",
-            content:
-              "You are an expert F&B marketing strategist for Malaysian cafes. You analyze real customer data and recommend high-ROI campaigns. Always respond with valid JSON only.",
+            content: `${languageDirective}\n\nYou are an expert F&B marketing strategist for Malaysian cafes. You analyze real customer data and recommend high-ROI campaigns. Always respond with valid JSON only. All user-facing STRING VALUES in the JSON MUST be written in ${userLocale.label} (${userLocale.tag}).`,
           },
           { role: "user", content: prompt },
         ],

@@ -3,6 +3,10 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { NextRequest, NextResponse } from "next/server"
 import { getVoucherLink, getPointsLink, getMenuLink, getReferralLink } from "@/lib/pwa-links"
 import { callAI } from "@/lib/ai-client"
+import {
+  buildLanguageDirective,
+  resolveLocaleFromRequest,
+} from "@/lib/i18n/language-directive"
 
 export const maxDuration = 60
 
@@ -57,7 +61,11 @@ function daysBetween(d1: Date, d2: Date): number {
 
 export async function GET(request: NextRequest) {
   try {
-    // Auth: verify user via createClient()
+    // Resolve the user's active locale from ?locale, X-Locale header, or cookie.
+    const urlLocale = new URL(request.url).searchParams.get("locale")
+    const userLocale = resolveLocaleFromRequest(request, urlLocale)
+    const languageDirective = buildLanguageDirective(userLocale.tag)
+
     const supabase = await createClient()
 
     const {
@@ -483,7 +491,9 @@ export async function GET(request: NextRequest) {
           top10SpendThreshold: top10Threshold === Infinity ? 0 : top10Threshold,
         }
 
-        const aiPrompt = `You are JP&Co's AI marketing strategist for a Malaysian F&B business.
+        const aiPrompt = `${languageDirective}
+
+You are the JP&Co marketing strategist for a Malaysian F&B business.
 
 Today's business snapshot:
 ${JSON.stringify(businessSnapshot, null, 2)}
@@ -492,26 +502,30 @@ Top 5 customer alerts requiring attention:
 ${JSON.stringify(alertsForAI, null, 2)}
 
 Your task:
-1. Write a 2-3 sentence strategic overview of what the admin should focus on today
-2. For each of the top 5 alerts, write a personalized, warm WhatsApp message (max 80 words each) in English that:
+1. Write a 2-3 sentence strategic overview of what the admin should focus on today (in ${userLocale.label})
+2. For each of the top 5 alerts, write a personalized, warm WhatsApp message (max 80 words each) in ${userLocale.label} that:
    - Uses the customer's name
    - References specific behavior (visits, spending, tier)
    - Has a clear call-to-action
    - Is warm and human, NOT robotic
 
+The JSON KEYS stay in English ("overview", "messages", "id", "message"), but every STRING VALUE you write MUST be in ${userLocale.label}.
+
 Respond in STRICT JSON format:
 {
-  "overview": "strategic overview text here",
+  "overview": "strategic overview text in ${userLocale.label}",
   "messages": [
-    { "id": "alert-id-here", "message": "personalized message here" }
+    { "id": "alert-id-here", "message": "personalized message in ${userLocale.label}" }
   ]
 }
 
-Only return JSON. No markdown, no code fences.`
+Only return JSON. No markdown, no code fences.
+
+${languageDirective}`
 
         const aiResult = await callAI({
           messages: [
-            { role: "system", content: "You are an expert F&B marketing strategist. Respond only with valid JSON." },
+            { role: "system", content: `${languageDirective}\n\nYou are an expert F&B marketing strategist. Respond only with valid JSON. All user-facing string values MUST be in ${userLocale.label} (${userLocale.tag}).` },
             { role: "user", content: aiPrompt },
           ],
           temperature: 0.7,
