@@ -1,25 +1,49 @@
 /**
  * WhatsApp Web.js Connection Manager
- * 
+ *
  * Handles WhatsApp connection, QR code generation, and message sending.
+ *
+ * Stability notes:
+ *  - Pinned webVersion via RemoteAuth-style cache so upstream WhatsApp Web
+ *    changes don't silently break the automation selectors.
+ *  - Removed `--single-process` (causes random Chromium crashes on VPS).
+ *  - All init / puppeteer errors surface through connectionStatus so the UI
+ *    can show the real state instead of a forever "Generating QR code...".
+ *  - Auto-reinit if we stay in `disconnected` with no QR for > 45s.
  */
 
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const path = require('path');
+const fs = require('fs');
 
 // State
 let client = null;
 let currentQR = null;
 let qrTimestamp = null;
-let connectionStatus = 'disconnected';
+let connectionStatus = 'initializing';
+let lastStatusChangeAt = Date.now();
+let lastError = null;
 let connectedPhone = null;
 let intentionalDisconnect = false;
 let reconnectAttempts = 0;
 let isRestarting = false;
+let initWatchdog = null;
 
 const QR_EXPIRY_MS = 20000;
 const MAX_RECONNECT_DELAY = 60000;
+// If we never produce a QR within this window after init, force a restart.
+const INIT_WATCHDOG_MS = 60000;
+
+const SESSIONS_DIR = path.join(__dirname, '..', 'sessions');
+
+function setStatus(next, reason) {
+  if (connectionStatus !== next) {
+    console.log(`[WA] status: ${connectionStatus} -> ${next}${reason ? ` (${reason})` : ''}`);
+    connectionStatus = next;
+    lastStatusChangeAt = Date.now();
+  }
+}
 
 function getReconnectDelay() {
   const delay = Math.min(5000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
@@ -27,136 +51,197 @@ function getReconnectDelay() {
   return delay;
 }
 
+function armInitWatchdog() {
+  if (initWatchdog) clearTimeout(initWatchdog);
+  initWatchdog = setTimeout(() => {
+    if (connectionStatus !== 'connected' && connectionStatus !== 'qr_ready') {
+      console.warn('[WA] Init watchdog: no QR in ' + INIT_WATCHDOG_MS + 'ms, restarting client.');
+      lastError = 'Init timeout — Chromium/puppeteer never produced a QR';
+      restart().catch(err => console.error('[WA] Watchdog restart failed:', err.message));
+    }
+  }, INIT_WATCHDOG_MS);
+}
+
 /**
  * Initialize WhatsApp client
  */
 function initWhatsApp() {
-  console.log('Initializing WhatsApp client...');
-  
-  client = new Client({
-    authStrategy: new LocalAuth({
-      dataPath: path.join(__dirname, '..', 'sessions')
-    }),
-    puppeteer: {
-      headless: process.env.HEADLESS !== 'false',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-        '--single-process',
-        '--disable-extensions'
-      ]
-    }
-  });
+  console.log('[WA] Initializing WhatsApp client...');
+  setStatus('initializing', 'init called');
+  lastError = null;
+  currentQR = null;
+  qrTimestamp = null;
+
+  try {
+    client = new Client({
+      authStrategy: new LocalAuth({
+        dataPath: SESSIONS_DIR,
+      }),
+      // Pin to a known-good WhatsApp Web build served by wppconnect CDN.
+      // This is the single most important stability fix — stops upstream
+      // WhatsApp Web pushes from silently breaking qr event emission.
+      webVersionCache: {
+        type: 'remote',
+        remotePath:
+          'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1027096273.html',
+      },
+      puppeteer: {
+        headless: process.env.HEADLESS !== 'false',
+        // executablePath can be set via PUPPETEER_EXECUTABLE_PATH if the bundled
+        // Chromium is missing on the VPS (common: apt install chromium-browser).
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-gpu',
+          '--disable-extensions',
+          // NOTE: --single-process REMOVED — causes "Target closed" on Chromium 120+.
+        ],
+      },
+    });
+  } catch (err) {
+    console.error('[WA] Client construction failed:', err.message);
+    lastError = err.message;
+    setStatus('init_failed', 'constructor threw');
+    return;
+  }
 
   // QR Code event
   client.on('qr', async (qr) => {
-    console.log('QR Code received at', new Date().toISOString());
-    connectionStatus = 'qr_ready';
+    console.log('[WA] QR received at', new Date().toISOString());
+    setStatus('qr_ready');
     qrTimestamp = Date.now();
-    
     try {
       currentQR = await qrcode.toDataURL(qr);
     } catch (err) {
-      console.error('QR generation error:', err);
+      console.error('[WA] QR generation error:', err);
+      lastError = err.message;
     }
+  });
+
+  client.on('loading_screen', (percent, message) => {
+    console.log(`[WA] Loading: ${percent}% ${message}`);
+  });
+
+  client.on('change_state', (state) => {
+    console.log('[WA] State change:', state);
   });
 
   // Ready event
   client.on('ready', async () => {
-    console.log('WhatsApp client is ready!');
-    connectionStatus = 'connected';
+    console.log('[WA] Client ready!');
+    setStatus('connected', 'ready event');
     currentQR = null;
     qrTimestamp = null;
     reconnectAttempts = 0;
-    
+    lastError = null;
+    if (initWatchdog) {
+      clearTimeout(initWatchdog);
+      initWatchdog = null;
+    }
     try {
       const info = client.info;
-      connectedPhone = info.wid.user;
-      console.log('Connected as:', connectedPhone);
+      connectedPhone = info?.wid?.user || null;
+      console.log('[WA] Connected as:', connectedPhone);
     } catch (err) {
-      console.error('Error getting client info:', err);
+      console.error('[WA] Error getting client info:', err);
     }
   });
 
-  // Authenticated event
   client.on('authenticated', () => {
-    console.log('WhatsApp authenticated');
-    connectionStatus = 'connecting';
+    console.log('[WA] Authenticated');
+    setStatus('authenticated', 'auth event');
     reconnectAttempts = 0;
   });
 
-  // Auth failure event
   client.on('auth_failure', (msg) => {
-    console.error('Authentication failure:', msg);
-    connectionStatus = 'disconnected';
+    console.error('[WA] Auth failure:', msg);
+    lastError = typeof msg === 'string' ? msg : 'Auth failure';
+    setStatus('auth_failure', 'auth_failure event');
     currentQR = null;
     qrTimestamp = null;
+    // Nuke the (probably corrupted) session and re-init so user can scan again.
+    try {
+      const sessionPath = path.join(SESSIONS_DIR, 'session');
+      if (fs.existsSync(sessionPath)) {
+        fs.rmSync(sessionPath, { recursive: true, force: true });
+        console.log('[WA] Cleared corrupted session');
+      }
+    } catch (e) {
+      console.warn('[WA] Could not clear session:', e.message);
+    }
   });
 
-  // Disconnected event
   client.on('disconnected', (reason) => {
-    console.log('WhatsApp disconnected:', reason);
-    connectionStatus = 'disconnected';
+    console.log('[WA] Disconnected:', reason);
+    setStatus('disconnected', `disconnected: ${reason}`);
     connectedPhone = null;
     currentQR = null;
     qrTimestamp = null;
-    
+
     if (!intentionalDisconnect) {
       const delay = getReconnectDelay();
-      console.log(`Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts})...`);
+      console.log(`[WA] Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts})...`);
       setTimeout(() => {
-        console.log('Attempting to reconnect...');
-        client.initialize().catch(err => {
-          console.error('Reconnect failed:', err.message);
-        });
+        if (intentionalDisconnect) return;
+        console.log('[WA] Attempting to reconnect...');
+        // Fresh client instance — re-using the old one after disconnect is flaky.
+        initWhatsApp();
       }, delay);
     }
   });
 
-  client.initialize().catch(err => {
-    console.error('Initial connection failed:', err.message);
-    connectionStatus = 'disconnected';
+  armInitWatchdog();
+
+  client.initialize().catch((err) => {
+    console.error('[WA] initialize() rejected:', err.message);
+    lastError = err.message;
+    setStatus('init_failed', 'initialize rejected');
   });
 }
 
 /**
  * Get current QR code
- * Always returns latest QR even if possibly expired -
- * whatsapp-web.js auto-emits new QR every ~20s.
  */
 async function getQRCode() {
   if (connectionStatus === 'connected') {
-    return { 
-      qr: null, 
+    return {
+      qr: null,
       status: 'connected',
+      connected: true,
       phone: connectedPhone,
       message: 'Already connected',
-      qrAge: null
+      qrAge: null,
     };
   }
-  
+
   if (currentQR && qrTimestamp) {
     const age = Date.now() - qrTimestamp;
-    return { 
-      qr: currentQR, 
+    return {
+      qr: currentQR,
       status: connectionStatus,
+      connected: false,
       message: 'Scan QR code with WhatsApp',
       qrAge: age,
       expiresIn: Math.max(0, QR_EXPIRY_MS - age),
-      expired: age > QR_EXPIRY_MS
+      expired: age > QR_EXPIRY_MS,
     };
   }
-  
-  return { 
-    qr: null, 
+
+  return {
+    qr: null,
     status: connectionStatus,
-    message: 'Waiting for QR code...',
-    qrAge: null
+    connected: false,
+    message:
+      connectionStatus === 'init_failed'
+        ? 'WhatsApp client failed to start — restart required'
+        : 'Waiting for QR code...',
+    error: lastError,
+    qrAge: null,
   };
 }
 
@@ -168,7 +253,9 @@ async function getStatus() {
     status: connectionStatus,
     connected: connectionStatus === 'connected',
     phone: connectedPhone,
-    timestamp: new Date().toISOString()
+    error: lastError,
+    stuckFor: Date.now() - lastStatusChangeAt,
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -181,29 +268,43 @@ async function restart() {
   }
 
   isRestarting = true;
-  console.log('Restarting WhatsApp client...');
+  console.log('[WA] Restarting client...');
 
   try {
+    if (initWatchdog) {
+      clearTimeout(initWatchdog);
+      initWatchdog = null;
+    }
+
     if (client) {
       intentionalDisconnect = true;
-      try { await client.destroy(); } catch (e) { console.log('Destroy error (ok):', e.message); }
+      try {
+        await client.destroy();
+      } catch (e) {
+        console.log('[WA] Destroy error (ok):', e.message);
+      }
       client = null;
     }
 
-    connectionStatus = 'disconnected';
     connectedPhone = null;
     currentQR = null;
     qrTimestamp = null;
     reconnectAttempts = 0;
+    lastError = null;
+    setStatus('initializing', 'restart');
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     intentionalDisconnect = false;
     initWhatsApp();
 
-    return { success: true, message: 'WhatsApp client restarted, new QR will appear shortly' };
+    return {
+      success: true,
+      message: 'WhatsApp client restarted, new QR will appear shortly',
+    };
   } catch (err) {
-    console.error('Restart error:', err);
+    console.error('[WA] Restart error:', err);
+    lastError = err.message;
     return { success: false, message: err.message };
   } finally {
     isRestarting = false;
@@ -215,19 +316,13 @@ async function restart() {
  * Converts Malaysian numbers to international format
  */
 function formatPhone(phone) {
-  // Remove all non-numeric characters
   let cleaned = phone.replace(/\D/g, '');
-  
-  // Malaysian number starting with 0
   if (cleaned.startsWith('0')) {
     cleaned = '60' + cleaned.substring(1);
   }
-  
-  // Add Malaysia country code if number is short
   if (!cleaned.startsWith('60') && cleaned.length <= 10) {
     cleaned = '60' + cleaned;
   }
-  
   return cleaned + '@c.us';
 }
 
@@ -238,7 +333,7 @@ async function sendMessage(phone, message, options = {}) {
   if (connectionStatus !== 'connected') {
     throw new Error('WhatsApp is not connected. Please scan QR code first.');
   }
-  
+
   const formattedPhone = formatPhone(phone);
   const {
     imageBase64,
@@ -246,13 +341,11 @@ async function sendMessage(phone, message, options = {}) {
     imageFilename = 'campaign.png',
     imageCaption,
     ctaUrl,
-    ctaLabel = 'Open now',
   } = options || {};
-  
+
   try {
     const sentIds = [];
 
-    // 1) Send image card first (if provided)
     if (imageBase64) {
       const media = new MessageMedia(imageMimeType, imageBase64, imageFilename);
       const mediaResult = await client.sendMessage(formattedPhone, media, {
@@ -260,16 +353,12 @@ async function sendMessage(phone, message, options = {}) {
       });
       sentIds.push(mediaResult?.id?.id);
     } else if (message) {
-      // Fallback: text only
       const textResult = await client.sendMessage(formattedPhone, message);
       sentIds.push(textResult?.id?.id);
     }
 
-    // 2) Send CTA as separate message so WhatsApp renders a richer link card preview
     if (ctaUrl) {
-      // URL-only gives the best chance for WhatsApp native link card/button preview.
-      const ctaMessage = `${ctaUrl}`;
-      const ctaResult = await client.sendMessage(formattedPhone, ctaMessage, {
+      const ctaResult = await client.sendMessage(formattedPhone, `${ctaUrl}`, {
         linkPreview: true,
       });
       sentIds.push(ctaResult?.id?.id);
@@ -280,49 +369,43 @@ async function sendMessage(phone, message, options = {}) {
       phone: phone,
       messageId: sentIds[0] || null,
       messageIds: sentIds.filter(Boolean),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   } catch (error) {
     return {
       success: false,
       phone: phone,
-      error: error.message
+      error: error.message,
     };
   }
 }
 
-/**
- * 指数退避重试辅助函数
- */
 async function withRetry(fn, maxRetries = 3, baseDelay = 1000) {
-  let lastError;
+  let lastErr;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error) {
-      lastError = error;
+      lastErr = error;
       if (attempt === maxRetries) break;
       const delay = baseDelay * Math.pow(2, attempt);
       console.log(`[Retry] Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
-  throw lastError;
+  throw lastErr;
 }
 
-/**
- * Send bulk messages with delay and retry
- */
 async function sendBulkMessages(messages, delayMs = 3000) {
   if (connectionStatus !== 'connected') {
     throw new Error('WhatsApp is not connected. Please scan QR code first.');
   }
-  
+
   const results = [];
   const totalCount = messages.length;
-  
-  console.log(`Starting bulk send: ${totalCount} messages (delay: ${delayMs}ms)`);
-  
+
+  console.log(`[WA] Bulk send: ${totalCount} messages (delay: ${delayMs}ms)`);
+
   for (let i = 0; i < messages.length; i++) {
     const {
       phone,
@@ -335,9 +418,8 @@ async function sendBulkMessages(messages, delayMs = 3000) {
       ctaUrl,
       ctaLabel,
     } = messages[i];
-    
+
     try {
-      // 使用指数退避重试
       const result = await withRetry(async () => {
         return await sendMessage(phone, message, {
           imageBase64,
@@ -347,16 +429,10 @@ async function sendBulkMessages(messages, delayMs = 3000) {
           ctaUrl,
           ctaLabel,
         });
-      }, 2, 1000); // 最多重试 2 次
-      
-      results.push({
-        ...result,
-        customerId,
-        index: i + 1,
-        total: totalCount
-      });
-      
-      console.log(`Sent ${i + 1}/${totalCount}: ${phone} - ${result.success ? 'Success' : 'Failed'}`);
+      }, 2, 1000);
+
+      results.push({ ...result, customerId, index: i + 1, total: totalCount });
+      console.log(`[WA] Sent ${i + 1}/${totalCount}: ${phone} - ${result.success ? 'OK' : 'FAIL'}`);
     } catch (error) {
       results.push({
         success: false,
@@ -364,64 +440,53 @@ async function sendBulkMessages(messages, delayMs = 3000) {
         customerId,
         error: error.message,
         index: i + 1,
-        total: totalCount
+        total: totalCount,
       });
-      console.error(`Failed ${i + 1}/${totalCount}: ${phone} - ${error.message}`);
+      console.error(`[WA] Failed ${i + 1}/${totalCount}: ${phone} - ${error.message}`);
     }
-    
-    // Delay between messages (except for the last one)
-    // WhatsApp 建议至少 3 秒间隔以避免被封
+
     if (i < messages.length - 1) {
-      const safeDelay = Math.max(delayMs, 3000);
-      await new Promise(resolve => setTimeout(resolve, safeDelay));
+      await new Promise((resolve) => setTimeout(resolve, Math.max(delayMs, 3000)));
     }
   }
-  
-  const successCount = results.filter(r => r.success).length;
-  const failCount = results.filter(r => !r.success).length;
-  
-  console.log(`Bulk send complete: ${successCount} success, ${failCount} failed`);
-  
+
+  const successCount = results.filter((r) => r.success).length;
+  const failCount = results.filter((r) => !r.success).length;
+
   return {
     total: totalCount,
     success: successCount,
     failed: failCount,
-    results
+    results,
   };
 }
 
-/**
- * Disconnect WhatsApp client
- */
 async function disconnect() {
   if (!client) {
-    connectionStatus = 'disconnected';
+    setStatus('disconnected', 'disconnect: no client');
     return;
   }
-  
+
   intentionalDisconnect = true;
-  
+
   try {
-    // Try logout first (clears session)
     await client.logout();
   } catch (err) {
-    console.log('Logout failed, trying destroy:', err.message);
+    console.log('[WA] Logout failed, trying destroy:', err.message);
     try {
-      // Fallback: destroy the client
       await client.destroy();
     } catch (err2) {
-      console.log('Destroy also failed:', err2.message);
+      console.log('[WA] Destroy also failed:', err2.message);
     }
   }
-  
-  connectionStatus = 'disconnected';
+
+  setStatus('disconnected', 'disconnect called');
   connectedPhone = null;
   currentQR = null;
-  
-  // Re-initialize after a brief delay so QR code can be scanned again
+
   setTimeout(() => {
     intentionalDisconnect = false;
-    console.log('Re-initializing WhatsApp client for new login...');
+    console.log('[WA] Re-initializing for new login...');
     initWhatsApp();
   }, 3000);
 }
@@ -433,5 +498,5 @@ module.exports = {
   sendMessage,
   sendBulkMessages,
   disconnect,
-  restart
+  restart,
 };

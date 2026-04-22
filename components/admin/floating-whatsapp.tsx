@@ -161,7 +161,12 @@ export function FloatingWhatsApp() {
   }, [status?.connected])
 
   const isConnected = status?.connected ?? false
-  const isOffline = status?.status === "service_offline" || status?.status === "auth_error" || status?.status === "timeout"
+  const isOffline =
+    status?.status === "service_offline" ||
+    status?.status === "auth_error" ||
+    status?.status === "timeout" ||
+    status?.status === "init_failed" ||
+    status?.status === "auth_failure"
 
   return (
     <>
@@ -227,11 +232,15 @@ export function FloatingWhatsApp() {
             <div className="text-center py-4">
               <WifiOff className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground mb-2">
-                {status?.status === "auth_error" 
+                {status?.status === "auth_error"
                   ? "API key mismatch! Check .env on VPS."
                   : status?.status === "timeout"
                     ? "WhatsApp service not responding"
-                    : "WhatsApp service is not running"}
+                    : status?.status === "init_failed"
+                      ? "WhatsApp client failed to start (Chromium/puppeteer issue). Click Restart."
+                      : status?.status === "auth_failure"
+                        ? "Session expired. Click Restart to get a new QR."
+                        : "WhatsApp service is not running"}
               </p>
               <Button variant="secondary" size="sm" onClick={handleRestart} disabled={restarting} className="mt-2">
                 {restarting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-1" />}
