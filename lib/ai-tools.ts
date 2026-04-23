@@ -77,16 +77,58 @@ export const toolDefinitions = [
     function: {
       name: "search_knowledge_base",
       description:
-        "Search the admin's uploaded knowledge base files (PDFs, images, Excel, documents). Contains competitor data, market research, menu screenshots, business reports uploaded by admin.",
+        "Search the admin's uploaded knowledge base files (PDFs, images, Excel, documents). Contains competitor data, market research, menu screenshots, POS exports, campaign files, business reports uploaded by admin. ALWAYS call this tool when the admin asks about files, uploaded data, POS reports, campaign history, or any data that might be in uploaded files.",
       parameters: {
         type: "object",
         properties: {
           query: {
             type: "string",
-            description: "What to search for in the knowledge base, e.g. 'competitor pricing' or 'burger menu'",
+            description: "What to search for in the knowledge base, e.g. 'competitor pricing', 'burger menu', 'POS sales', 'campaign results'. Use short keywords — the tool does fuzzy matching.",
           },
         },
         required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "list_knowledge_base_files",
+      description:
+        "List ALL files the admin has uploaded to the knowledge base (file names, types, status, uploaded date). Use this when admin asks 'do you have my file', 'what files did I upload', or wants an overview of uploaded data.",
+      parameters: {
+        type: "object",
+        properties: {},
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "save_memory",
+      description:
+        "Save an important fact, preference, or insight to long-term memory so you remember it across all future conversations, even after chat restarts. Use this for: (1) business facts admin tells you ('we open 10am-10pm', 'our specialty is beef burger'), (2) customer preferences you learned ('Maco loves coffee', 'Yeoh is a VIP'), (3) campaign lessons ('Tuesday voucher worked 3x better'), (4) strategic decisions. Be concise — one important fact per memory.",
+      parameters: {
+        type: "object",
+        properties: {
+          category: {
+            type: "string",
+            description: "One of: 'business_fact', 'customer_insight', 'campaign_lesson', 'preference', 'strategy', 'other'",
+          },
+          content: {
+            type: "string",
+            description: "The memory content, written as a clear standalone statement (max 400 chars)",
+          },
+          key: {
+            type: "string",
+            description: "Optional short key (e.g. customer name, topic) for easier retrieval",
+          },
+          importance: {
+            type: "number",
+            description: "1 (minor) to 10 (critical). Default 5.",
+          },
+        },
+        required: ["category", "content"],
       },
     },
   },
@@ -219,6 +261,53 @@ export async function executeSearchKnowledgeBase(query: string): Promise<string>
   }
 }
 
+export async function executeListKnowledgeBaseFiles(): Promise<string> {
+  try {
+    const admin = createAdminClient()
+    const { data: files } = await admin
+      .from("knowledge_base")
+      .select("file_name, file_type, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(100)
+
+    if (!files || files.length === 0) {
+      return "[Knowledge base is empty. Admin has not uploaded any files yet.]"
+    }
+
+    const lines = files.map((f: any) => {
+      const when = new Date(f.created_at).toLocaleDateString()
+      return `- ${f.file_name} (${f.file_type || "unknown"}) — ${f.status || "ready"} — uploaded ${when}`
+    })
+    return `**Knowledge Base Files (${files.length} total):**\n${lines.join("\n")}`
+  } catch (err: any) {
+    return `[Knowledge base error: ${err.message}]`
+  }
+}
+
+export async function executeSaveMemory(args: {
+  category: string
+  content: string
+  key?: string
+  importance?: number
+}): Promise<string> {
+  try {
+    const admin = createAdminClient()
+    const importance = Math.min(10, Math.max(1, Number(args.importance) || 5))
+    const content = (args.content || "").slice(0, 1200)
+    if (!content) return "[Memory not saved: content is empty]"
+    const { error } = await admin.from("ai_memories").insert({
+      category: args.category || "other",
+      key: args.key || null,
+      content,
+      importance,
+    })
+    if (error) return `[Memory save failed: ${error.message}]`
+    return `[Memory saved: "${content.slice(0, 80)}${content.length > 80 ? "..." : ""}"]`
+  } catch (err: any) {
+    return `[Memory error: ${err.message}]`
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Tool Router
 // ---------------------------------------------------------------------------
@@ -234,6 +323,15 @@ export async function executeTool(
       return executeScrapeUrl(args.url || "")
     case "search_knowledge_base":
       return executeSearchKnowledgeBase(args.query || "")
+    case "list_knowledge_base_files":
+      return executeListKnowledgeBaseFiles()
+    case "save_memory":
+      return executeSaveMemory({
+        category: args.category || "other",
+        content: args.content || "",
+        key: args.key,
+        importance: args.importance,
+      })
     default:
       return `[Unknown tool: ${name}]`
   }

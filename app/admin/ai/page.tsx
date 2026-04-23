@@ -152,17 +152,36 @@ export default function AICopilotPage() {
     loadMessageStats()
   }, [])
   
-  // Initialize welcome message
+  // Initialize: restore persisted chat from localStorage, or show welcome message
   useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([{
-        id: "welcome",
-        role: "assistant",
-        content: t("ai", "welcomeMessage"),
-        timestamp: new Date(),
-      }])
-    }
+    if (messages.length !== 0) return
+    try {
+      const saved = typeof window !== "undefined" ? localStorage.getItem("jpco_ai_chat") : null
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })))
+          return
+        }
+      }
+    } catch {}
+    setMessages([{
+      id: "welcome",
+      role: "assistant",
+      content: t("ai", "welcomeMessage"),
+      timestamp: new Date(),
+    }])
   }, [])
+
+  // Persist chat to localStorage so session survives refresh / restart.
+  // Keep last 80 messages to cap storage.
+  useEffect(() => {
+    if (messages.length === 0) return
+    try {
+      const trimmed = messages.slice(-80)
+      localStorage.setItem("jpco_ai_chat", JSON.stringify(trimmed))
+    } catch {}
+  }, [messages])
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -362,8 +381,10 @@ export default function AICopilotPage() {
     setIsLoading(true)
 
     try {
+      // Include up to last 30 turns so AI has deep short-term context within a session.
+      // Long-term memory is separately persisted in ai_memories.
       const conversationHistory = messages
-        .slice(-8)
+        .slice(-30)
         .map(m => `${m.role === "user" ? "Admin" : "AI"}: ${m.content}`)
         .join("\n")
 

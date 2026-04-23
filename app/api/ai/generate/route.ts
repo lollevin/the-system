@@ -111,9 +111,14 @@ export async function POST(request: NextRequest) {
     };
 
     // Find specific customer groups for AI
+    // Include ALL customers whose birthday is in the CURRENT calendar month,
+    // plus anyone with a birthday in the next 14 days (wraps into next month).
     const birthdayCustomers = customers.filter(c => {
       if (!c.birthday) return false;
       const bday = new Date(c.birthday);
+      if (isNaN(bday.getTime())) return false;
+      // Same month as today = this-month birthday (past, today, future)
+      if (bday.getMonth() === today.getMonth()) return true;
       const thisYearBday = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
       const diff = (thisYearBday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
       return diff >= -1 && diff <= 14;
@@ -248,6 +253,24 @@ export async function POST(request: NextRequest) {
       }
     } catch {}
 
+    // Long-term memories — persistent facts AI has saved across conversations
+    let memoriesSummary = "(no saved memories yet)";
+    try {
+      const { data: memRows } = await adminSupabase
+        .from("ai_memories")
+        .select("category, key, content, importance, created_at")
+        .order("importance", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .limit(50);
+      if (memRows && memRows.length > 0) {
+        memoriesSummary = memRows
+          .map((m: any) =>
+            `- [${m.category}${m.key ? "/" + m.key : ""}, priority ${m.importance}] ${m.content}`
+          )
+          .join("\n");
+      }
+    } catch {}
+
     // Recent staff audit log — so AI can reason about who did what
     let auditLogSummary = "(no recent staff activity)";
     try {
@@ -282,8 +305,24 @@ export async function POST(request: NextRequest) {
       }
     } catch {}
 
+    // Current date snapshot — give AI an unambiguous "today" reference
+    const dateLocale = userLang === "zh" ? "zh-CN" : userLang === "ms" ? "ms-MY" : "en-US";
+    const todayStr = today.toLocaleDateString(dateLocale, {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const monthStr = today.toLocaleDateString(dateLocale, { month: "long", year: "numeric" });
+
     // Build powerful system prompt — language lock at the very top (primacy)
     const systemPrompt = `${languageDirective}
+
+---
+
+**TODAY IS: ${todayStr}**  (current month: **${monthStr}**)
+
+Use this as the authoritative date for any "this month", "today", "next week", "upcoming birthday" reasoning.
 
 ---
 
@@ -342,19 +381,23 @@ ${topByVisits.map(c => `- ${c.full_name || "Unknown"} | ${c.visit_count || 0} vi
 ### Full Customer Database (up to 50)
 ${customerListSummary}
 
-### Birthday Customers (next 14 days)
-${birthdayCustomers.length > 0 ? birthdayCustomers.map(c => `- ${c.name} (${c.phone}) | Birthday: ${c.birthday} | RM${c.totalSpent.toFixed(0)} spent | ${c.points} pts`).join("\n") : "No upcoming birthdays"}
+### Birthday Customers (this month + next 14 days)
+${birthdayCustomers.length > 0 ? birthdayCustomers.map(c => `- ${c.name} (${c.phone}) | Birthday: ${c.birthday} | RM${c.totalSpent.toFixed(0)} spent | ${c.points} pts`).join("\n") : "No customers with birthdays this month or in the next 14 days"}
 
 ### Dormant Customers (30+ days inactive)
 ${dormantCustomers.slice(0, 20).map(c => `- ${c.name} (${c.phone}) | ${c.daysSince ? c.daysSince + "d ago" : "never visited"} | RM${c.totalSpent.toFixed(0)} spent | ${c.points} pts`).join("\n") || "None"}
 
 ### Knowledge Base Files (uploaded by admin)
 ${kbFilesSummary}
-→ If admin asks about uploaded data, competitors, POS exports, campaign files, or "do you have my file" — USE the \`search_knowledge_base\` tool.
+→ If admin asks about uploaded data, competitors, POS exports, campaign files, or "do you have my file" — USE the \`search_knowledge_base\` tool to read the actual content. Use \`list_knowledge_base_files\` when they ask for a file overview.
 
 ### Recent Staff Audit Log (last 20 actions)
 ${auditLogSummary}
 → Use this to answer "which staff added/deleted points", "was any reversal recently", etc. Also use it to spot patterns (same customer gets points often, many reversals = training issue, etc).
+
+### Long-term Memory (saved across conversations)
+${memoriesSummary}
+→ These are facts you've chosen to remember permanently. Reference them when relevant. Use \`save_memory\` tool to add new important facts (business rules, customer insights, campaign lessons) so you remember them in future chats.
 
 ### VIP Customers (≥RM1000 lifetime spend)
 ${vipCustomers.map(c => `- ${c.name} (${c.phone}) | RM${c.totalSpent.toFixed(0)} spent | ${c.points} pts | ${c.visits} visits`).join("\n") || "None"}
@@ -415,17 +458,20 @@ For business questions, structure your answer as:
 4. **Action Items** — 2-3 specific things the admin should do NOW
 
 ## TOOLS YOU CAN USE
-You have access to these tools. Use them when the admin's question needs external or uploaded data:
+You have access to these tools. CALL THEM WHENEVER RELEVANT — do not apologize that you don't know, just call the tool.
 - **web_search** — Search the internet for real-time competitor info, promotions, market trends, prices
 - **scrape_url** — Read any webpage content (competitor site, GrabFood, FoodPanda, social media)
-- **search_knowledge_base** — Search files the admin uploaded (competitor menus, reports, images, documents)
+- **search_knowledge_base** — Read the actual content of admin-uploaded files (PDFs, POS exports, campaign files, images)
+- **list_knowledge_base_files** — Get a list of all uploaded files (file name, type, date)
+- **save_memory** — Permanently remember an important fact, customer insight, or campaign lesson across conversations
 
-**When to use tools:**
-- Admin asks about competitors → use web_search and/or search_knowledge_base
-- Admin asks about market trends → use web_search
-- Admin mentions a specific URL → use scrape_url
-- Admin references uploaded data → use search_knowledge_base
-- You can chain multiple tools if needed
+**MANDATORY tool-calling rules:**
+- Admin says "my file / uploaded / 档案 / fail" → call \`search_knowledge_base\` with keywords from their question. Never say "please tell me what file" without first searching.
+- Admin asks "what did I upload / 有没有我的档案" → call \`list_knowledge_base_files\`.
+- Admin asks about competitors / prices / market trends → \`web_search\`.
+- Admin mentions any URL → \`scrape_url\`.
+- Admin tells you a business rule, preference, or you discover a key insight → immediately call \`save_memory\` so you never forget it.
+- You CAN chain multiple tools (e.g. list_knowledge_base_files → search_knowledge_base → save_memory → respond).
 
 ## BEHAVIOR
 - Be proactive — always suggest WHO to message and WHY with marketing rationale
@@ -473,12 +519,12 @@ If any box is unchecked → rewrite before responding.`;
 
       const result = await aiCallWithTools({
         messages: chatMessages,
-        maxRounds: 2,
-        temperature: 0.8,
+        maxRounds: 4,
+        temperature: 0.7,
         maxTokens: 2000,
         retries: 2,
         timeoutMs: 20000,
-        totalBudgetMs: 50000,
+        totalBudgetMs: 55000,
       });
 
       generatedMessage = result.content || "Sorry, I couldn't generate a response. Please try again.";

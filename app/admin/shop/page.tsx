@@ -103,6 +103,53 @@ export default function ShopManagementPage() {
   const [passwordCopied, setPasswordCopied] = useState(false)
   const [staffForm, setStaffForm] = useState({ full_name: "", email: "", phone: "", role: "staff" as "staff" | "admin", password: "" })
 
+  // Batch add menu
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false)
+  const [batchText, setBatchText] = useState("")
+  const [batchFile, setBatchFile] = useState<File | null>(null)
+  const [batchSaving, setBatchSaving] = useState(false)
+  const batchFileRef = useRef<HTMLInputElement>(null)
+
+  const handleBatchAdd = async () => {
+    if (!batchText.trim() && !batchFile) {
+      toast.error(t("admin", "shopBatchNeedInput"))
+      return
+    }
+    setBatchSaving(true)
+    try {
+      let res: Response
+      if (batchFile) {
+        const fd = new FormData()
+        if (batchText.trim()) fd.append("text", batchText.trim())
+        fd.append("file", batchFile)
+        res = await fetch("/api/admin/menu/batch-add", { method: "POST", body: fd })
+      } else {
+        res = await fetch("/api/admin/menu/batch-add", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: batchText.trim() }),
+        })
+      }
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(data?.error || t("admin", "shopBatchFailed"))
+        return
+      }
+      toast.success(
+        t("admin", "shopBatchSuccess").replace("{count}", String(data.inserted_count || 0))
+      )
+      setBatchDialogOpen(false)
+      setBatchText("")
+      setBatchFile(null)
+      if (batchFileRef.current) batchFileRef.current.value = ""
+      await loadMenuItems()
+    } catch (err: any) {
+      toast.error(err?.message || t("admin", "shopBatchFailed"))
+    } finally {
+      setBatchSaving(false)
+    }
+  }
+
   useEffect(() => {
     loadMenuItems()
     loadStaffMembers()
@@ -342,9 +389,18 @@ export default function ShopManagementPage() {
                     <h2 className="text-xl font-bold text-[#3d3225] dark:text-white">{t("admin", "shopMenu")}</h2>
                     <p className="text-sm text-muted-foreground">{menuItems.length} {t("admin", "shopItems")}</p>
                   </div>
-                  <Button onClick={() => openMenuDialog()} className="gap-2 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white shadow-lg">
-                    <Plus className="w-4 h-4" />{t("admin", "shopAddFoods")}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setBatchDialogOpen(true)}
+                      variant="outline"
+                      className="gap-2 border-[#8b6f47]/40 text-[#8b6f47] hover:bg-[#8b6f47]/10"
+                    >
+                      <Upload className="w-4 h-4" />{t("admin", "shopBatchAdd")}
+                    </Button>
+                    <Button onClick={() => openMenuDialog()} className="gap-2 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white shadow-lg">
+                      <Plus className="w-4 h-4" />{t("admin", "shopAddFoods")}
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Search + Category Filter */}
@@ -554,6 +610,97 @@ export default function ShopManagementPage() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Batch Add Menu Dialog */}
+      <Dialog open={batchDialogOpen} onOpenChange={(o) => { setBatchDialogOpen(o); if (!o) { setBatchText(""); setBatchFile(null) } }}>
+        <DialogContent className="max-w-lg bg-white dark:bg-zinc-900">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="w-5 h-5 text-[#8b6f47]" />
+              {t("admin", "shopBatchAdd")}
+            </DialogTitle>
+            <DialogDescription>{t("admin", "shopBatchDesc")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>{t("admin", "shopBatchTextLabel")}</Label>
+              <Textarea
+                value={batchText}
+                onChange={(e) => setBatchText(e.target.value)}
+                rows={5}
+                placeholder={t("admin", "shopBatchTextPlaceholder")}
+                className="font-mono text-sm mt-2"
+              />
+              <p className="text-xs text-muted-foreground mt-1">{t("admin", "shopBatchTextHint")}</p>
+            </div>
+
+            <div className="relative flex items-center">
+              <div className="flex-1 border-t border-border/50"></div>
+              <span className="px-3 text-xs text-muted-foreground uppercase">{t("admin", "shopOr")}</span>
+              <div className="flex-1 border-t border-border/50"></div>
+            </div>
+
+            <div>
+              <Label>{t("admin", "shopBatchFileLabel")}</Label>
+              <div className="mt-2">
+                {batchFile ? (
+                  <div className="flex items-center justify-between gap-2 p-3 rounded-lg border border-[#8b6f47]/30 bg-[#8b6f47]/5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <ImageIcon className="w-5 h-5 text-[#8b6f47] shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{batchFile.name}</p>
+                        <p className="text-xs text-muted-foreground">{(batchFile.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                    </div>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => { setBatchFile(null); if (batchFileRef.current) batchFileRef.current.value = "" }}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => batchFileRef.current?.click()}
+                    className="w-full p-4 rounded-lg border-2 border-dashed border-[#8b6f47]/30 hover:border-[#8b6f47] hover:bg-[#8b6f47]/5 transition-colors flex flex-col items-center gap-2"
+                  >
+                    <Upload className="w-6 h-6 text-[#8b6f47]/60" />
+                    <span className="text-sm font-medium">{t("admin", "shopBatchFileBtn")}</span>
+                    <span className="text-xs text-muted-foreground">{t("admin", "shopBatchFileHint")}</span>
+                  </button>
+                )}
+                <input
+                  ref={batchFileRef}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv,.txt,.docx"
+                  onChange={(e) => setBatchFile(e.target.files?.[0] || null)}
+                  className="hidden"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40">
+              <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                <span className="text-xs">✨</span>
+              </div>
+              <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+                {t("admin", "shopBatchAiHint")}
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setBatchDialogOpen(false)} disabled={batchSaving} className="flex-1">
+                {t("admin", "shopCancel")}
+              </Button>
+              <Button type="button" onClick={handleBatchAdd} disabled={batchSaving} className="flex-1 bg-[#8b6f47] hover:bg-[#7a5f3d] text-white">
+                {batchSaving ? (
+                  <><Loader2 className="w-4 h-4 animate-spin mr-2" />{t("admin", "shopBatchProcessing")}</>
+                ) : (
+                  <><Plus className="w-4 h-4 mr-2" />{t("admin", "shopBatchCreate")}</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Menu Dialog */}
       <Dialog open={menuDialogOpen} onOpenChange={setMenuDialogOpen}>
