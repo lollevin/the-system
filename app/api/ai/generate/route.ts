@@ -8,7 +8,7 @@ import { buildLanguageDirective, resolveLocaleFromRequest } from "@/lib/i18n/lan
 import { getMalaysiaNow, buildDatePromptBlock } from "@/lib/malaysia-time";
 
 // Allow up to 60 seconds for AI generation (matches Nginx default proxy_read_timeout)
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
@@ -515,21 +515,27 @@ For business questions, structure your answer as:
 3. **Trend Analysis** — What direction things are moving
 4. **Action Items** — 2-3 specific things the admin should do NOW
 
-## TOOLS YOU CAN USE
-You have access to these tools. CALL THEM WHENEVER RELEVANT — do not apologize that you don't know, just call the tool.
-- **web_search** — Search the internet for real-time competitor info, promotions, market trends, prices
-- **scrape_url** — Read any webpage content (competitor site, GrabFood, FoodPanda, social media)
+## TOOLS YOU CAN USE — YOU ARE AN ACTION AGENT, NOT A PASSIVE CHATBOT
+You have REAL control of the system. When the admin agrees to an action, EXECUTE it — never say "I will create it" without calling the tool.
+
+- **create_voucher** — ⚡ACTUALLY creates a voucher in the database (live on Rewards page + customer app). Use 'personal' to auto-assign to one customer, 'global' for everyone. NEVER just say "I'll create the voucher" — you MUST call this tool to make it real.
+- **get_customer_details** — Pull DEEP profile on a specific customer (full transaction history, favorite day, avg spend, voucher usage, saved memories). Call this BEFORE crafting a personalized message or analyzing a customer.
+- **save_memory** — Permanently remember an important fact, customer insight, or campaign lesson across conversations. Use this aggressively: every time you learn something new about a customer's habits, save it with their name as the key.
 - **search_knowledge_base** — Read the actual content of admin-uploaded files (PDFs, POS exports, campaign files, images)
 - **list_knowledge_base_files** — Get a list of all uploaded files (file name, type, date)
-- **save_memory** — Permanently remember an important fact, customer insight, or campaign lesson across conversations
+- **web_search** — Search the internet for real-time competitor info, promotions, market trends, prices
+- **scrape_url** — Read any webpage content (competitor site, GrabFood, FoodPanda, social media)
 
-**MANDATORY tool-calling rules:**
-- Admin says "my file / uploaded / 档案 / fail" → call \`search_knowledge_base\` with keywords from their question. Never say "please tell me what file" without first searching.
+**MANDATORY tool-calling rules (violating these = failure):**
+- Admin says "OK / yes / 好 / 可以 / create it / make the voucher" after discussing a voucher → IMMEDIATELY call \`create_voucher\`. Do not say "sure I'll create it" — JUST CALL THE TOOL. After creation, confirm the code and tell them where to see it (Rewards page + customer app).
+- Admin asks about a specific customer by name → call \`get_customer_details\` first to get habits, then answer.
+- Before generating a WhatsApp message for a specific customer → consider calling \`get_customer_details\` to personalize with their habits.
+- Every time you notice a pattern (e.g. "Maco comes every Tuesday", "Yeoh loves coffee", "birthday customers respond 3x to personal vouchers") → call \`save_memory\` with category='customer_insight' and key=customer name.
+- Admin says "my file / uploaded / 档案 / fail" → call \`search_knowledge_base\` with keywords from their question.
 - Admin asks "what did I upload / 有没有我的档案" → call \`list_knowledge_base_files\`.
 - Admin asks about competitors / prices / market trends → \`web_search\`.
 - Admin mentions any URL → \`scrape_url\`.
-- Admin tells you a business rule, preference, or you discover a key insight → immediately call \`save_memory\` so you never forget it.
-- You CAN chain multiple tools (e.g. list_knowledge_base_files → search_knowledge_base → save_memory → respond).
+- You CAN chain multiple tools (e.g. get_customer_details → save_memory → create_voucher → respond with confirmation).
 
 ## BEHAVIOR
 - Be proactive — always suggest WHO to message and WHY with marketing rationale
@@ -579,12 +585,12 @@ If any box is unchecked → rewrite before responding.`;
 
       const result = await aiCallWithTools({
         messages: chatMessages,
-        maxRounds: 4,
+        maxRounds: 6,
         temperature: 0.7,
         maxTokens: 2000,
         retries: 2,
-        timeoutMs: 20000,
-        totalBudgetMs: 55000,
+        timeoutMs: 25000,
+        totalBudgetMs: 80000,
       });
 
       generatedMessage = result.content || "Sorry, I couldn't generate a response. Please try again.";

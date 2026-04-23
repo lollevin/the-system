@@ -105,6 +105,79 @@ export const toolDefinitions = [
   {
     type: "function" as const,
     function: {
+      name: "create_voucher",
+      description:
+        "ACTUALLY CREATE a voucher in the database. Use this when admin approves a voucher idea or asks you to create one. For 'personal' vouchers, it will also be auto-assigned to the target customer's account so they see it in their app. Do NOT just say 'OK I'll create it' — ALWAYS call this tool to actually make it happen.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Voucher display name, e.g. 'Birthday Special', 'Win-back 20% Off'",
+          },
+          description: {
+            type: "string",
+            description: "Short description visible to customer",
+          },
+          discount_type: {
+            type: "string",
+            enum: ["percentage", "fixed"],
+            description: "'percentage' for % off, 'fixed' for RM amount off",
+          },
+          discount_value: {
+            type: "number",
+            description: "Discount amount. If percentage type, 10 means 10% off. If fixed, 10 means RM10 off.",
+          },
+          voucher_type: {
+            type: "string",
+            enum: ["global", "personal"],
+            description: "'global' = available to all customers who have enough points. 'personal' = exclusive to one customer (auto-assigned to their account).",
+          },
+          target_customer_id: {
+            type: "string",
+            description: "Required if voucher_type='personal'. The UUID of the target customer from the customer list.",
+          },
+          points_required: {
+            type: "number",
+            description: "Points needed to redeem. Use 0 for free personal vouchers (gift). Default 100 for global.",
+          },
+          valid_days: {
+            type: "number",
+            description: "How many days the voucher is valid from now. Default 30.",
+          },
+          code: {
+            type: "string",
+            description: "Optional voucher code prefix. If omitted, one is auto-generated.",
+          },
+        },
+        required: ["name", "discount_type", "discount_value", "voucher_type"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_customer_details",
+      description:
+        "Get DEEP details about a specific customer: full transaction history, visit pattern, favorite day/time, average spend, point history, voucher usage. Use this when admin asks about a specific customer or you need to understand their habits before crafting a personalized message. Pass either customer_id (UUID) or phone number.",
+      parameters: {
+        type: "object",
+        properties: {
+          customer_id: {
+            type: "string",
+            description: "Customer UUID (preferred, from the customer list in context)",
+          },
+          phone: {
+            type: "string",
+            description: "Phone number if UUID is unknown (e.g. '60123456789' or '0123456789')",
+          },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "save_memory",
       description:
         "Save an important fact, preference, or insight to long-term memory so you remember it across all future conversations, even after chat restarts. Use this for: (1) business facts admin tells you ('we open 10am-10pm', 'our specialty is beef burger'), (2) customer preferences you learned ('Maco loves coffee', 'Yeoh is a VIP'), (3) campaign lessons ('Tuesday voucher worked 3x better'), (4) strategic decisions. Be concise — one important fact per memory.",
@@ -308,6 +381,196 @@ export async function executeSaveMemory(args: {
   }
 }
 
+export async function executeCreateVoucher(args: {
+  name: string
+  description?: string
+  discount_type: "percentage" | "fixed"
+  discount_value: number
+  voucher_type: "global" | "personal"
+  target_customer_id?: string
+  points_required?: number
+  valid_days?: number
+  code?: string
+}): Promise<string> {
+  try {
+    const admin = createAdminClient()
+    const validDays = Math.max(1, Math.min(365, Number(args.valid_days) || 30))
+    const validUntil = new Date()
+    validUntil.setDate(validUntil.getDate() + validDays)
+
+    const rawCode = (args.code || args.name || "VCH").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8) || "VCH"
+    const suffix = Math.random().toString(36).substring(2, 6).toUpperCase()
+    const code = args.voucher_type === "personal" ? `${rawCode}${suffix}` : (args.code ? args.code.toUpperCase() : `${rawCode}${suffix}`)
+
+    const pointsRequired = args.voucher_type === "personal"
+      ? (typeof args.points_required === "number" ? args.points_required : 0)
+      : (typeof args.points_required === "number" ? args.points_required : 100)
+
+    const voucherData: any = {
+      code,
+      name: args.name,
+      description: args.description || args.name,
+      points_required: pointsRequired,
+      discount_type: args.discount_type,
+      discount_value: args.discount_value,
+      valid_until: validUntil.toISOString(),
+      is_active: true,
+      max_uses: 1,
+      voucher_type: args.voucher_type,
+    }
+
+    let customerName: string | undefined
+    if (args.voucher_type === "personal") {
+      if (!args.target_customer_id) {
+        return "[Voucher NOT created: personal vouchers require target_customer_id. Ask the admin which customer to target.]"
+      }
+      const { data: cust } = await admin
+        .from("profiles")
+        .select("id, full_name")
+        .eq("id", args.target_customer_id)
+        .maybeSingle()
+      if (!cust) {
+        return `[Voucher NOT created: customer_id ${args.target_customer_id} not found. Re-check the UUID from the customer list.]`
+      }
+      customerName = cust.full_name || "customer"
+      voucherData.target_customer_id = args.target_customer_id
+    }
+
+    const { data: v, error } = await admin
+      .from("vouchers")
+      .insert(voucherData)
+      .select()
+      .single()
+
+    if (error) {
+      return `[Voucher creation failed: ${error.message}]`
+    }
+
+    if (args.voucher_type === "personal" && args.target_customer_id) {
+      await admin.from("user_vouchers").insert({
+        user_id: args.target_customer_id,
+        voucher_id: v.id,
+        code,
+        expires_at: validUntil.toISOString(),
+        is_used: false,
+      })
+    }
+
+    const discountText = args.discount_type === "percentage"
+      ? `${args.discount_value}% off`
+      : `RM${args.discount_value} off`
+
+    return `[✅ Voucher CREATED successfully!\n- Name: ${args.name}\n- Code: ${code}\n- Discount: ${discountText}\n- Type: ${args.voucher_type}${customerName ? ` (assigned to ${customerName})` : ""}\n- Valid until: ${validUntil.toLocaleDateString()}\n- Points required: ${pointsRequired}\n\nThe voucher is now LIVE in the Rewards page and customer app.]`
+  } catch (err: any) {
+    return `[Voucher creation error: ${err.message}]`
+  }
+}
+
+export async function executeGetCustomerDetails(args: {
+  customer_id?: string
+  phone?: string
+}): Promise<string> {
+  try {
+    const admin = createAdminClient()
+    let query = admin.from("profiles").select("*").eq("role", "customer")
+    if (args.customer_id) {
+      query = query.eq("id", args.customer_id)
+    } else if (args.phone) {
+      const digits = args.phone.replace(/\D/g, "")
+      query = query.or(`phone.eq.${args.phone},phone.eq.${digits},phone.eq.60${digits.replace(/^0/, "")}`)
+    } else {
+      return "[Provide customer_id or phone]"
+    }
+
+    const { data: profiles } = await query.limit(1)
+    const customer = profiles?.[0]
+    if (!customer) return "[Customer not found]"
+
+    const { data: txs } = await admin
+      .from("transactions")
+      .select("type, points, amount, created_at, reason")
+      .eq("user_id", customer.id)
+      .order("created_at", { ascending: false })
+      .limit(30)
+
+    const { data: uvs } = await admin
+      .from("user_vouchers")
+      .select("code, is_used, created_at, expires_at, voucher:vouchers(name, discount_type, discount_value)")
+      .eq("user_id", customer.id)
+      .order("created_at", { ascending: false })
+      .limit(10)
+
+    const earnTxs = (txs || []).filter(t => t.type === "earn")
+    const redeemTxs = (txs || []).filter(t => t.type === "redeem")
+    const totalSpend = earnTxs.reduce((s, t) => s + (t.amount || 0), 0)
+    const visitCount = earnTxs.length
+    const avgSpend = visitCount > 0 ? (totalSpend / visitCount).toFixed(2) : "0"
+
+    // Day-of-week pattern
+    const dayCounts: Record<string, number> = {}
+    for (const tx of earnTxs) {
+      const d = new Date(tx.created_at).toLocaleDateString("en-US", { weekday: "short" })
+      dayCounts[d] = (dayCounts[d] || 0) + 1
+    }
+    const favDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "unknown"
+
+    const firstVisit = earnTxs[earnTxs.length - 1]?.created_at
+    const lastVisit = earnTxs[0]?.created_at
+    const daysSinceLast = lastVisit
+      ? Math.floor((Date.now() - new Date(lastVisit).getTime()) / (1000 * 60 * 60 * 24))
+      : null
+
+    const { data: mems } = await admin
+      .from("ai_memories")
+      .select("content, category, importance")
+      .or(`key.eq.${customer.full_name || "___"},key.eq.${customer.id}`)
+      .order("importance", { ascending: false })
+      .limit(10)
+
+    let result = `**Customer Profile: ${customer.full_name || "Unknown"}**\n`
+    result += `- ID: ${customer.id}\n`
+    result += `- Phone: ${customer.phone || "N/A"}\n`
+    result += `- Birthday: ${customer.birthday || "unknown"}\n`
+    result += `- Tier: ${customer.tier || "bronze"} | Points: ${customer.points_balance || 0}\n`
+    result += `- Total spent: RM${(customer.total_spent || 0).toFixed(2)} across ${visitCount} visits\n`
+    result += `- Avg per visit: RM${avgSpend}\n`
+    result += `- Favorite day: ${favDay}\n`
+    result += `- First visit: ${firstVisit ? new Date(firstVisit).toLocaleDateString() : "never"}\n`
+    result += `- Last visit: ${lastVisit ? new Date(lastVisit).toLocaleDateString() : "never"}${daysSinceLast !== null ? ` (${daysSinceLast} days ago)` : ""}\n`
+    result += `- Redemptions: ${redeemTxs.length}\n\n`
+
+    if (mems && mems.length > 0) {
+      result += `**Saved memories about this customer:**\n`
+      for (const m of mems) result += `- [${m.category}] ${m.content}\n`
+      result += `\n`
+    }
+
+    if (uvs && uvs.length > 0) {
+      result += `**Recent vouchers (last 10):**\n`
+      for (const uv of uvs) {
+        const vRaw = uv.voucher as any
+        const v = Array.isArray(vRaw) ? vRaw[0] : vRaw
+        const vName = v?.name || "—"
+        result += `- ${vName} (${uv.code}) ${uv.is_used ? "✅ used" : "⏳ unused"} exp ${new Date(uv.expires_at).toLocaleDateString()}\n`
+      }
+      result += `\n`
+    }
+
+    if (txs && txs.length > 0) {
+      result += `**Last 10 transactions:**\n`
+      for (const tx of txs.slice(0, 10)) {
+        const when = new Date(tx.created_at).toLocaleDateString()
+        const type = tx.type === "earn" ? `+${tx.points}pts (RM${tx.amount})` : tx.type === "redeem" ? `-${tx.points}pts` : tx.type
+        result += `- [${when}] ${type} ${tx.reason ? `— ${tx.reason}` : ""}\n`
+      }
+    }
+
+    return result
+  } catch (err: any) {
+    return `[Customer details error: ${err.message}]`
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Tool Router
 // ---------------------------------------------------------------------------
@@ -331,6 +594,23 @@ export async function executeTool(
         content: args.content || "",
         key: args.key,
         importance: args.importance,
+      })
+    case "create_voucher":
+      return executeCreateVoucher({
+        name: args.name || "AI Voucher",
+        description: args.description,
+        discount_type: (args.discount_type === "fixed" ? "fixed" : "percentage"),
+        discount_value: Number(args.discount_value) || 10,
+        voucher_type: (args.voucher_type === "personal" ? "personal" : "global"),
+        target_customer_id: args.target_customer_id,
+        points_required: args.points_required,
+        valid_days: args.valid_days,
+        code: args.code,
+      })
+    case "get_customer_details":
+      return executeGetCustomerDetails({
+        customer_id: args.customer_id,
+        phone: args.phone,
       })
     default:
       return `[Unknown tool: ${name}]`
