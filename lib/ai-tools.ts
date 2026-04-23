@@ -157,6 +157,44 @@ export const toolDefinitions = [
   {
     type: "function" as const,
     function: {
+      name: "match_pos_transaction",
+      description:
+        "Cross-reference a POS bill line (amount + optional time) with our loyalty transactions to IDENTIFY which customer it was. Use when admin uploads POS files without customer names — we can match by RM amount & timestamp because every customer check-in creates a transaction with the same amount and timestamp. Returns top 3 likely customers ranked by match confidence.",
+      parameters: {
+        type: "object",
+        properties: {
+          amount: {
+            type: "number",
+            description: "RM amount from POS bill (e.g. 25.50)",
+          },
+          date: {
+            type: "string",
+            description: "Optional date/time from POS bill in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:mm). If provided, we match within ±30 minutes.",
+          },
+          tolerance: {
+            type: "number",
+            description: "RM tolerance for amount match. Default 0.5 (to handle rounding). Set 0 for exact match.",
+          },
+        },
+        required: ["amount"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_knowledge_base_freshness",
+      description:
+        "Check how fresh the uploaded knowledge base data is (latest upload date + age in days per file). USE THIS before making claims based on KB files so you can tell the admin 'this POS report is X days old, today's transactions are not in it yet'. Admin often uploads weekly/monthly — be transparent about staleness, never fake fresh data.",
+      parameters: {
+        type: "object",
+        properties: {},
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "get_customer_details",
       description:
         "Get DEEP details about a specific customer: full transaction history, visit pattern, favorite day/time, average spend, point history, voucher usage. Use this when admin asks about a specific customer or you need to understand their habits before crafting a personalized message. Pass either customer_id (UUID) or phone number.",
@@ -571,6 +609,139 @@ export async function executeGetCustomerDetails(args: {
   }
 }
 
+export async function executeMatchPosTransaction(args: {
+  amount: number
+  date?: string
+  tolerance?: number
+}): Promise<string> {
+  try {
+    const admin = createAdminClient()
+    const tol = typeof args.tolerance === "number" ? Math.max(0, args.tolerance) : 0.5
+    const amountMin = args.amount - tol
+    const amountMax = args.amount + tol
+
+    let timeMin: Date | null = null
+    let timeMax: Date | null = null
+    if (args.date) {
+      const parsed = new Date(args.date)
+      if (!isNaN(parsed.getTime())) {
+        // If only a date was given, widen window to the whole day
+        const hasTime = args.date.includes("T") || args.date.includes(":")
+        if (hasTime) {
+          timeMin = new Date(parsed.getTime() - 30 * 60 * 1000)
+          timeMax = new Date(parsed.getTime() + 30 * 60 * 1000)
+        } else {
+          timeMin = new Date(parsed)
+          timeMin.setHours(0, 0, 0, 0)
+          timeMax = new Date(parsed)
+          timeMax.setHours(23, 59, 59, 999)
+        }
+      }
+    }
+
+    let q = admin
+      .from("transactions")
+      .select("id, user_id, amount, points, created_at, type, reason")
+      .eq("type", "earn")
+      .gte("amount", amountMin)
+      .lte("amount", amountMax)
+      .order("created_at", { ascending: false })
+      .limit(20)
+
+    if (timeMin && timeMax) {
+      q = q.gte("created_at", timeMin.toISOString()).lte("created_at", timeMax.toISOString())
+    }
+
+    const { data: txs, error } = await q
+    if (error) return `[Match error: ${error.message}]`
+    if (!txs || txs.length === 0) {
+      return `[No loyalty transaction matches RM${args.amount}${args.date ? ` around ${args.date}` : ""}. This POS bill likely belongs to a walk-in (non-member) customer.]`
+    }
+
+    // Score each candidate
+    const targetTime = timeMin && timeMax ? (timeMin.getTime() + timeMax.getTime()) / 2 : null
+    const scored = txs.map(t => {
+      let score = 0
+      const diff = Math.abs((t.amount || 0) - args.amount)
+      score += Math.max(0, 10 - diff * 2) // amount closeness
+      if (targetTime) {
+        const dt = Math.abs(new Date(t.created_at).getTime() - targetTime)
+        score += Math.max(0, 10 - dt / (1000 * 60 * 30)) // time closeness
+      }
+      return { ...t, score }
+    }).sort((a, b) => b.score - a.score).slice(0, 5)
+
+    const userIds = [...new Set(scored.map(t => t.user_id))]
+    const { data: users } = await admin
+      .from("profiles")
+      .select("id, full_name, phone, total_spent, visit_count, points_balance")
+      .in("id", userIds)
+
+    const userMap: Record<string, any> = {}
+    for (const u of users || []) userMap[u.id] = u
+
+    let result = `**POS Match for RM${args.amount.toFixed(2)}${args.date ? ` @ ${args.date}` : ""}:**\n\n`
+    for (let i = 0; i < scored.length; i++) {
+      const t = scored[i]
+      const u = userMap[t.user_id]
+      const when = new Date(t.created_at).toLocaleString()
+      const confidence = t.score > 15 ? "🟢 HIGH" : t.score > 8 ? "🟡 MEDIUM" : "🔴 LOW"
+      result += `${i + 1}. ${confidence} confidence — **${u?.full_name || "Unknown"}** (${u?.phone || "no phone"})\n`
+      result += `   Paid RM${t.amount} on ${when} | +${t.points}pts | Lifetime: RM${u?.total_spent || 0} / ${u?.visit_count || 0} visits\n`
+      if (t.reason) result += `   Reason: ${t.reason}\n`
+    }
+
+    return result
+  } catch (err: any) {
+    return `[POS match error: ${err.message}]`
+  }
+}
+
+export async function executeGetKnowledgeBaseFreshness(): Promise<string> {
+  try {
+    const admin = createAdminClient()
+    const { data: files } = await admin
+      .from("knowledge_base")
+      .select("file_name, file_type, created_at, status")
+      .order("created_at", { ascending: false })
+      .limit(100)
+
+    if (!files || files.length === 0) {
+      return "[Knowledge base is EMPTY. No files uploaded yet. Any claim about 'uploaded data' would be fake — tell the admin they need to upload first.]"
+    }
+
+    const now = Date.now()
+    const latest = files[0]
+    const latestAge = Math.floor((now - new Date(latest.created_at).getTime()) / (1000 * 60 * 60 * 24))
+
+    let result = `**Knowledge Base Freshness Report:**\n`
+    result += `- Total files: ${files.length}\n`
+    result += `- Most recent upload: **${latest.file_name}** — ${latestAge} day(s) ago (${new Date(latest.created_at).toLocaleDateString()})\n\n`
+
+    result += `**All files (sorted by recency):**\n`
+    for (const f of files.slice(0, 20)) {
+      const age = Math.floor((now - new Date(f.created_at).getTime()) / (1000 * 60 * 60 * 24))
+      const freshness = age === 0 ? "🟢 today" : age <= 7 ? "🟢 fresh (this week)" : age <= 30 ? "🟡 within 30d" : age <= 90 ? "🟠 stale (1-3 months)" : "🔴 very stale (>3 months)"
+      result += `- ${f.file_name} — ${freshness} (${age}d ago, ${f.status || "ready"})\n`
+    }
+
+    result += `\n**Staleness warning:** `
+    if (latestAge === 0) {
+      result += `Data is fresh (uploaded today). Safe to report with confidence.`
+    } else if (latestAge <= 7) {
+      result += `Data is ${latestAge} day(s) old. Transactions from the last ${latestAge} days are NOT yet in this report. Mention this caveat when admin asks for "today" or "this week" stats.`
+    } else if (latestAge <= 30) {
+      result += `Data is ${latestAge} days old. Report may be out of date — recommend admin re-export POS/campaign files for accurate current state.`
+    } else {
+      result += `⚠️ Data is ${latestAge} days old (>1 month). Any "current" claims based on this are unreliable. Strongly recommend admin upload a fresh export before making decisions.`
+    }
+
+    return result
+  } catch (err: any) {
+    return `[Freshness check error: ${err.message}]`
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Tool Router
 // ---------------------------------------------------------------------------
@@ -612,6 +783,14 @@ export async function executeTool(
         customer_id: args.customer_id,
         phone: args.phone,
       })
+    case "match_pos_transaction":
+      return executeMatchPosTransaction({
+        amount: Number(args.amount) || 0,
+        date: args.date,
+        tolerance: typeof args.tolerance === "number" ? args.tolerance : undefined,
+      })
+    case "get_knowledge_base_freshness":
+      return executeGetKnowledgeBaseFreshness()
     default:
       return `[Unknown tool: ${name}]`
   }
