@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://srv1339976.hstgr.cloud"
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jpandco.cloud"
 
 export function getPwaLink(view: string, params?: Record<string, string>): string {
   const url = new URL("/pwa", BASE_URL)

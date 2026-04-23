@@ -2,7 +2,7 @@ import { toolDefinitions, executeTool } from "./ai-tools"
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
-const AI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini"
+const AI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || process.env.OPENAI_MODEL || "gpt-4o"
 const CHAT_ENDPOINT = `${OPENAI_BASE_URL}/chat/completions`
 
 // Primary + fallback chain. Provider-specific notes belong in README,
