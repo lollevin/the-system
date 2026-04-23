@@ -7,6 +7,7 @@ import {
   buildLanguageDirective,
   resolveLocaleFromRequest,
 } from "@/lib/i18n/language-directive"
+import { getMalaysiaNow } from "@/lib/malaysia-time"
 
 export const maxDuration = 60
 
@@ -115,8 +116,8 @@ export async function GET(request: NextRequest) {
 
     const allCustomers = customers || []
 
-    // Fetch recent transactions (90 days)
-    const today = new Date()
+    // Fetch recent transactions (90 days) — use Malaysia local time
+    const today = getMalaysiaNow().date
     const ninetyDaysAgo = new Date(
       today.getTime() - 90 * 24 * 60 * 60 * 1000
     )
@@ -525,7 +526,7 @@ ${languageDirective}`
 
         const aiResult = await callAI({
           messages: [
-            { role: "system", content: `${languageDirective}\n\nYou are an expert F&B marketing strategist. Respond only with valid JSON. All user-facing string values MUST be in ${userLocale.label} (${userLocale.tag}).` },
+            { role: "system", content: `${languageDirective}\n\nCurrent date: ${getMalaysiaNow().long} (${getMalaysiaNow().iso}) — Asia/Kuala_Lumpur. Use this as the authoritative "today".\n\nYou are an expert F&B marketing strategist. Respond only with valid JSON. All user-facing string values MUST be in ${userLocale.label} (${userLocale.tag}).` },
             { role: "user", content: aiPrompt },
           ],
           temperature: 0.7,

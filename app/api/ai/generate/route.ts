@@ -5,6 +5,7 @@ import { rateLimitResponse } from "@/lib/rate-limit";
 import { getVoucherLink, getPointsLink, getMenuLink } from "@/lib/pwa-links";
 import { aiCallWithTools } from "@/lib/ai-tools";
 import { buildLanguageDirective, resolveLocaleFromRequest } from "@/lib/i18n/language-directive";
+import { getMalaysiaNow, buildDatePromptBlock } from "@/lib/malaysia-time";
 
 // Allow up to 60 seconds for AI generation (matches Nginx default proxy_read_timeout)
 export const maxDuration = 60;
@@ -90,7 +91,10 @@ export async function POST(request: NextRequest) {
 
     console.log(`[AI Generate] Found ${customers.length} customers for AI context`);
     
-    const today = new Date();
+    // Use Malaysia time (KL) for "today" so date math is always correct,
+    // regardless of where the server is deployed.
+    const klNow = getMalaysiaNow();
+    const today = klNow.date;
     const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -305,24 +309,19 @@ export async function POST(request: NextRequest) {
       }
     } catch {}
 
-    // Current date snapshot — give AI an unambiguous "today" reference
-    const dateLocale = userLang === "zh" ? "zh-CN" : userLang === "ms" ? "ms-MY" : "en-US";
-    const todayStr = today.toLocaleDateString(dateLocale, {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-    const monthStr = today.toLocaleDateString(dateLocale, { month: "long", year: "numeric" });
+    // Authoritative date/time strings for AI prompt & user-message prefix
+    const todayIso = klNow.iso;
+    const timeStr = klNow.time;
+    const dayOfWeek = klNow.dayOfWeek;
+    const todayStr = klNow.long;
+    const monthStr = klNow.monthLabel;
 
     // Build powerful system prompt — language lock at the very top (primacy)
     const systemPrompt = `${languageDirective}
 
 ---
 
-**TODAY IS: ${todayStr}**  (current month: **${monthStr}**)
-
-Use this as the authoritative date for any "this month", "today", "next week", "upcoming birthday" reasoning.
+${buildDatePromptBlock(klNow)}
 
 ---
 
@@ -512,9 +511,11 @@ If any box is unchecked → rewrite before responding.`;
         });
       }
       
+      // Prefix every user message with the authoritative date stamp so the
+      // model cannot "forget" today even deep into a long conversation.
       chatMessages.push({
         role: "user",
-        content: goal,
+        content: `[System clock: ${todayIso} ${timeStr} KL, ${dayOfWeek}]\n\n${goal}`,
       });
 
       const result = await aiCallWithTools({
