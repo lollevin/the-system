@@ -90,7 +90,44 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[AI Generate] Found ${customers.length} customers for AI context`);
-    
+
+    // Fetch shop profile (name, address, location) — the AI must speak as this shop
+    let shopProfile = {
+      name: "JP&Co",
+      address: "Pavilion Bukit Jalil, Kuala Lumpur",
+    };
+    try {
+      const { data: shop } = await adminSupabase
+        .from("shop_settings")
+        .select("shop_name, address")
+        .eq("id", "default")
+        .maybeSingle();
+      if (shop?.shop_name) shopProfile.name = shop.shop_name;
+      if (shop?.address) shopProfile.address = shop.address;
+    } catch {}
+
+    // Fetch menu items so AI knows what the shop actually sells
+    let menuSummary = "(no menu items configured)";
+    let menuCount = 0;
+    try {
+      const { data: menuRows } = await adminSupabase
+        .from("menu_items")
+        .select("name, category, price, is_active")
+        .limit(80);
+      if (menuRows && menuRows.length > 0) {
+        menuCount = menuRows.length;
+        const byCategory = menuRows.reduce((acc: Record<string, string[]>, m: any) => {
+          const cat = m.category || "Other";
+          if (!acc[cat]) acc[cat] = [];
+          acc[cat].push(`${m.name} (RM${Number(m.price || 0).toFixed(2)})`);
+          return acc;
+        }, {});
+        menuSummary = Object.entries(byCategory)
+          .map(([cat, items]) => `**${cat}**: ${(items as string[]).join(", ")}`)
+          .join("\n");
+      }
+    } catch {}
+
     // Use Malaysia time (KL) for "today" so date math is always correct,
     // regardless of where the server is deployed.
     const klNow = getMalaysiaNow();
@@ -325,7 +362,26 @@ ${buildDatePromptBlock(klNow)}
 
 ---
 
-You are JP&Co's Senior AI Marketing Strategist. You are a world-class F&B retention marketing expert specializing in customer lifecycle management, behavioral segmentation, and high-conversion WhatsApp campaigns for JP&Co, a trendy casual dining restaurant at Pavilion Bukit Jalil, Kuala Lumpur, Malaysia (burgers, cakes, artisan coffee).
+# YOUR SHOP (Speak as an insider, NEVER as a generic chatbot)
+- **Shop name:** ${shopProfile.name}
+- **Location:** ${shopProfile.address}
+- **Menu items configured:** ${menuCount}
+- **Total customers in CRM:** ${customers.length}
+- **Revenue this month:** RM ${revenueThisMonth.toFixed(0)} (MoM ${revenueTrend}%)
+- **Dormant customers:** ${segments.dormant} | **VIPs:** ${segments.vip} | **Birthdays this month:** ${birthdayCustomers.length}
+
+## ANTI-GENERIC RULE (CRITICAL — violating this makes you USELESS)
+When the admin asks "what do you know about my shop / business / store / 我的店":
+1. ❌ DO NOT reply "I have access to your business data" — that is useless boilerplate.
+2. ✅ INSTEAD: Immediately list 5-8 CONCRETE facts using the real numbers below, e.g.:
+   > "You run **${shopProfile.name}** at ${shopProfile.address}.
+   > You have **${customers.length} customers**, of which **{dormant} are dormant** and **{vip} are VIPs**.
+   > Your revenue this month is **RM {revenueThisMonth}** ({trend}% vs last month).
+   > Top spender: **{topName}** at RM {topAmount}. You have **${menuCount} menu items** across categories like {cat1}, {cat2}.
+   > {birthdayCount} customers have birthdays this month. I can help you re-engage, build campaigns, or write WhatsApp messages — what should we do first?"
+3. Always cite at least 3 specific numbers or names from the data below. No generic "I can help you with..." lists unless the admin explicitly asks "what can you do".
+
+You are ${shopProfile.name}'s Senior AI Marketing Strategist — a world-class F&B retention marketing expert specializing in customer lifecycle management, behavioral segmentation, and high-conversion WhatsApp campaigns.
 
 ## YOUR EXPERTISE
 1. **Customer Lifecycle Marketing** — Acquisition → Activation → Retention → Reactivation → Win-back
@@ -370,6 +426,9 @@ You are JP&Co's Senior AI Marketing Strategist. You are a world-class F&B retent
 | Active Vouchers | ${voucherMetrics.active} |
 | Redeemed | ${voucherMetrics.redeemed} |
 | Redemption Rate | ${voucherMetrics.rate}% |
+
+### Menu (${menuCount} items)
+${menuSummary}
 
 ### Top 5 by Spend
 ${topBySpend.map(c => `- ${c.full_name || "Unknown"} | RM${(c.total_spent || 0).toFixed(0)} | ${c.visit_count || 0} visits`).join("\n") || "No data"}
