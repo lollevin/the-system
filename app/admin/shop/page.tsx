@@ -81,6 +81,8 @@ export default function ShopManagementPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [menuForm, setMenuForm] = useState({ name: "", description: "", price: "", category: "brunch", image_url: "", is_active: true })
+  const [selectedMenuIds, setSelectedMenuIds] = useState<Set<string>>(new Set())
+  const [batchDeleting, setBatchDeleting] = useState(false)
 
   // Staff state
   const [staffMembers, setStaffMembers] = useState<Profile[]>([])
@@ -113,6 +115,10 @@ export default function ShopManagementPage() {
   const handleBatchAdd = async () => {
     if (!batchText.trim() && !batchFile) {
       toast.error(t("admin", "shopBatchNeedInput"))
+      return
+    }
+    if (batchFile && batchFile.size > 8 * 1024 * 1024) {
+      toast.error(`File too large (${(batchFile.size / 1024 / 1024).toFixed(1)} MB). Max 8 MB — please compress the PDF or screenshot key pages instead.`)
       return
     }
     setBatchSaving(true)
@@ -232,6 +238,46 @@ export default function ShopManagementPage() {
     const { error } = await supabase.from("menu_items").delete().eq("id", item.id)
     if (!error) { setMenuItems(menuItems.filter(i => i.id !== item.id)); toast.success("Deleted") }
     else { toast.error(t("admin", "shopDeleteFailed")) }
+  }
+
+  const toggleMenuSelection = (id: string) => {
+    setSelectedMenuIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAllMenu = () => {
+    const allVisible = filteredMenuItems.map(i => i.id)
+    const allSelected = allVisible.length > 0 && allVisible.every(id => selectedMenuIds.has(id))
+    if (allSelected) {
+      setSelectedMenuIds(prev => {
+        const next = new Set(prev)
+        for (const id of allVisible) next.delete(id)
+        return next
+      })
+    } else {
+      setSelectedMenuIds(prev => {
+        const next = new Set(prev)
+        for (const id of allVisible) next.add(id)
+        return next
+      })
+    }
+  }
+
+  const batchDeleteMenuItems = async () => {
+    const ids = Array.from(selectedMenuIds)
+    if (ids.length === 0) return
+    if (!confirm(`Delete ${ids.length} menu item${ids.length > 1 ? "s" : ""}? This cannot be undone.`)) return
+    setBatchDeleting(true)
+    const { error } = await supabase.from("menu_items").delete().in("id", ids)
+    setBatchDeleting(false)
+    if (error) { toast.error(error.message || "Batch delete failed"); return }
+    setMenuItems(prev => prev.filter(i => !selectedMenuIds.has(i.id)))
+    setSelectedMenuIds(new Set())
+    toast.success(`Deleted ${ids.length} item${ids.length > 1 ? "s" : ""}`)
   }
 
   // Staff functions
@@ -425,6 +471,38 @@ export default function ShopManagementPage() {
                   </Select>
                 </div>
 
+                {/* Bulk action bar */}
+                {filteredMenuItems.length > 0 && (
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <Checkbox
+                        checked={
+                          filteredMenuItems.length > 0 &&
+                          filteredMenuItems.every(i => selectedMenuIds.has(i.id))
+                        }
+                        onCheckedChange={toggleSelectAllMenu}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {selectedMenuIds.size > 0
+                          ? `${selectedMenuIds.size} selected`
+                          : "Select all"}
+                      </span>
+                    </label>
+                    {selectedMenuIds.size > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={batchDeleteMenuItems}
+                        disabled={batchDeleting}
+                        className="gap-2 border-red-500/30 text-red-500 hover:bg-red-500/10"
+                      >
+                        {batchDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                        Delete {selectedMenuIds.size}
+                      </Button>
+                    )}
+                  </div>
+                )}
+
                 {/* Menu Items List */}
                 {menuLoading ? (
                   <div className="flex items-center justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#8b6f47]" /></div>
@@ -439,8 +517,13 @@ export default function ShopManagementPage() {
                         animate={{ opacity: 1, y: 0 }} 
                         transition={{ delay: i * 0.02 }}
                       >
-                        <Card className={`bg-white dark:bg-zinc-800 border-[#8b6f47]/10 hover:border-[#8b6f47]/30 transition-all ${!item.is_active ? "opacity-50" : ""}`}>
+                        <Card className={`bg-white dark:bg-zinc-800 border-[#8b6f47]/10 hover:border-[#8b6f47]/30 transition-all ${!item.is_active ? "opacity-50" : ""} ${selectedMenuIds.has(item.id) ? "ring-2 ring-[#8b6f47]/40" : ""}`}>
                           <CardContent className="p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
+                            <Checkbox
+                              checked={selectedMenuIds.has(item.id)}
+                              onCheckedChange={() => toggleMenuSelection(item.id)}
+                              className="shrink-0"
+                            />
                             {/* Food Image */}
                             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-[#f5f0e8] flex-shrink-0 border border-[#8b6f47]/10">
                               {item.image_url ? (
