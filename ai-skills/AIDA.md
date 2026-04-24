@@ -3,102 +3,120 @@ skill: AIDA
 category: marketing-framework
 priority: 10
 triggers:
+  - write message
   - write a message
-  - draft campaign
-  - craft whatsapp
-  - marketing copy
-  - reach out to
-  - win back
-  - re-engage
-  - birthday message
+  - campaign
+  - marketing message
+  - whatsapp message
+  - send message
+  - voucher
   - promotion
-  - voucher campaign
+  - copywriting
+  - draft
+  - 营销
+  - 文案
+  - 消息
+  - 优惠
 ---
 
-# AIDA — The Master Copywriting Framework
+# SKILL: AIDA — Marketing Copywriting Framework
+**Version:** 1.1 | **Status:** ✅ Active | **Language:** ZH / EN / MY / TH
 
-You MUST structure every marketing message (WhatsApp, push notification, voucher copy, campaign headline) using AIDA. This is not optional for marketing output.
+---
 
-## The 4 Stages
+## 🎯 Purpose
+Generate persuasive WhatsApp / push notification marketing messages for F&B customers using the AIDA framework. All copy must feel personal, human, and brand-safe.
 
-### 1. Attention (第一句话必须抓住注意力)
-Goal: Stop the scroll / the thumb in 2 seconds.
+---
 
-Tactics (pick ONE per message):
-- **Personal name + surprise emoji** — "Hey LevinL! 🎂" (birthday), "Maco! Long time no see 👋" (win-back)
-- **Pattern interrupt** — "We noticed something…", "Quick question, Yeoh:"
-- **Loss trigger** — "Your 120 points expire in 3 days ⏰"
-- **Social proof** — "You're 1 of our top 20 customers this month 💎"
-- **Question hook** — "When's the last time you treated yourself? 🤔"
+## 📐 Framework: AIDA
 
-❌ NEVER: "Hello customer", "Dear valued member", "Good day"
+| Stage | Goal | Word Budget | Trigger Words (avoid spam) |
+|-------|------|-------------|---------------------------|
+| **A**ttention | Stop the scroll | 10–20 words | Curiosity, surprise, name |
+| **I**nterest | Build relevance | 15–25 words | Benefit, context, timing |
+| **D**esire | Create want | 15–25 words | Emotion, social proof, value |
+| **A**ction | One clear CTA | 10–15 words | Soft urgency, easy next step |
 
-### 2. Interest (第二段挑起兴趣)
-Goal: Build relevance using their OWN data. Show them you know them.
+**Total target: 60–120 words per message.**
 
-Required elements:
-- Reference 1 specific fact from their profile (last visit, favorite item, points balance, birthday month, etc.)
-- Connect the offer to their life (not your shop)
+---
 
-Examples:
-- "It's been 42 days since your last coffee — your usual spot is still warm 🤎"
-- "You have 230 points sitting in your account, enough for RM23 off your next order"
-- "March is your birthday month, and we never forget our regulars"
+## 🔧 Input Variables Required
+Before generating, AI must have:
+- `customer_name` — first name only
+- `segment` — VIP / dormant / birthday / new / regular
+- `last_item` or `favorite_item` — from get_customer_details
+- `voucher_code` (if applicable) — from create_voucher
+- `shop_name` — from shop_settings
+- `campaign_type` — winback / birthday / upsell / promo / welcome
 
-### 3. Desire (第三段引发欲望)
-Goal: Make them TASTE / FEEL / IMAGINE the offer.
+---
 
-Tactics:
-- **Sensory language** — "freshly pulled espresso", "crispy-edge brownies", "buttery brioche still warm from the oven"
-- **Exclusivity** — "Just for members", "Not on our public menu", "This is your code, no one else has it"
-- **Stacked value** — "RM15 off + free upgrade + a surprise dessert"
-- **Deadline visualization** — "By Sunday night" > "Limited time" (specific beats vague)
+## ✍️ Generation Rules
 
-Required: state the offer in ≤1 sentence. Use RM amount or % clearly.
+### ✅ MUST DO
+- Use customer's **first name** in opening line
+- Reference **real data** (last visit, favorite item, points balance)
+- Include **one soft CTA** — never two
+- End with shop name or warm sign-off
+- Use RM for all prices
+- Match language to customer preference (default: 简中)
 
-### 4. Action (最后一句必须是行动指令)
-Goal: Remove every decision from them. Tell them exactly what to do.
+### ❌ NEVER DO
+- No "限时抢购！！！" or ALL CAPS spam
+- No fake scarcity ("Only 3 left!")
+- No fabricated urgency ("Expires in 1 hour!" unless real)
+- No generic openers ("Dear valued customer")
+- No more than 1 emoji per line
 
-Must include:
-- **One clear CTA verb** — "Claim", "Tap here", "Reply YES", "Visit us tonight"
-- **One PWA link** — points / menu / voucher (use the correct smart link)
-- **Urgency or reward amplifier** — "within 48h", "first 20 only", "today only RM10 off"
+---
 
-Example CTA lines:
-- "👉 Claim your voucher: https://jpandco.cloud/pwa?view=vouchers&code=BIRTHDAY10"
-- "Reply '我要' and I'll reserve it for you ✨"
-- "Tap to see what's new: https://jpandco.cloud/pwa?view=menu"
+## 📝 Templates by Segment
 
-## Quality Rules (zero exceptions)
+### 🔁 Winback (Dormant >30 days)
+```
+[Name]，好久不见！☕
+距离你上次来 [shop] 已经 [X] 天了。
+上次你最爱的 [item]，我们还在等你回来。
+这次带了个小礼物给你：[voucher] 🎁
+随时来，我们在。
+— [Shop Name]
+```
 
-- **Total length**: 60-120 words (WhatsApp-optimal). Never >160 words.
-- **Emoji budget**: 3-5 total, placed at emotional peaks (name, offer, CTA). Never every line.
-- **Line breaks**: After each AIDA stage → one blank line for breathing room on mobile.
-- **Language mirror**: If admin data shows Chinese/Malay name or admin asks in Chinese, write in that language end-to-end.
-- **Brand tone**: Warm neighbor, not corporate. Use "我们" / "we" — not "the store" / "management".
-- **No fake scarcity**: Don't say "only 3 left!" unless it's literally true.
-- **No ALL CAPS**: except brand name or a single emphasis word.
+### 🎂 Birthday
+```
+[Name]，生日快乐！🎂
+特别为你准备了一份专属惊喜：
+[voucher_description]，本月内随时可用。
+期待在你的特别日子见到你！
+— [Shop Name] 全体
+```
 
-## Silent Self-Check Before Sending
+### 👑 VIP Appreciation
+```
+[Name]，谢谢你一直以来的支持 🙏
+你已经是我们最重要的顾客之一。
+作为感谢，这是你的专属优惠：[voucher]
+下次来，记得告诉我们你想要什么 😊
+— [Shop Name]
+```
 
-Before emitting any marketing message, verify silently:
-- [ ] Line 1 has a pattern interrupt or personal hook → passes Attention
-- [ ] Lines 2-3 reference their data → passes Interest
-- [ ] Offer is stated concretely (RM or %) → passes Desire
-- [ ] Last line has ONE verb + ONE link + ONE urgency cue → passes Action
-- [ ] Word count 60-120
-- [ ] Emoji count 3-5
-- [ ] Written in admin's chosen language
+### 🆕 New Customer Welcome
+```
+嗨 [Name]！欢迎加入 [Shop Name] 大家庭 🌟
+很高兴第一次见到你！
+这是给新朋友的小礼物：[voucher]
+期待再次见到你 ☕
+```
 
-If ANY box is unchecked → rewrite before responding.
+---
 
-## Example (Birthday, Chinese admin, English customer)
-
-> Hi LevinL! 🎂 Happy birthday month from JP&Co!
->
-> We noticed you visit us almost every Saturday — you're officially one of our regulars. 💎 That means this is for YOU.
->
-> Your exclusive birthday treat: **RM10 off** your next order + a free slice of our signature brown butter cake. 🍰
->
-> 👉 Claim before Sunday: https://jpandco.cloud/pwa?view=vouchers&code=BDAY-LV  
-> See you this weekend ☕
+## 🚫 Brand Safety Checklist
+Before sending, verify:
+- [ ] No fabricated data used
+- [ ] Voucher code is real (from DB)
+- [ ] Customer name matches record
+- [ ] Language matches preference
+- [ ] Message is 60–120 words
+- [ ] CTA is clear and singular

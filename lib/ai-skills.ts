@@ -89,7 +89,11 @@ function loadSkills(): Skill[] {
       return cache
     }
 
-    const files = fs.readdirSync(SKILLS_DIR).filter(f => f.endsWith(".md"))
+    const files = fs
+      .readdirSync(SKILLS_DIR)
+      .filter(f => f.endsWith(".md"))
+      // INDEX.md and README.md are documentation, not skills to load into prompts.
+      .filter(f => !["INDEX.md", "README.md"].includes(f))
     for (const file of files) {
       try {
         const raw = fs.readFileSync(path.join(SKILLS_DIR, file), "utf-8")
