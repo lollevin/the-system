@@ -29,11 +29,22 @@ let intentionalDisconnect = false;
 let reconnectAttempts = 0;
 let isRestarting = false;
 let initWatchdog = null;
+let healthCheckInterval = null;
+let consecutiveHealthFailures = 0;
+let connectedSince = null;
+let lastHealthyAt = null;
 
 const QR_EXPIRY_MS = 20000;
 const MAX_RECONNECT_DELAY = 60000;
 // If we never produce a QR within this window after init, force a restart.
 const INIT_WATCHDOG_MS = 60000;
+// Health check: ping WA every 60s once connected. 3 consecutive fails = restart.
+const HEALTH_CHECK_INTERVAL_MS = 60000;
+const MAX_HEALTH_FAILURES = 3;
+// Proactive restart after this many hours of uptime to avoid Chromium memory leak.
+const MAX_UPTIME_HOURS = 20;
+// Proactive restart if RSS memory exceeds this threshold.
+const MAX_RSS_MB = 900;
 
 const SESSIONS_DIR = path.join(__dirname, '..', 'sessions');
 
@@ -139,6 +150,9 @@ function initWhatsApp() {
     qrTimestamp = null;
     reconnectAttempts = 0;
     lastError = null;
+    connectedSince = Date.now();
+    lastHealthyAt = Date.now();
+    consecutiveHealthFailures = 0;
     if (initWatchdog) {
       clearTimeout(initWatchdog);
       initWatchdog = null;
@@ -150,6 +164,8 @@ function initWhatsApp() {
     } catch (err) {
       console.error('[WA] Error getting client info:', err);
     }
+    // Start heartbeat health check to catch zombie connections.
+    startHealthCheck();
   });
 
   client.on('authenticated', () => {
@@ -202,6 +218,109 @@ function initWhatsApp() {
     lastError = err.message;
     setStatus('init_failed', 'initialize rejected');
   });
+
+  // Puppeteer page / browser crash detection — most common cause of
+  // "status says connected but messages don't send" zombie state.
+  setTimeout(() => {
+    try {
+      const browser = client?.pupBrowser;
+      if (browser && typeof browser.on === 'function') {
+        browser.on('disconnected', () => {
+          console.error('[WA] Puppeteer browser disconnected — auto-restarting');
+          lastError = 'Chromium browser crashed';
+          if (!intentionalDisconnect && !isRestarting) {
+            restart().catch((e) => console.error('[WA] Auto-restart after browser crash failed:', e.message));
+          }
+        });
+      }
+      const page = client?.pupPage;
+      if (page && typeof page.on === 'function') {
+        page.on('close', () => {
+          console.error('[WA] Puppeteer page closed unexpectedly — auto-restarting');
+          lastError = 'Chromium page closed';
+          if (!intentionalDisconnect && !isRestarting) {
+            restart().catch((e) => console.error('[WA] Auto-restart after page close failed:', e.message));
+          }
+        });
+        page.on('error', (err) => {
+          console.error('[WA] Puppeteer page error:', err.message);
+          lastError = `Page error: ${err.message}`;
+        });
+      }
+    } catch (e) {
+      console.warn('[WA] Could not attach puppeteer listeners:', e.message);
+    }
+  }, 5000);
+}
+
+/**
+ * Heartbeat health check — runs every minute once connected.
+ * Catches zombie connections where connectionStatus says 'connected'
+ * but the Chromium page / WA session is actually dead.
+ */
+function startHealthCheck() {
+  if (healthCheckInterval) clearInterval(healthCheckInterval);
+
+  healthCheckInterval = setInterval(async () => {
+    if (connectionStatus !== 'connected' || !client) return;
+    if (isRestarting || intentionalDisconnect) return;
+
+    try {
+      // 1. Uptime-based proactive restart
+      const uptimeHours = (Date.now() - (connectedSince || Date.now())) / (1000 * 60 * 60);
+      if (uptimeHours > MAX_UPTIME_HOURS) {
+        console.warn(`[WA] Proactive restart — uptime ${uptimeHours.toFixed(1)}h exceeds ${MAX_UPTIME_HOURS}h`);
+        lastError = 'Proactive restart after long uptime (prevents memory leaks)';
+        await restart();
+        return;
+      }
+
+      // 2. Memory check
+      const mem = process.memoryUsage();
+      const rssMb = mem.rss / (1024 * 1024);
+      if (rssMb > MAX_RSS_MB) {
+        console.warn(`[WA] Proactive restart — RSS ${rssMb.toFixed(0)}MB exceeds ${MAX_RSS_MB}MB`);
+        lastError = `Proactive restart due to high memory (${rssMb.toFixed(0)}MB)`;
+        await restart();
+        return;
+      }
+
+      // 3. Live ping — call getState(). This is cheap and confirms the WA
+      //    page is still responsive. If it fails 3x in a row, restart.
+      const state = await Promise.race([
+        client.getState(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('getState timeout')), 15000)),
+      ]);
+
+      if (state === 'CONNECTED') {
+        consecutiveHealthFailures = 0;
+        lastHealthyAt = Date.now();
+      } else {
+        consecutiveHealthFailures++;
+        console.warn(`[WA] Health check unhealthy state: ${state} (fail ${consecutiveHealthFailures}/${MAX_HEALTH_FAILURES})`);
+        if (consecutiveHealthFailures >= MAX_HEALTH_FAILURES) {
+          lastError = `Zombie connection detected (state=${state}) — auto-restart`;
+          consecutiveHealthFailures = 0;
+          await restart();
+        }
+      }
+    } catch (err) {
+      consecutiveHealthFailures++;
+      console.warn(`[WA] Health check error: ${err.message} (fail ${consecutiveHealthFailures}/${MAX_HEALTH_FAILURES})`);
+      if (consecutiveHealthFailures >= MAX_HEALTH_FAILURES) {
+        lastError = `Health check failed ${MAX_HEALTH_FAILURES}× — auto-restart (${err.message})`;
+        consecutiveHealthFailures = 0;
+        try { await restart(); } catch (e) { console.error('[WA] Auto-restart failed:', e.message); }
+      }
+    }
+  }, HEALTH_CHECK_INTERVAL_MS);
+}
+
+function stopHealthCheck() {
+  if (healthCheckInterval) {
+    clearInterval(healthCheckInterval);
+    healthCheckInterval = null;
+  }
 }
 
 /**
@@ -249,12 +368,17 @@ async function getQRCode() {
  * Get connection status
  */
 async function getStatus() {
+  const mem = process.memoryUsage();
   return {
     status: connectionStatus,
     connected: connectionStatus === 'connected',
     phone: connectedPhone,
     error: lastError,
     stuckFor: Date.now() - lastStatusChangeAt,
+    uptimeMs: connectedSince ? Date.now() - connectedSince : null,
+    lastHealthyAt,
+    consecutiveHealthFailures,
+    memoryRssMb: Math.round(mem.rss / (1024 * 1024)),
     timestamp: new Date().toISOString(),
   };
 }
@@ -271,6 +395,7 @@ async function restart() {
   console.log('[WA] Restarting client...');
 
   try {
+    stopHealthCheck();
     if (initWatchdog) {
       clearTimeout(initWatchdog);
       initWatchdog = null;
@@ -332,6 +457,32 @@ function formatPhone(phone) {
 async function sendMessage(phone, message, options = {}) {
   if (connectionStatus !== 'connected') {
     throw new Error('WhatsApp is not connected. Please scan QR code first.');
+  }
+
+  // Pre-flight: verify the connection is actually alive (not zombie).
+  // This catches the "status says connected but Chromium is dead" case that
+  // caused silent failures after 2-3 days of uptime.
+  try {
+    const state = await Promise.race([
+      client.getState(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('getState timeout')), 10000)),
+    ]);
+    if (state !== 'CONNECTED') {
+      lastError = `Zombie connection detected before send (state=${state})`;
+      setStatus('disconnected', 'pre-send health check failed');
+      // Fire a background restart so next send will work.
+      if (!isRestarting) {
+        restart().catch((e) => console.error('[WA] Pre-send restart failed:', e.message));
+      }
+      throw new Error(`WhatsApp client is not in CONNECTED state (${state}). Auto-restart started — please retry in 30-60s.`);
+    }
+  } catch (healthErr) {
+    if (healthErr.message.includes('not in CONNECTED state')) throw healthErr;
+    lastError = `Pre-send health check failed: ${healthErr.message}`;
+    if (!isRestarting) {
+      restart().catch((e) => console.error('[WA] Pre-send restart failed:', e.message));
+    }
+    throw new Error(`WhatsApp session unresponsive — auto-restart started, please retry in 30-60s. (${healthErr.message})`);
   }
 
   const formattedPhone = formatPhone(phone);
@@ -497,6 +648,7 @@ async function disconnect() {
     return;
   }
 
+  stopHealthCheck();
   intentionalDisconnect = true;
 
   try {
