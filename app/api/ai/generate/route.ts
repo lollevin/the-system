@@ -6,6 +6,7 @@ import { getVoucherLink, getPointsLink, getMenuLink } from "@/lib/pwa-links";
 import { aiCallWithTools } from "@/lib/ai-tools";
 import { buildLanguageDirective, resolveLocaleFromRequest } from "@/lib/i18n/language-directive";
 import { getMalaysiaNow, buildDatePromptBlock } from "@/lib/malaysia-time";
+import { getRelevantSkills } from "@/lib/ai-skills";
 
 // Allow up to 60 seconds for AI generation (matches Nginx default proxy_read_timeout)
 export const maxDuration = 120;
@@ -560,10 +561,17 @@ You have REAL control of the system. When the admin agrees to an action, EXECUTE
 
 ${languageDirective}
 
+---
+
+${getRelevantSkills(goal, "marketing-framework")}
+
+---
+
 Silent pre-send checklist (do not emit this list):
   □ Is every heading, bullet, JSON string and example in ${localeInfo.label}?
   □ Did I avoid mentioning model names / providers?
   □ Did I include at least one specific customer record by name?
+  □ For marketing messages: did I follow AIDA (Attention → Interest → Desire → Action)?
 If any box is unchecked → rewrite before responding.`;
 
 

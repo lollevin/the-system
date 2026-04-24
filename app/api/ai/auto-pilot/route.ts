@@ -8,6 +8,7 @@ import {
   resolveLocaleFromRequest,
 } from "@/lib/i18n/language-directive"
 import { getMalaysiaNow } from "@/lib/malaysia-time"
+import { getRelevantSkills } from "@/lib/ai-skills"
 
 export const maxDuration = 60
 
@@ -526,7 +527,7 @@ ${languageDirective}`
 
         const aiResult = await callAI({
           messages: [
-            { role: "system", content: `${languageDirective}\n\nCurrent date: ${getMalaysiaNow().long} (${getMalaysiaNow().iso}) — Asia/Kuala_Lumpur. Use this as the authoritative "today".\n\nYou are an expert F&B marketing strategist. Respond only with valid JSON. All user-facing string values MUST be in ${userLocale.label} (${userLocale.tag}).` },
+            { role: "system", content: `${languageDirective}\n\nCurrent date: ${getMalaysiaNow().long} (${getMalaysiaNow().iso}) — Asia/Kuala_Lumpur. Use this as the authoritative "today".\n\nYou are an expert F&B marketing strategist. Respond only with valid JSON. All user-facing string values MUST be in ${userLocale.label} (${userLocale.tag}).\n\n${getRelevantSkills("write a marketing message campaign", "marketing-framework")}` },
             { role: "user", content: aiPrompt },
           ],
           temperature: 0.7,
