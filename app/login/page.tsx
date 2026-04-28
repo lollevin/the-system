@@ -906,7 +906,6 @@ function RegisterForm() {
   const [agreed, setAgreed] = useState(false)
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
-  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [birthday, setBirthday] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -949,8 +948,8 @@ function RegisterForm() {
     const formattedPhone = formatPhoneWithCountryCode(phone)
     const cleanPhone = phone.replace(/\D/g, '')
     
-    // If no email provided, use phone as identifier with valid email format
-    const loginEmail = email || `user${cleanPhone}@jpco-member.com`
+    // Phone-only registration: always use generated phone-based email as auth identifier
+    const loginEmail = `user${cleanPhone}@jpco-member.com`
 
     setIsLoading(true)
 
@@ -976,12 +975,8 @@ function RegisterForm() {
           phone: formattedPhone, // Store with country code like +60123456789
         }
         
-        // Only set email if user provided a real one
-        if (email && email.trim()) {
-          profileUpdate.email = email.trim()
-        } else {
-          profileUpdate.email = null // Keep email empty if not provided
-        }
+        // Phone-only signup — no email captured at registration
+        profileUpdate.email = null
 
         // Birthday is optional. If provided at registration, it counts as the first edit.
         if (birthday && birthday.trim()) {
@@ -1121,14 +1116,6 @@ function RegisterForm() {
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           required
-        />
-
-        <AnimatedInput
-          icon={Mail}
-          type="email"
-          placeholder={t("login", "emailOptional")}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
         />
 
         <div className="space-y-1">
