@@ -3,11 +3,90 @@
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Mail, Phone, User, Loader2, Lock, ArrowLeft, CheckCircle } from "lucide-react"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Mail, Phone, User, Loader2, Lock, ArrowLeft, CheckCircle, Eye, EyeOff, Calendar } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { cn } from "@/lib/utils"
+
+/**
+ * AnimatedInput — chocolate-themed input with focus glow + scale.
+ * Built on top of shadcn <Input> so all existing form state/refs keep working.
+ */
+function AnimatedInput({
+  icon: Icon,
+  label,
+  type = "text",
+  rightHint,
+  className,
+  ...props
+}: {
+  icon?: React.ComponentType<{ size?: number; className?: string }>
+  label?: string
+  type?: string
+  rightHint?: React.ReactNode
+  className?: string
+} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">) {
+  const [focused, setFocused] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const isPassword = type === "password"
+  const realType = isPassword ? (showPassword ? "text" : "password") : type
+
+  return (
+    <div className={cn("space-y-1.5 w-full", className)}>
+      {label && (
+        <label className="text-xs font-medium text-muted-foreground ml-0.5">{label}</label>
+      )}
+      <motion.div
+        animate={{ scale: focused ? 1.01 : 1 }}
+        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+        className={cn(
+          "relative flex items-center bg-secondary/60 border rounded-xl px-3.5 h-12 transition-all duration-300",
+          focused
+            ? "border-primary shadow-[0_0_0_3px_rgba(161,119,85,0.15)]"
+            : "border-border",
+        )}
+      >
+        {Icon && (
+          <Icon
+            size={16}
+            className={cn(
+              "mr-2.5 transition-colors flex-shrink-0",
+              focused ? "text-primary" : "text-muted-foreground",
+            )}
+          />
+        )}
+        <input
+          {...props}
+          type={realType}
+          onFocus={(e) => {
+            setFocused(true)
+            props.onFocus?.(e)
+          }}
+          onBlur={(e) => {
+            setFocused(false)
+            props.onBlur?.(e)
+          }}
+          className="bg-transparent border-none outline-none w-full text-foreground placeholder:text-muted-foreground/60 text-sm"
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            tabIndex={-1}
+            className="text-muted-foreground hover:text-primary transition-colors ml-1 flex-shrink-0"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        )}
+        {rightHint && !isPassword && (
+          <div className="ml-1 flex-shrink-0">{rightHint}</div>
+        )}
+      </motion.div>
+    </div>
+  )
+}
 import {
   Dialog,
   DialogContent,
@@ -123,35 +202,55 @@ export default function AuthPage() {
               </p>
             </div>
 
-            {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="w-full grid grid-cols-2 mb-6 bg-secondary/50 p-1 rounded-xl">
-                <TabsTrigger 
-                  value="login"
-                  className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200"
+            {/* Animated Tab Switcher — chocolate theme */}
+            <div className="relative flex bg-secondary/50 p-1 rounded-xl mb-6">
+              {(["login", "register"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setActiveTab(m)}
+                  className={cn(
+                    "relative flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors duration-300 z-10",
+                    activeTab === m
+                      ? "text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                 >
-                  {t("login", "signIn")}
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="register"
-                  className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200"
-                >
-                  {t("login", "register")}
-                </TabsTrigger>
-              </TabsList>
+                  {activeTab === m && (
+                    <motion.div
+                      layoutId="authActiveTab"
+                      className="absolute inset-0 bg-primary rounded-lg shadow-md -z-10"
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+                    />
+                  )}
+                  {m === "login" ? t("login", "signIn") : t("login", "register")}
+                </button>
+              ))}
+            </div>
 
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={activeTab}
-                  initial={{ opacity: 0, x: activeTab === "login" ? -10 : 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: activeTab === "login" ? 10 : -10 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {activeTab === "login" ? <LoginForm /> : <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>}><RegisterForm /></Suspense>}
-                </motion.div>
-              </AnimatePresence>
-            </Tabs>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: activeTab === "login" ? -16 : 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: activeTab === "login" ? 16 : -16 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+              >
+                {activeTab === "login" ? (
+                  <LoginForm />
+                ) : (
+                  <Suspense
+                    fallback={
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      </div>
+                    }
+                  >
+                    <RegisterForm />
+                  </Suspense>
+                )}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
 
@@ -345,7 +444,7 @@ function LoginForm() {
       return
     }
 
-    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+    if (newPassword.length < 6) {
       toast.error(t("login", "passwordTooWeak"))
       return
     }
@@ -551,36 +650,21 @@ function LoginForm() {
       {/* Input Fields */}
       <div className="space-y-4">
         <div className="space-y-3">
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              {contactMethod === "phone" ? (
-                <Phone className="size-4" />
-              ) : (
-                <Mail className="size-4" />
-              )}
-            </div>
-            <Input
-              type={contactMethod === "phone" ? "tel" : "email"}
-              placeholder={contactMethod === "phone" ? t("login", "phoneNumber") : t("login", "emailOptional")}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="pl-10 h-12 bg-secondary border-border focus:border-primary transition-all"
-            />
-          </div>
-          
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              <Lock className="size-4" />
-            </div>
-            <Input
-              type="password"
-              placeholder={t("login", "password")}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="pl-10 h-12 bg-secondary border-border focus:border-primary transition-all"
-              required
-            />
-          </div>
+          <AnimatedInput
+            icon={contactMethod === "phone" ? Phone : Mail}
+            type={contactMethod === "phone" ? "tel" : "email"}
+            placeholder={contactMethod === "phone" ? t("login", "phoneNumber") : t("login", "emailOptional")}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <AnimatedInput
+            icon={Lock}
+            type="password"
+            placeholder={t("login", "password")}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
         </div>
 
         {/* Sign In Button */}
@@ -856,7 +940,7 @@ function RegisterForm() {
       return
     }
 
-    if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+    if (password.length < 6) {
       toast.error(t("login", "passwordTooWeak"))
       return
     }
@@ -1021,115 +1105,63 @@ function RegisterForm() {
 
       {/* Form Fields */}
       <div className="space-y-4">
-        {/* Full Name */}
-        <div className="relative">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-            <User className="size-4" />
-          </div>
-          <Input
-            type="text"
-            placeholder={`${t("login", "fullName")} *`}
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="pl-10 h-12 bg-secondary border-border focus:border-primary transition-all"
-            required
-          />
-        </div>
+        <AnimatedInput
+          icon={User}
+          type="text"
+          placeholder={`${t("login", "fullName")} *`}
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          required
+        />
 
-        {/* Phone Number */}
-        <div className="relative">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-            <Phone className="size-4" />
-          </div>
-          <Input
-            type="tel"
-            placeholder={`${t("login", "phoneNumber")} *`}
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="pl-10 h-12 bg-secondary border-border focus:border-primary transition-all"
-            required
-          />
-        </div>
+        <AnimatedInput
+          icon={Phone}
+          type="tel"
+          placeholder={`${t("login", "phoneNumber")} *`}
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          required
+        />
 
-        {/* Email */}
-        <div className="relative">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-            <Mail className="size-4" />
-          </div>
-          <Input
-            type="email"
-            placeholder={t("login", "emailOptional")}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="pl-10 h-12 bg-secondary border-border focus:border-primary transition-all"
-          />
-        </div>
+        <AnimatedInput
+          icon={Mail}
+          type="email"
+          placeholder={t("login", "emailOptional")}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
 
-        {/* Birthday (Optional) */}
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground pl-1">
-            🎂 {t("login", "birthdayOptional")}
-          </label>
-          <Input
+          <AnimatedInput
+            icon={Calendar}
             type="date"
+            label={`🎂 ${t("login", "birthdayOptional")}`}
             value={birthday}
             onChange={(e) => setBirthday(e.target.value)}
             max={new Date().toISOString().split("T")[0]}
-            className="h-12 bg-secondary border-border focus:border-primary transition-all"
           />
           <p className="text-[11px] text-muted-foreground/70 pl-1">
             {t("login", "birthdayEditHint")}
           </p>
         </div>
 
-        {/* Password */}
-        <div className="space-y-2">
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              <Lock className="size-4" />
-            </div>
-            <Input
-              type="password"
-              placeholder={t("login", "passwordMin")}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="pl-10 h-12 bg-secondary border-border focus:border-primary transition-all"
-              required
-              minLength={8}
-            />
-          </div>
-          {password.length > 0 && (() => {
-            const hasUpper = /[A-Z]/.test(password)
-            const hasLower = /[a-z]/.test(password)
-            const hasNumber = /[0-9]/.test(password)
-            const hasSpecial = /[^A-Za-z0-9]/.test(password)
-            const score = (password.length >= 8 ? 1 : 0) + (hasUpper ? 1 : 0) + (hasLower ? 1 : 0) + (hasNumber ? 1 : 0) + (hasSpecial ? 1 : 0)
-            const strength = score <= 2 ? "weak" : score <= 3 ? "medium" : "strong"
-            const color = strength === "weak" ? "bg-red-500" : strength === "medium" ? "bg-yellow-500" : "bg-green-500"
-            const width = strength === "weak" ? "w-1/3" : strength === "medium" ? "w-2/3" : "w-full"
-            const label = t("login", strength === "weak" ? "passwordWeak" : strength === "medium" ? "passwordMedium" : "passwordStrong")
-            return (
-              <div className="space-y-1">
-                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                  <div className={`h-full ${color} ${width} rounded-full transition-all duration-300`} />
-                </div>
-                <p className="text-xs text-muted-foreground">{t("login", "passwordStrength")}: {label}</p>
-              </div>
-            )
-          })()}
-        </div>
+        <AnimatedInput
+          icon={Lock}
+          type="password"
+          placeholder={t("login", "passwordMin")}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          minLength={6}
+        />
 
-        {/* Referral Code (optional) */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">{t("login", "referralCode")}</label>
-          <Input
-            placeholder={t("login", "referralCodePlaceholder")}
-            value={referralCode}
-            onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-            className="h-12 bg-secondary/50 border-border focus:border-primary"
-            maxLength={10}
-          />
-        </div>
+        <AnimatedInput
+          label={t("login", "referralCode")}
+          placeholder={t("login", "referralCodePlaceholder")}
+          value={referralCode}
+          onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+          maxLength={10}
+        />
 
         {/* Terms Checkbox */}
         <div className="flex items-start gap-3">
