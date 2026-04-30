@@ -709,6 +709,7 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
               setProfile((prev) => ({ ...prev, points_balance: newBalance }))
               fetchData()
             }}
+            onVouchersChanged={fetchData}
           />
         </div>
         <BottomTabBar activeTab="rewards" onTabChange={(tab) => setActiveView(tab)} />

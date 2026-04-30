@@ -54,7 +54,7 @@ export function WhatsAppSender() {
         .not("phone", "is", null)
         .order("full_name")
 
-      if (data) setCustomers(data)
+      if (data) setCustomers(data as Profile[])
     } catch (err) {
       console.error("Load error:", err)
     } finally {

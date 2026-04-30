@@ -125,3 +125,34 @@ export interface UserVoucher {
   expires_at: string;
   created_at: string;
 }
+
+export interface SurveyQuestion {
+  id: string;
+  prompt: string;
+  options: string[];
+}
+
+export interface SurveyConfig {
+  enabled: boolean;
+  title: string;
+  description: string;
+  voucher_id: string;
+  survey_version: string;
+  questions: SurveyQuestion[];
+}
+
+export interface SurveyAnswer {
+  question_id: string;
+  prompt: string;
+  answer: string;
+}
+
+export interface SurveyResponse {
+  id: string;
+  user_id: string;
+  voucher_id: string | null;
+  survey_version: string;
+  answers: SurveyAnswer[];
+  submitted_at: string;
+  created_at: string;
+}

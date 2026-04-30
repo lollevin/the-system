@@ -1,11 +1,13 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Calendar, UserPlus, Heart, Cake, Flame, Ticket, ChevronRight, Crown, Award, Star, Gem, Loader2, Info } from "lucide-react"
+import { Calendar, UserPlus, Heart, Cake, Flame, Ticket, ChevronRight, Crown, Award, Star, Gem, Loader2, Info, ClipboardList, CheckCircle } from "lucide-react"
 import { useLanguage } from "@/lib/i18n"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import type { Profile } from "@/lib/supabase/types"
+import type { Profile, SurveyConfig } from "@/lib/supabase/types"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
 interface RewardsHubProps {
   profile: Profile
@@ -15,6 +17,7 @@ interface RewardsHubProps {
   onShowReferral: () => void
   onEditProfile?: () => void
   onPointsEarned?: (newBalance: number) => void
+  onVouchersChanged?: () => void
 }
 
 interface RewardsConfig {
@@ -31,6 +34,15 @@ const DEFAULT_REWARDS: RewardsConfig = {
   like_share: 15,
   birthday_gift: 100,
   streak_bonus: 50,
+}
+
+const DEFAULT_SURVEY: SurveyConfig = {
+  enabled: false,
+  title: "Tell us what you like",
+  description: "Complete this quick survey and receive a voucher.",
+  voucher_id: "",
+  survey_version: "default",
+  questions: [],
 }
 
 const TIERS = [
@@ -51,6 +63,7 @@ export function RewardsHub({
   onShowReferral,
   onEditProfile,
   onPointsEarned,
+  onVouchersChanged,
 }: RewardsHubProps) {
   const { t } = useLanguage()
   const supabase = createClient()
@@ -59,20 +72,46 @@ export function RewardsHub({
   const [isClaimingLikeShare, setIsClaimingLikeShare] = useState(false)
   const [isClaimingCheckIn, setIsClaimingCheckIn] = useState(false)
   const [isClaimingBirthday, setIsClaimingBirthday] = useState(false)
+  const [surveyConfig, setSurveyConfig] = useState<SurveyConfig>(DEFAULT_SURVEY)
+  const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string>>({})
+  const [isSurveyOpen, setIsSurveyOpen] = useState(false)
+  const [isSubmittingSurvey, setIsSubmittingSurvey] = useState(false)
+  const [hasCompletedSurvey, setHasCompletedSurvey] = useState(false)
 
-  // Fetch rewards config set by admin
+  // Fetch rewards/survey config set by admin
   useEffect(() => {
     ;(async () => {
       const { data } = await supabase
         .from("global_settings")
-        .select("value")
-        .eq("key", "rewards_config")
-        .maybeSingle()
-      if (data?.value) {
-        setConfig({ ...DEFAULT_REWARDS, ...data.value })
+        .select("key, value")
+        .in("key", ["rewards_config", "survey_config"])
+      if (data) {
+        const rewards = data.find((item: any) => item.key === "rewards_config")
+        const survey = data.find((item: any) => item.key === "survey_config")
+        if (rewards?.value) {
+          setConfig({ ...DEFAULT_REWARDS, ...rewards.value })
+        }
+        if (survey?.value) {
+          const nextSurvey = {
+            ...DEFAULT_SURVEY,
+            ...survey.value,
+            questions: Array.isArray(survey.value.questions) ? survey.value.questions : [],
+          } as SurveyConfig
+          setSurveyConfig(nextSurvey)
+
+          if (nextSurvey.enabled && nextSurvey.survey_version) {
+            const { data: response } = await supabase
+              .from("survey_responses")
+              .select("id")
+              .eq("user_id", profile.id)
+              .eq("survey_version", nextSurvey.survey_version)
+              .maybeSingle()
+            setHasCompletedSurvey(Boolean(response))
+          }
+        }
       }
     })()
-  }, [])
+  }, [profile.id])
 
   const points = profile.points_balance || 0
   const totalSpent = profile.total_spent || 0
@@ -186,6 +225,50 @@ export function RewardsHub({
     claimTask("birthday_gift", setIsClaimingBirthday, t("customer", "birthdayGift") || "Happy Birthday!")
   }
 
+  const surveyQuestions = useMemo(
+    () =>
+      (surveyConfig.questions || []).filter(
+        (q) => q.id && q.prompt && Array.isArray(q.options) && q.options.length >= 2
+      ),
+    [surveyConfig.questions]
+  )
+
+  const canShowSurvey = surveyConfig.enabled && surveyConfig.voucher_id && surveyQuestions.length > 0
+  const canSubmitSurvey = surveyQuestions.every((q) => surveyAnswers[q.id])
+
+  const handleSubmitSurvey = async () => {
+    if (!canSubmitSurvey || isSubmittingSurvey) return
+    setIsSubmittingSurvey(true)
+    try {
+      const res = await fetch("/api/customer/survey-submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers: surveyAnswers }),
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (res.ok && data.success) {
+        setHasCompletedSurvey(true)
+        setIsSurveyOpen(false)
+        toast.success("Voucher unlocked!", {
+          description: data.voucher?.code ? `Code: ${data.voucher.code}` : "Check My Vouchers.",
+          action: { label: "View", onClick: onShowVouchers },
+        })
+        onVouchersChanged?.()
+      } else if (data.error === "already_submitted") {
+        setHasCompletedSurvey(true)
+        setIsSurveyOpen(false)
+        toast.info(data.message || "You already completed this survey.")
+      } else {
+        toast.error(data.message || data.error || "Failed to submit survey")
+      }
+    } catch {
+      toast.error("Network error. Please try again.")
+    } finally {
+      setIsSubmittingSurvey(false)
+    }
+  }
+
   const tasks = [
     {
       id: "checkin",
@@ -221,6 +304,25 @@ export function RewardsHub({
       onClick: handleLikeShare,
       loading: isClaimingLikeShare,
       disabled: config.like_share <= 0,
+    },
+    {
+      id: "survey",
+      icon: hasCompletedSurvey ? CheckCircle : ClipboardList,
+      title: surveyConfig.title || "Quick Survey",
+      desc: hasCompletedSurvey
+        ? "Completed. Your voucher is in My Vouchers."
+        : surveyConfig.description || "Tell us what you like and get a voucher.",
+      reward: hasCompletedSurvey ? "Completed" : "Free voucher",
+      bg: "bg-emerald-500/10",
+      iconColor: hasCompletedSurvey ? "text-emerald-600" : "text-emerald-700",
+      onClick: () => {
+        if (hasCompletedSurvey) {
+          onShowVouchers()
+          return
+        }
+        setIsSurveyOpen(true)
+      },
+      disabled: !canShowSurvey,
     },
     {
       id: "birthday",
@@ -454,6 +556,63 @@ export function RewardsHub({
           </div>
         </div>
       )}
+
+      <Dialog open={isSurveyOpen} onOpenChange={setIsSurveyOpen}>
+        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{surveyConfig.title || "Quick Survey"}</DialogTitle>
+            <DialogDescription>
+              {surveyConfig.description || "Answer all questions to unlock your voucher."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {surveyQuestions.map((question, questionIndex) => (
+              <div key={question.id} className="rounded-2xl border border-border bg-card p-3">
+                <p className="text-sm font-semibold text-foreground">
+                  {questionIndex + 1}. {question.prompt}
+                </p>
+                <div className="mt-3 grid gap-2">
+                  {question.options.map((option) => {
+                    const selected = surveyAnswers[question.id] === option
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() =>
+                          setSurveyAnswers((prev) => ({
+                            ...prev,
+                            [question.id]: option,
+                          }))
+                        }
+                        className={`rounded-xl border px-3 py-2 text-left text-sm transition-all ${
+                          selected
+                            ? "border-[#8b6f47] bg-[#8b6f47]/10 text-[#8b6f47]"
+                            : "border-border bg-background hover:border-[#8b6f47]/40"
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+
+            <Button
+              onClick={handleSubmitSurvey}
+              disabled={!canSubmitSurvey || isSubmittingSurvey}
+              className="w-full bg-[#8b6f47] text-white hover:bg-[#7a5f3d]"
+            >
+              {isSubmittingSurvey ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Submit & Get Voucher"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
