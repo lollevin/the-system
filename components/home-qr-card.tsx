@@ -15,23 +15,23 @@ export function HomeQRCard({ profile, userId, onClick }: HomeQRCardProps) {
   const { t } = useLanguage()
 
   return (
-    <button 
-      className="w-full rounded-2xl bg-gradient-to-r from-primary/5 via-primary/8 to-primary/5 border border-primary/10 hover:border-primary/20 transition-all duration-200 hover:shadow-md active:scale-[0.99]"
+    <button
+      className="w-full rounded-2xl bg-card border border-border/60 shadow-sm hover:shadow-md transition-all duration-200 active:scale-[0.99]"
       onClick={onClick}
     >
       <div className="p-3.5 flex items-center gap-3.5">
-        {/* QR Code */}
-        <div className="bg-white rounded-xl p-1.5 shadow-sm shrink-0">
+        {/* QR Code - amber background like screenshot */}
+        <div className="rounded-xl overflow-hidden shrink-0" style={{ background: "#f5c842", padding: "8px" }}>
           <QRCodeSVG
             value={userId}
             size={64}
             level="M"
             includeMargin={false}
-            bgColor="#ffffff"
+            bgColor="#f5c842"
             fgColor="#000000"
           />
         </div>
-        
+
         {/* Info */}
         <div className="flex-1 min-w-0 text-left">
           <div className="flex items-center gap-1.5 mb-0.5">
@@ -41,8 +41,8 @@ export function HomeQRCard({ profile, userId, onClick }: HomeQRCardProps) {
           <p className="text-[11px] text-muted-foreground mb-1.5">
             {t("customer", "showToStaffCollect")}
           </p>
-          <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
-            {profile.full_name || t("customer", "member")}
+          <span className="text-[10px] border border-primary/40 text-primary px-2.5 py-0.5 rounded-full font-semibold tracking-widest uppercase">
+            {(profile.full_name || t("customer", "member")).toUpperCase()}
           </span>
         </div>
 

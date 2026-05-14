@@ -226,7 +226,30 @@ export function TopBanner() {
     return () => clearInterval(timer)
   }, [images.length])
 
-  if (images.length === 0) return null
+  // Default JP&Co branded hero when admin hasn't uploaded any banner
+  if (images.length === 0) {
+    return (
+      <div className="relative w-full h-44 sm:h-52 overflow-hidden bg-[#ede8df]">
+        {/* Diagonal white section - bottom right */}
+        <div
+          className="absolute inset-0 bg-white"
+          style={{ clipPath: "polygon(52% 0%, 100% 0%, 100% 100%, 22% 100%)" }}
+        />
+        {/* Brand content */}
+        <div className="relative z-10 flex flex-col justify-center h-full px-8">
+          <h1
+            className="text-6xl sm:text-7xl font-light leading-none tracking-tight"
+            style={{ color: "#b5902a", fontFamily: "Georgia, 'Times New Roman', serif" }}
+          >
+            JP&amp;Co
+          </h1>
+          <p className="text-[10px] sm:text-xs tracking-[0.28em] mt-2 text-[#8a7a60] uppercase">
+            Casual Dining&nbsp;•&nbsp;Roastery
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const content = (
     <div className="relative w-full h-44 sm:h-56 md:h-64 overflow-hidden bg-gradient-to-r from-amber-50 to-orange-50 group">
@@ -239,10 +262,10 @@ export function TopBanner() {
           <Image src={img} alt={`Promo ${idx + 1}`} fill className="object-cover group-hover:scale-105 transition-transform duration-700" priority={idx === 0} />
         </div>
       ))}
-      
+
       {/* Glass Effect Overlay - Subtle gradient at bottom */}
       <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/30 via-black/10 to-transparent pointer-events-none" />
-      
+
       {/* Frosted glass strip at bottom for dots */}
       {images.length > 1 && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
@@ -255,7 +278,7 @@ export function TopBanner() {
           ))}
         </div>
       )}
-      
+
     </div>
   )
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Ticket, ChevronRight, Sparkles, Clock } from "lucide-react"
+import { Ticket, ChevronRight, Clock } from "lucide-react"
 import type { Profile } from "@/lib/supabase/types"
 import { useLanguage } from "@/lib/i18n"
 
@@ -20,15 +20,14 @@ export function ExclusiveOffers({ profile, vouchers, rewards, onShowVouchers }: 
   if (activeVouchers.length === 0) {
     return (
       <section className="flex flex-col gap-3">
-        <div 
+        <div
           onClick={onShowVouchers}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#8b6f47] via-[#9a7a4d] to-[#a07d50] p-5 cursor-pointer hover:shadow-xl transition-all duration-300 active:scale-[0.99]"
+          className="relative overflow-hidden bg-gradient-to-br from-[#8b6f47] via-[#9a7a4d] to-[#a07d50] p-5 cursor-pointer hover:shadow-xl transition-all duration-300 active:scale-[0.99]"
+          style={{ borderRadius: "20px 56px 56px 20px" }}
         >
-          <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-white/10" />
-          <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-white/5" />
           <div className="relative z-10 flex items-center gap-4">
             <div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center flex-shrink-0">
-              <Sparkles className="h-7 w-7 text-white" />
+              <Ticket className="h-7 w-7 text-white" />
             </div>
             <div className="flex-1">
               <h3 className="text-white font-bold text-base">{t("customer", "noVouchers") || "No vouchers yet"}</h3>

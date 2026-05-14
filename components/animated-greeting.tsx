@@ -54,10 +54,10 @@ export function AnimatedGreeting({ profile, vouchers = [], t }: AnimatedGreeting
           {greeting.emoji === "moon" && "🌙"}
         </span>
       </div>
-      <p 
-        className={`text-sm text-muted-foreground mt-0.5 transition-all duration-700 delay-200 ${
+      <p
+        className={`text-sm mt-0.5 transition-all duration-700 delay-200 ${
           mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-        }`}
+        } ${activeVouchers > 0 ? "text-muted-foreground" : "text-primary font-medium"}`}
       >
         {subtext}
       </p>
