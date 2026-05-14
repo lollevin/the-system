@@ -116,51 +116,52 @@ export function CheckIn({ userId, onCheckIn }: CheckInProps) {
   const todayIndex = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
 
   return (
-    <div className="bg-card rounded-2xl border border-border/50 p-4">
-      <div className="flex items-center justify-between gap-3">
+    <div className="flex flex-col gap-4">
+      {/* Check-in row — no card background, floating */}
+      <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-xl bg-secondary flex items-center justify-center">
-            <MapPin className="h-5 w-5 text-muted-foreground" />
+          <div
+            className="p-3 rounded-2xl border"
+            style={{ background: "#FDFCF7", borderColor: "rgba(154,123,79,0.2)" }}
+          >
+            <MapPin className="h-6 w-6" style={{ color: "#9A7B4F" }} />
           </div>
           <div>
-            <h3 className="font-semibold text-sm text-foreground">{t("customer", "dailyCheckIn")}</h3>
-            <p className="text-xs text-muted-foreground">
+            <h3 className="font-bold text-sm" style={{ color: "#2D2926" }}>{t("customer", "dailyCheckIn")}</h3>
+            <p className="text-xs text-gray-500">
               {isCheckedIn ? t("customer", "earnedPointsToday") : t("customer", "earn10Points")}
             </p>
           </div>
         </div>
-        
+
         <Button
           onClick={handleCheckIn}
           disabled={isCheckedIn || isLoading}
           size="sm"
-          className={`rounded-xl px-4 h-9 text-xs font-medium ${
-            isCheckedIn
-              ? "bg-green-600 hover:bg-green-600 text-white"
-              : "bg-primary hover:bg-primary/90 text-primary-foreground"
+          className={`rounded-xl px-6 py-2.5 h-auto text-sm font-bold flex items-center gap-2 transition-all active:scale-95 ${
+            isCheckedIn ? "bg-green-600 hover:bg-green-600 text-white" : "text-white"
           }`}
+          style={!isCheckedIn ? {
+            background: "#9A7B4F",
+            boxShadow: "0 10px 15px -3px rgba(154,123,79,0.3)",
+          } : {}}
         >
           {isLoading ? (
             <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
           ) : isCheckedIn ? (
-            <span className="flex items-center gap-1.5">
-              <Check className="h-3.5 w-3.5" />
-              {t("customer", "checkInDone")}
-            </span>
+            <><Check className="h-4 w-4" />{t("customer", "checkInDone")}</>
           ) : (
-            <span className="flex items-center gap-1.5">
-              ☀️ {t("customer", "checkInBtn")}
-            </span>
+            <>☀️ {t("customer", "checkInBtn")}</>
           )}
         </Button>
       </div>
 
-      {/* Streak dots */}
-      <div className="mt-3 pt-3 border-t border-border/50">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">THIS WEEK</span>
-          <span className="text-[11px] font-semibold text-primary flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
+      {/* Streak card */}
+      <div className="bg-white/50 rounded-3xl p-4 border border-gray-100">
+        <div className="flex justify-between items-center mb-4">
+          <span className="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">THIS WEEK</span>
+          <span className="text-[10px] font-bold flex items-center gap-1.5" style={{ color: "#9A7B4F" }}>
+            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
             {streak} {t("customer", "dayStreak")}
           </span>
         </div>
@@ -169,22 +170,31 @@ export function CheckIn({ userId, onCheckIn }: CheckInProps) {
             const isDone = weeklyCheckIns[index] || (index === todayIndex && isCheckedIn)
             const isToday = index === todayIndex
             return (
-              <div key={day + index} className="flex flex-col items-center gap-1">
+              <div key={day + index} className="flex flex-col items-center gap-2">
                 <div
-                  className={`h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-medium transition-all duration-300 ${
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300"
+                  style={
                     isDone
-                      ? "bg-primary text-primary-foreground shadow-sm"
+                      ? { background: "#9A7B4F", color: "white", boxShadow: "0 4px 6px -1px rgba(154,123,79,0.4)" }
                       : isToday
-                        ? "bg-primary/10 text-primary ring-2 ring-primary/30"
-                        : "bg-secondary/60"
-                  }`}
+                      ? { background: "white", border: "2px solid rgba(154,123,79,0.3)", color: "#9A7B4F", position: "relative" }
+                      : { background: "white", border: "1px solid #f3f4f6", color: "#d1d5db" }
+                  }
                 >
-                  {isDone ? <Check className="h-3.5 w-3.5" /> : null}
+                  {isDone ? <Check className="h-5 w-5" /> : day}
+                  {isToday && !isDone && (
+                    <span
+                      className="absolute -bottom-1 w-1 h-1 rounded-full"
+                      style={{ background: "#9A7B4F" }}
+                    />
+                  )}
                 </div>
-                <span className="text-[9px] text-muted-foreground/70">{day}</span>
-                {isToday && !isDone && (
-                  <span className="h-1 w-1 rounded-full bg-primary pulse-dot -mt-0.5" />
-                )}
+                <span
+                  className="text-[10px] font-bold"
+                  style={{ color: isToday && !isDone ? "#9A7B4F" : "#9ca3af" }}
+                >
+                  {day}
+                </span>
               </div>
             )
           })}

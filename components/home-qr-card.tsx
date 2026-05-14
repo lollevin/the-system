@@ -16,39 +16,47 @@ export function HomeQRCard({ profile, userId, onClick }: HomeQRCardProps) {
 
   return (
     <button
-      className="w-full rounded-2xl bg-card border border-border/60 shadow-sm hover:shadow-md transition-all duration-200 active:scale-[0.99]"
+      className="w-full p-6 flex items-center relative overflow-hidden shadow-xl transition-all duration-200 active:scale-[0.99]"
+      style={{
+        background: "radial-gradient(circle at top right, #ffffff, #f9f9f9)",
+        borderRadius: "40px 15px 40px 15px",
+        border: "1px solid rgba(154,123,79,0.1)",
+        boxShadow: "0 20px 25px -5px rgba(154,123,79,0.05)",
+      }}
       onClick={onClick}
     >
-      <div className="p-3.5 flex items-center gap-3.5">
-        {/* QR Code - amber background like screenshot */}
-        <div className="rounded-xl overflow-hidden shrink-0 bg-white shadow-sm" style={{ padding: "8px" }}>
-          <QRCodeSVG
-            value={userId}
-            size={64}
-            level="M"
-            includeMargin={false}
-            bgColor="#ffffff"
-            fgColor="#000000"
-          />
-        </div>
+      {/* Decorative circle */}
+      <div className="absolute -right-8 -top-8 w-24 h-24 rounded-full" style={{ background: "rgba(197,160,112,0.05)" }} />
 
-        {/* Info */}
-        <div className="flex-1 min-w-0 text-left">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <Scan className="w-3.5 h-3.5 text-primary" />
-            <span className="font-semibold text-foreground text-sm">{t("customer", "myMemberQR")}</span>
-          </div>
-          <p className="text-[11px] text-muted-foreground mb-1.5">
-            {t("customer", "showToStaffCollect")}
-          </p>
-          <span className="text-[10px] border border-primary/40 text-primary px-2.5 py-0.5 rounded-full font-semibold tracking-widest uppercase">
-            {(profile.full_name || t("customer", "member")).toUpperCase()}
-          </span>
-        </div>
-
-        {/* Arrow */}
-        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      {/* QR Code */}
+      <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100 shrink-0">
+        <QRCodeSVG
+          value={userId}
+          size={80}
+          level="M"
+          includeMargin={false}
+          bgColor="#ffffff"
+          fgColor="#000000"
+        />
       </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0 text-left ml-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Scan className="w-4 h-4" style={{ color: "#9A7B4F" }} />
+          <span className="font-bold text-sm" style={{ color: "#2D2926" }}>{t("customer", "myMemberQR")}</span>
+        </div>
+        <p className="text-xs text-gray-500 mb-3">{t("customer", "showToStaffCollect")}</p>
+        <span
+          className="text-[10px] px-3 py-1 rounded-full font-bold tracking-wider"
+          style={{ background: "rgba(154,123,79,0.1)", color: "#9A7B4F" }}
+        >
+          {(profile.full_name || t("customer", "member")).toUpperCase()}
+        </span>
+      </div>
+
+      {/* Arrow */}
+      <ChevronRight className="h-5 w-5 shrink-0 text-gray-300" />
     </button>
   )
 }

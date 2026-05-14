@@ -1090,16 +1090,18 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
           onAvatarClick={() => setActiveView("me")}
         />
         <TopBanner />
-        <div className="flex flex-col gap-3.5 px-4 py-3 stagger-children">
+        {/* Greeting overlaps banner with negative margin */}
+        <div className="px-6 -mt-10 relative z-10">
           <AnimatedGreeting profile={profile} vouchers={vouchers} t={t} />
-          {/* QR Code Card - Easy access for staff to scan */}
-          <HomeQRCard 
-            profile={profile} 
-            userId={user.id} 
+        </div>
+        <div className="flex flex-col gap-4 px-4 pt-6 pb-3 stagger-children">
+          <HomeQRCard
+            profile={profile}
+            userId={user.id}
             onClick={() => setActiveView("qr")}
           />
           <CheckIn userId={user.id} onCheckIn={handleCheckIn} />
-          <ExclusiveOffers 
+          <ExclusiveOffers
             profile={profile}
             vouchers={vouchers}
             rewards={rewards}

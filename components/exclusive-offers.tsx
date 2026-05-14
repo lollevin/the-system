@@ -19,21 +19,29 @@ export function ExclusiveOffers({ profile, vouchers, rewards, onShowVouchers }: 
   // No vouchers - show CTA card to earn more
   if (activeVouchers.length === 0) {
     return (
-      <section className="flex flex-col gap-3">
+      <section>
         <div
           onClick={onShowVouchers}
-          className="relative overflow-hidden bg-gradient-to-br from-[#8b6f47] via-[#9a7a4d] to-[#a07d50] p-5 cursor-pointer hover:shadow-xl transition-all duration-300 active:scale-[0.99]"
-          style={{ borderRadius: "20px 56px 56px 20px" }}
+          className="relative overflow-hidden p-8 cursor-pointer flex items-center group transition-all duration-500 active:scale-[0.99]"
+          style={{
+            background: "#9A7B4F",
+            borderRadius: "30% 70% 70% 30% / 30% 30% 70% 70%",
+          }}
         >
-          <div className="relative z-10 flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center flex-shrink-0">
-              <Ticket className="h-7 w-7 text-white" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-white font-bold text-base">{t("customer", "noVouchers") || "No vouchers yet"}</h3>
-              <p className="text-white/80 text-xs mt-0.5">Earn points to unlock rewards</p>
-            </div>
-            <ChevronRight className="h-5 w-5 text-white/80" />
+          {/* Decoration circle */}
+          <div className="absolute right-0 top-0 bottom-0 w-32 bg-white/10 rounded-l-full translate-x-12" />
+          {/* Icon */}
+          <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-md flex-shrink-0">
+            <Ticket className="h-8 w-8 text-white" />
+          </div>
+          {/* Text */}
+          <div className="ml-6 flex-1 relative z-10">
+            <h3 className="text-white font-bold text-xl">{t("customer", "noVouchers") || "No vouchers yet"}</h3>
+            <p className="text-white/70 text-sm mt-0.5">Earn points to unlock rewards</p>
+          </div>
+          {/* Arrow */}
+          <div className="relative z-10 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
+            <ChevronRight className="h-6 w-6 text-white" />
           </div>
         </div>
       </section>

@@ -26,10 +26,10 @@ export function BottomTabBar({ activeTab, onTabChange }: BottomTabBarProps) {
       <div className="h-20" aria-hidden />
 
       <nav
-        className="fixed bottom-0 left-1/2 z-50 w-full max-w-md -translate-x-1/2 border-t border-border/50 bg-background/95 backdrop-blur-lg sm:max-w-lg"
+        className="fixed bottom-0 left-1/2 z-50 w-full max-w-md -translate-x-1/2 bg-white border-t border-gray-100 sm:max-w-lg"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="grid grid-cols-4 gap-1 px-2 pt-2 pb-2">
+        <div className="flex justify-between items-end px-6 py-4">
           {tabs.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
@@ -37,31 +37,26 @@ export function BottomTabBar({ activeTab, onTabChange }: BottomTabBarProps) {
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className="relative flex flex-col items-center justify-center gap-1 rounded-xl py-2 transition-all active:scale-95"
+                className="flex flex-col items-center gap-1 transition-all active:scale-95"
               >
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
-                    isActive
-                      ? "bg-gradient-to-br from-[#8b6f47] to-[#a07d50] shadow-md shadow-[#8b6f47]/30"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  <Icon
-                    className={`h-5 w-5 transition-colors ${
-                      isActive ? "text-white" : "text-muted-foreground"
-                    }`}
-                    strokeWidth={isActive ? 2.5 : 2}
-                  />
-                </div>
+                {isActive ? (
+                  <div
+                    className="p-2 rounded-xl"
+                    style={{ background: "#9A7B4F", boxShadow: "0 4px 6px -1px rgba(154,123,79,0.2)" }}
+                  >
+                    <Icon className="h-5 w-5 text-white" strokeWidth={2.5} />
+                  </div>
+                ) : (
+                  <Icon className="h-6 w-6 text-gray-400" strokeWidth={2} />
+                )}
                 <span
-                  className={`text-[10px] font-medium transition-colors ${
-                    isActive ? "text-[#8b6f47]" : "text-muted-foreground"
-                  }`}
+                  className="text-[10px] font-bold uppercase"
+                  style={{ color: isActive ? "#9A7B4F" : "#9ca3af" }}
                 >
                   {tab.label}
                 </span>
                 {isActive && (
-                  <span className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-[#8b6f47]" />
+                  <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: "#9A7B4F" }} />
                 )}
               </button>
             )

@@ -38,26 +38,27 @@ export function AnimatedGreeting({ profile, vouchers = [], t }: AnimatedGreeting
   }
 
   return (
-    <div 
+    <div
       className={`transition-all duration-700 ease-out ${
         mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
       }`}
     >
-      <div className="flex items-baseline gap-2">
-        <h2 className="text-xl font-semibold text-foreground">
+      <div className="flex items-center gap-2">
+        <h2 className="text-2xl font-bold" style={{ color: "#2D2926" }}>
           {greeting.text},{" "}
-          <span className="text-primary">{firstName}</span>
+          <span style={{ color: "#9A7B4F" }}>{firstName}</span>
         </h2>
-        <span className="text-xl">
+        <span className="text-2xl">
           {greeting.emoji === "sun" && "☀️"}
           {greeting.emoji === "wave" && "👋"}
           {greeting.emoji === "moon" && "🌙"}
         </span>
       </div>
       <p
-        className={`text-sm mt-0.5 transition-all duration-700 delay-200 ${
+        className={`text-sm font-semibold mt-1 transition-all duration-700 delay-200 ${
           mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-        } ${activeVouchers > 0 ? "text-muted-foreground" : "text-primary font-medium"}`}
+        }`}
+        style={{ color: "rgba(154,123,79,0.7)" }}
       >
         {subtext}
       </p>

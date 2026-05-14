@@ -229,24 +229,23 @@ export function TopBanner() {
   // Default JP&Co branded hero when admin hasn't uploaded any banner
   if (images.length === 0) {
     return (
-      <div className="relative w-full h-44 sm:h-52 overflow-hidden bg-[#ede8df]">
-        {/* Diagonal white section - bottom right */}
-        <div
-          className="absolute inset-0 bg-white"
-          style={{ clipPath: "polygon(52% 0%, 100% 0%, 100% 100%, 22% 100%)" }}
-        />
-        {/* Brand content */}
-        <div className="relative z-10 flex flex-col justify-center h-full px-8">
-          <h1
-            className="text-6xl sm:text-7xl font-light leading-none tracking-tight"
-            style={{ color: "#b5902a", fontFamily: "Georgia, 'Times New Roman', serif" }}
-          >
-            JP&amp;Co
-          </h1>
-          <p className="text-[10px] sm:text-xs tracking-[0.28em] mt-2 text-[#8a7a60] uppercase">
-            Casual Dining&nbsp;•&nbsp;Roastery
-          </p>
-        </div>
+      <div
+        className="relative w-full flex flex-col items-center justify-center"
+        style={{
+          background: "linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)",
+          clipPath: "polygon(0 0, 100% 0, 100% 85%, 0% 100%)",
+          height: "260px",
+        }}
+      >
+        <h1
+          className="text-6xl font-bold tracking-widest mb-2"
+          style={{ color: "#9A7B4F", opacity: 0.85, fontFamily: "Georgia, 'Times New Roman', serif" }}
+        >
+          JP&amp;Co
+        </h1>
+        <p className="text-sm tracking-[0.2em] uppercase font-medium" style={{ color: "#2D2926" }}>
+          Casual Dining&nbsp;•&nbsp;Roastery
+        </p>
       </div>
     )
   }
