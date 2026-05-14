@@ -1,8 +1,7 @@
 "use client"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Bell, LogOut, Settings } from "lucide-react"
+import { Bell, LogOut, History } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -27,10 +26,6 @@ export function Header({ profile, notificationCount = 0, onNotificationClick, on
     router.push("/")
   }
 
-  const initials = profile.full_name 
-    ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : (profile.email?.[0] || 'U').toUpperCase()
-
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
       <div className="flex items-center justify-between px-4 py-3">
@@ -53,16 +48,12 @@ export function Header({ profile, notificationCount = 0, onNotificationClick, on
               </span>
             )}
           </button>
-          <button 
+          <button
             onClick={onAvatarClick}
-            className="rounded-full hover:opacity-80 transition-opacity"
-            aria-label="Settings"
+            className="p-2 rounded-full hover:bg-secondary transition-colors"
+            aria-label="History"
           >
-            <Avatar className="h-9 w-9 border-2 border-primary/30">
-              <AvatarFallback className="bg-secondary text-primary text-sm font-medium">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            <History className="h-5 w-5 text-muted-foreground" />
           </button>
           <button 
             onClick={handleLogout}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { MapPin, Check, Sparkles } from "lucide-react"
+import { MapPin, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
@@ -116,11 +116,11 @@ export function CheckIn({ userId, onCheckIn }: CheckInProps) {
   const todayIndex = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
 
   return (
-    <div className="glass rounded-2xl p-4">
+    <div className="bg-card rounded-2xl border border-border/50 p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
-            <MapPin className="h-5 w-5 text-primary" />
+          <div className="h-11 w-11 rounded-xl bg-secondary flex items-center justify-center">
+            <MapPin className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
             <h3 className="font-semibold text-sm text-foreground">{t("customer", "dailyCheckIn")}</h3>
@@ -134,9 +134,9 @@ export function CheckIn({ userId, onCheckIn }: CheckInProps) {
           onClick={handleCheckIn}
           disabled={isCheckedIn || isLoading}
           size="sm"
-          className={`rounded-full px-4 h-9 text-xs font-medium ${
-            isCheckedIn 
-              ? "bg-green-600 hover:bg-green-600 text-white" 
+          className={`rounded-xl px-4 h-9 text-xs font-medium ${
+            isCheckedIn
+              ? "bg-green-600 hover:bg-green-600 text-white"
               : "bg-primary hover:bg-primary/90 text-primary-foreground"
           }`}
         >
@@ -149,8 +149,7 @@ export function CheckIn({ userId, onCheckIn }: CheckInProps) {
             </span>
           ) : (
             <span className="flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5" />
-              {t("customer", "checkInBtn")}
+              ☀️ {t("customer", "checkInBtn")}
             </span>
           )}
         </Button>
@@ -159,10 +158,13 @@ export function CheckIn({ userId, onCheckIn }: CheckInProps) {
       {/* Streak dots */}
       <div className="mt-3 pt-3 border-t border-border/50">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] text-muted-foreground">{t("customer", "thisWeek")}</span>
-          <span className="text-[11px] font-semibold text-primary">{streak} {t("customer", "dayStreak")}</span>
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">THIS WEEK</span>
+          <span className="text-[11px] font-semibold text-primary flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
+            {streak} {t("customer", "dayStreak")}
+          </span>
         </div>
-        <div className="flex gap-1.5 justify-between">
+        <div className="flex justify-between">
           {dayLabels.map((day, index) => {
             const isDone = weeklyCheckIns[index] || (index === todayIndex && isCheckedIn)
             const isToday = index === todayIndex
@@ -174,19 +176,15 @@ export function CheckIn({ userId, onCheckIn }: CheckInProps) {
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : isToday
                         ? "bg-primary/10 text-primary ring-2 ring-primary/30"
-                        : "bg-secondary/60 text-muted-foreground"
+                        : "bg-secondary/60"
                   }`}
                 >
-                  {isDone ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : (
-                    day
-                  )}
+                  {isDone ? <Check className="h-3.5 w-3.5" /> : null}
                 </div>
+                <span className="text-[9px] text-muted-foreground/70">{day}</span>
                 {isToday && !isDone && (
-                  <span className="h-1 w-1 rounded-full bg-primary pulse-dot" />
+                  <span className="h-1 w-1 rounded-full bg-primary pulse-dot -mt-0.5" />
                 )}
-                {!isToday && <span className="h-1" />}
               </div>
             )
           })}
