@@ -21,13 +21,13 @@ export function HomeQRCard({ profile, userId, onClick }: HomeQRCardProps) {
     >
       <div className="p-3.5 flex items-center gap-3.5">
         {/* QR Code - amber background like screenshot */}
-        <div className="rounded-xl overflow-hidden shrink-0" style={{ background: "#f5c842", padding: "8px" }}>
+        <div className="rounded-xl overflow-hidden shrink-0 bg-white shadow-sm" style={{ padding: "8px" }}>
           <QRCodeSVG
             value={userId}
             size={64}
             level="M"
             includeMargin={false}
-            bgColor="#f5c842"
+            bgColor="#ffffff"
             fgColor="#000000"
           />
         </div>
