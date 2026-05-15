@@ -11,7 +11,9 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   const isFullScreen =
     pathname === "/admin" ||
     pathname === "/admin/shop" ||
-    pathname.startsWith("/admin/shop/")
+    pathname.startsWith("/admin/shop/") ||
+    pathname === "/admin/ai" ||
+    pathname.startsWith("/admin/ai/")
 
   if (isFullScreen) {
     // Render children only - no sidebar, no header (page handles its own layout)

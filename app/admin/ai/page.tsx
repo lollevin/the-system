@@ -32,7 +32,7 @@ import {
 import { SmartAICopilot } from "@/components/admin/smart-ai-copilot"
 import { AICustomerAnalyzer } from "@/components/admin/ai-customer-analyzer"
 import AIAutoPilot from "@/components/admin/ai-auto-pilot"
-import { FloatingWhatsApp, checkWhatsAppConnected } from "@/components/admin/floating-whatsapp"
+import { checkWhatsAppConnected } from "@/components/admin/floating-whatsapp"
 import { KnowledgeBase } from "@/components/admin/knowledge-base"
 import { createClient } from "@/lib/supabase/client"
 import { useLanguage } from "@/lib/i18n"
@@ -604,10 +604,25 @@ export default function AICopilotPage() {
   ]
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 min-h-[calc(100vh-120px)]">
+    <div className="flex flex-col min-h-screen bg-background">
+      {/* ── Minimal top bar: back button only ── */}
+      <div className="h-12 flex items-center px-4 border-b border-border/40 bg-background/95 backdrop-blur-sm sticky top-0 z-50 shrink-0">
+        <button
+          onClick={() => window.history.back()}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-muted/50"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+          <span className="font-medium">Back</span>
+        </button>
+      </div>
+
+      {/* ── Main content: sidebar + content ── */}
+      <div className="flex flex-col lg:flex-row gap-4 flex-1 p-4">
       {/* ===== LEFT SIDEBAR (Desktop) / TOP NAV (Mobile) ===== */}
       <div className="lg:w-56 shrink-0">
-        <div className="lg:sticky lg:top-4 space-y-3">
+        <div className="lg:sticky lg:top-4 space-y-3 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
           {/* Sidebar Header */}
           <div className="p-3 rounded-xl bg-gradient-to-br from-[#8b6f47]/10 to-[#8b6f47]/5 border border-[#8b6f47]/20">
             <div className="flex items-center gap-2.5">
@@ -903,9 +918,7 @@ export default function AICopilotPage() {
           </div>
         )}
       </div>
-
-      {/* Floating WhatsApp Connection Button */}
-      <FloatingWhatsApp />
+      </div>{/* end flex main content */}
     </div>
   )
 }
