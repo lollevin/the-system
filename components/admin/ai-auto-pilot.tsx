@@ -299,8 +299,22 @@ export default function AIAutoPilot() {
         </div>
       </div>
 
+      {/* ── AI Error Notice (compact, no raw JSON) ── */}
+      {!loading && aiError && !aiOverview && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 text-sm text-amber-800">
+          <span className="text-base shrink-0">⚠️</span>
+          <span>
+            {aiError.includes("balance") || aiError.includes("10004")
+              ? "AI 账户余额不足，请充值 302.AI 账户。下方规则警报仍然正常工作。"
+              : aiError.includes("401") || aiError.includes("API key")
+              ? "AI API Key 无效，请检查服务器 .env 文件。下方规则警报仍然正常工作。"
+              : "AI 增强功能暂时不可用。下方规则警报仍然正常工作。"}
+          </span>
+        </div>
+      )}
+
       {/* ── Strategic Overview Banner ── */}
-      {!loading && (aiOverview || aiError) && (
+      {!loading && aiOverview && (
         <div className="relative rounded-xl overflow-hidden border px-8 py-6 flex items-center"
           style={{
             background: "linear-gradient(135deg, rgba(139,111,71,0.07) 0%, rgba(253,252,247,1) 55%, rgba(254,166,25,0.05) 100%)",
@@ -328,7 +342,11 @@ export default function AIAutoPilot() {
               )}
               {aiError && (
                 <p className="text-xs text-red-500 leading-relaxed">
-                  AI enhancement failed: {aiError}. Rule-based alerts still work. Try refresh.
+                  {aiError.includes("balance") || aiError.includes("10004")
+                    ? "⚠️ AI 账户余额不足，请充值 302.AI 账户。规则警报仍然正常运行。"
+                    : aiError.includes("401") || aiError.includes("API key")
+                    ? "⚠️ AI API Key 无效，请检查 .env 配置。规则警报仍然正常运行。"
+                    : "⚠️ AI 分析暂时不可用，规则警报仍然正常运行。点击刷新重试。"}
                 </p>
               )}
             </div>

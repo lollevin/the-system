@@ -36,8 +36,9 @@ import { checkWhatsAppConnected } from "@/components/admin/floating-whatsapp"
 import { KnowledgeBase } from "@/components/admin/knowledge-base"
 import { createClient } from "@/lib/supabase/client"
 import { useLanguage } from "@/lib/i18n"
-import { Radar, BarChart3, BookOpen, Activity, CheckCircle, AlertCircle, MessageCircle } from "lucide-react"
+import { Radar, BarChart3, BookOpen, Activity, CheckCircle, AlertCircle, MessageCircle, LayoutDashboard } from "lucide-react"
 import { WhatsAppConnection } from "@/components/admin/whatsapp-connection"
+import { AnimatePresence, motion } from "framer-motion"
 
 interface CustomerAction {
   id: string
@@ -595,7 +596,7 @@ export default function AICopilotPage() {
 
   // Navigation items for the sidebar
   const navItems = [
-    { id: "autopilot", label: t("ai", "autoPilot"), icon: Radar, desc: t("ai", "autoPilotDesc") },
+    { id: "autopilot", label: "Dashboard", icon: LayoutDashboard, desc: "Alerts & overview" },
     { id: "analyzer", label: t("ai", "customerAnalyzer"), icon: Brain, desc: t("ai", "analyzeMessage") },
     { id: "smart", label: t("ai", "smartRecommendations"), icon: Sparkles, desc: t("ai", "aiSuggestions") },
     { id: "chat", label: t("ai", "aiChatInsights"), icon: MessageSquare, desc: t("ai", "askAnything") },
@@ -729,7 +730,15 @@ export default function AICopilotPage() {
 
       {/* ===== RIGHT CONTENT AREA ===== */}
       <div className="flex-1 min-w-0">
-        {/* Auto-Pilot */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+          >
+        {/* Dashboard (Auto-Pilot) */}
         {activeTab === "autopilot" && <AIAutoPilot />}
 
         {/* Customer Analyzer */}
@@ -744,7 +753,6 @@ export default function AICopilotPage() {
         {/* WA Connect */}
         {activeTab === "wa" && (
           <div className="space-y-4">
-            {/* Status header card */}
             <div className="p-4 rounded-xl bg-gradient-to-r from-[#8b6f47]/8 to-[#8b6f47]/3 border border-[#8b6f47]/15">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-[#8b6f47] flex items-center justify-center shrink-0">
@@ -917,6 +925,8 @@ export default function AICopilotPage() {
             </Card>
           </div>
         )}
+          </motion.div>
+        </AnimatePresence>
       </div>
       </div>{/* end flex main content */}
     </div>
