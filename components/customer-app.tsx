@@ -193,7 +193,9 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
           }
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") fetchData()
+      })
 
     const txChannel = supabase
       .channel(`transactions-${user.id}`)
@@ -206,11 +208,12 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
           filter: `user_id=eq.${user.id}`,
         },
         () => {
-          // Refresh everything when a new transaction lands
           fetchData()
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") fetchData()
+      })
 
     return () => {
       supabase.removeChannel(profileChannel)

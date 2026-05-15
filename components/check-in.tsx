@@ -159,7 +159,7 @@ export function CheckIn({ userId, onCheckIn }: CheckInProps) {
       {/* Streak card */}
       <div className="bg-white/50 rounded-3xl p-4 border border-gray-100">
         <div className="flex justify-between items-center mb-4">
-          <span className="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">THIS WEEK</span>
+          <span className="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">{t("customer", "thisWeek")}</span>
           <span className="text-[10px] font-bold flex items-center gap-1.5" style={{ color: "#9A7B4F" }}>
             <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
             {streak} {t("customer", "dayStreak")}

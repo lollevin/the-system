@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     if (customer_phone || customer_email) {
       const query = supabase
         .from("profiles")
-        .select("id, points_balance, full_name")
+        .select("id, points_balance, full_name, visit_count")
         .eq("role", "customer");
 
       if (customer_phone) {
@@ -84,7 +84,14 @@ export async function POST(request: Request) {
         query.eq("email", customer_email);
       }
 
-      const { data } = await query.single();
+      const { data, error: customerError } = await query.single();
+      if (customerError || !data) {
+        return NextResponse.json({
+          success: false,
+          message: "Customer not found in loyalty system",
+          transaction_id,
+        });
+      }
       customer = data;
     }
 
@@ -123,7 +130,7 @@ export async function POST(request: Request) {
       .from("profiles")
       .update({
         points_balance: customer.points_balance + points,
-        visit_count: (customer as any).visit_count + 1,
+        visit_count: (customer.visit_count ?? 0) + 1,
         last_visit: new Date().toISOString(),
       })
       .eq("id", customer.id);
