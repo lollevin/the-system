@@ -54,9 +54,29 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (!error) {
+      user = data.user;
+    } else {
+      // Stale / revoked session — clear all sb- cookies so the browser
+      // starts fresh instead of retrying the dead token on every request.
+      request.cookies.getAll().forEach((cookie) => {
+        if (cookie.name.startsWith("sb-")) {
+          response.cookies.set({ name: cookie.name, value: "", maxAge: 0, path: "/" });
+        }
+      });
+    }
+  } catch {
+    // AuthApiError thrown by SSR library when refresh token is not found.
+    // Treat as unauthenticated and wipe stale cookies.
+    request.cookies.getAll().forEach((cookie) => {
+      if (cookie.name.startsWith("sb-")) {
+        response.cookies.set({ name: cookie.name, value: "", maxAge: 0, path: "/" });
+      }
+    });
+  }
 
   return { response, user, supabase };
 }
