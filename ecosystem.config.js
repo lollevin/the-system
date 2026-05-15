@@ -25,8 +25,8 @@ module.exports = {
       restart_delay: 2000,
       exp_backoff_restart_delay: 100,
       max_memory_restart: "1200M",
-      // Daily restart at 4am Malaysia time to flush memory
-      cron_restart: "0 4 * * *",
+      // Daily restart at 4am Malaysia time (MYT = UTC+8, so 20:00 UTC)
+      cron_restart: "0 20 * * *",
       kill_timeout: 8000,
       wait_ready: false,
       listen_timeout: 30000,
@@ -53,9 +53,9 @@ module.exports = {
       restart_delay: 5000,
       exp_backoff_restart_delay: 200,
       // WhatsApp-web.js + Chromium leaks memory, so cap tighter and
-      // auto-restart at 3am Malaysia time (internal watchdog also rotates at 20h).
+      // auto-restart at 3am Malaysia time (MYT = UTC+8, so 19:00 UTC)
       max_memory_restart: "1500M",
-      cron_restart: "0 3 * * *",
+      cron_restart: "0 19 * * *",
       kill_timeout: 15000,
       env: {
         NODE_ENV: "production",
