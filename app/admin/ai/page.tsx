@@ -625,7 +625,6 @@ export default function AICopilotPage() {
     { id: "smart", label: t("ai", "smartRecommendations"), icon: Sparkles, desc: t("ai", "aiSuggestions") },
     { id: "chat", label: t("ai", "aiChatInsights"), icon: MessageSquare, desc: t("ai", "askAnything") },
     { id: "knowledge", label: t("admin", "knowledgeBase"), icon: BookOpen, desc: t("ai", "kbUploadDesc") },
-    { id: "history", label: t("ai", "sendHistory"), icon: HistoryIcon, desc: t("ai", "messageRecords") },
   ]
 
   return (
@@ -634,14 +633,14 @@ export default function AICopilotPage() {
       <div className="lg:w-56 shrink-0">
         <div className="lg:sticky lg:top-4 space-y-3">
           {/* Sidebar Header */}
-          <div className="p-3 rounded-xl bg-gradient-to-br from-[#8b6f47]/10 to-[#8b6f47]/5 border border-[#8b6f47]/20">
+          <div className="p-3 rounded-xl border" style={{ background: "rgba(0,108,73,0.06)", borderColor: "rgba(0,108,73,0.15)" }}>
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-lg bg-[#8b6f47] flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#006c49" }}>
                 <Brain className="w-5 h-5 text-white" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-sm font-bold leading-tight truncate">{t("ai", "marketingCenter")}</h1>
-                <p className="text-[11px] text-muted-foreground leading-tight">JP&Co AI</p>
+                <h1 className="text-sm font-bold leading-tight truncate" style={{ color: "#006c49" }}>{t("ai", "marketingCenter")}</h1>
+                <p className="text-[11px] text-muted-foreground leading-tight">AI-Native Intelligence</p>
               </div>
             </div>
           </div>
@@ -653,11 +652,18 @@ export default function AICopilotPage() {
             title={aiHealth.ok ? `${t("ai", "ai_status_online")} · ${aiHealth.latencyMs ?? "—"}ms` : t("ai", "ai_status_subtitle_retry")}
             className={`w-full p-2.5 rounded-xl border transition-all text-left group ${
               aiHealth.loading
-                ? "bg-amber-500/5 border-amber-500/20"
+                ? "border-amber-500/20"
                 : aiHealth.ok
-                  ? "bg-green-500/5 border-green-500/25 hover:bg-green-500/10"
-                  : "bg-orange-500/5 border-orange-500/25 hover:bg-orange-500/10"
+                  ? "hover:opacity-80"
+                  : "border-orange-500/25 hover:opacity-80"
             }`}
+            style={
+              aiHealth.loading
+                ? { background: "rgba(251,191,36,0.05)" }
+                : aiHealth.ok
+                  ? { background: "rgba(0,108,73,0.05)", borderColor: "rgba(0,108,73,0.2)" }
+                  : { background: "rgba(249,115,22,0.05)" }
+            }
           >
             <div className="flex items-center gap-2">
               {aiHealth.loading ? (
@@ -669,7 +675,7 @@ export default function AICopilotPage() {
               )}
               <div className="flex-1 min-w-0">
                 <p className={`text-[11px] font-semibold ${
-                  aiHealth.loading ? "text-amber-700" : aiHealth.ok ? "text-green-700" : "text-orange-700"
+                  aiHealth.loading ? "text-amber-700" : aiHealth.ok ? "text-emerald-700" : "text-orange-700"
                 }`}>
                   {aiHealth.loading
                     ? t("ai", "ai_status_checking")
@@ -705,24 +711,29 @@ export default function AICopilotPage() {
                     transition-all duration-200 ease-out
                     min-w-[130px] lg:min-w-0 lg:w-full text-left
                     ${isActive
-                      ? "bg-[#8b6f47]/15 text-[#8b6f47] shadow-sm border border-[#8b6f47]/25"
+                      ? "shadow-sm border"
                       : "bg-card/60 hover:bg-muted/60 border border-transparent hover:border-border/50"
                     }
                   `}
+                  style={isActive ? { background: "rgba(0,108,73,0.1)", borderColor: "rgba(0,108,73,0.2)" } : {}}
                 >
                   {/* Active indicator bar */}
                   {isActive && (
-                    <div className="hidden lg:block absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 rounded-r-full bg-[#8b6f47] transition-all duration-300" />
+                    <div className="hidden lg:block absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 rounded-r-full transition-all duration-300"
+                      style={{ background: "#006c49" }} />
                   )}
                   <div className={`
                     w-8 h-8 rounded-lg flex items-center justify-center shrink-0
                     transition-all duration-200
-                    ${isActive ? "bg-[#8b6f47]/20" : "bg-muted/50"}
-                  `}>
-                    <Icon className={`w-[18px] h-[18px] transition-colors duration-200 ${isActive ? "text-[#8b6f47]" : "text-muted-foreground"}`} />
+                    ${isActive ? "" : "bg-muted/50"}
+                  `}
+                  style={isActive ? { background: "rgba(0,108,73,0.15)" } : {}}>
+                    <Icon className={`w-[18px] h-[18px] transition-colors duration-200 ${isActive ? "" : "text-muted-foreground"}`}
+                      style={isActive ? { color: "#006c49" } : {}} />
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className={`text-[13px] font-medium truncate transition-colors duration-200 ${isActive ? "text-[#8b6f47]" : "text-foreground"}`}>
+                    <span className={`text-[13px] font-medium truncate transition-colors duration-200 ${isActive ? "" : "text-foreground"}`}
+                      style={isActive ? { color: "#006c49" } : {}}>
                       {item.label}
                     </span>
                     <span className="text-[10px] text-muted-foreground truncate hidden lg:block">
@@ -749,61 +760,6 @@ export default function AICopilotPage() {
 
         {/* Knowledge Base */}
         {activeTab === "knowledge" && <KnowledgeBase />}
-
-        {/* Send History */}
-        {activeTab === "history" && (
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <HistoryIcon className="w-5 h-5 text-amber-500" />
-                  {t("ai", "recentSendRecords")}
-                </CardTitle>
-                <div className="flex gap-3 text-sm text-muted-foreground">
-                  <span>{t("ai", "todayLabel")}: <strong className="text-foreground">{messageStats.todaySent}</strong></span>
-                  <span>{t("ai", "totalLabel")}: <strong className="text-foreground">{messageStats.totalSent}</strong></span>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {recentMessages.length > 0 ? (
-                <div className="space-y-3">
-                  {recentMessages.map((msg: any) => (
-                    <div 
-                      key={msg.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
-                    >
-                      <div>
-                        <p className="font-medium">
-                          {msg.customer?.full_name || t("admin", "unknownCustomer")}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {msg.customer?.phone || t("admin", "noPhone")}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                          {msg.message_content?.slice(0, 50)}...
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant="outline" className="mb-1">
-                          {msg.message_type}
-                        </Badge>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(msg.created_at).toLocaleString(language === "zh" ? "zh-CN" : language === "ms" ? "ms-MY" : "en-US")}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>{t("ai", "noSendRecords")}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
 
         {/* AI Chat & Insights */}
         {activeTab === "chat" && (
@@ -944,7 +900,7 @@ export default function AICopilotPage() {
                     className="flex-1"
                     disabled={isLoading}
                   />
-                  <Button type="submit" disabled={!input.trim() || isLoading} className="bg-[#8b6f47] hover:bg-[#7a5f3a]">
+                  <Button type="submit" disabled={!input.trim() || isLoading} style={{ background: "#006c49" }} className="hover:opacity-90 text-white">
                     {isLoading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (

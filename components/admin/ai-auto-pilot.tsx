@@ -1,10 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import {
   Loader2,
@@ -13,7 +10,6 @@ import {
   Cake,
   UserMinus,
   TrendingDown,
-  Star,
   Target,
   Users,
   Send,
@@ -30,7 +26,6 @@ import {
 import { checkWhatsAppConnected } from "@/components/admin/floating-whatsapp"
 import { useLanguage } from "@/lib/i18n"
 
-// Re-define locally since we can't import server-side types in client components
 interface AutoPilotAlert {
   id: string
   type:
@@ -82,6 +77,17 @@ function formatPhone(phone: string): string {
   return "60" + cleaned
 }
 
+function formatRelativeDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000)
+  if (diffDays === 0) return "Today"
+  if (diffDays === 1) return "1d ago"
+  if (diffDays < 30) return `${diffDays}d ago`
+  const diffMonths = Math.floor(diffDays / 30)
+  return `${diffMonths}mo ago`
+}
+
 const typeIcons: Record<string, React.ElementType> = {
   birthday: Cake,
   going_inactive: UserMinus,
@@ -104,16 +110,10 @@ const typeLabels: Record<string, string> = {
   referral_opportunity: "Referral",
 }
 
-const severityColors: Record<string, string> = {
-  urgent: "bg-red-500",
-  warning: "bg-orange-500",
-  info: "bg-blue-500",
-}
-
 const severityBadgeVariants: Record<string, string> = {
   urgent: "bg-red-500/15 text-red-600 border-red-500/30",
-  warning: "bg-orange-500/15 text-orange-600 border-orange-500/30",
-  info: "bg-blue-500/15 text-blue-600 border-blue-500/30",
+  warning: "bg-amber-500/15 text-amber-700 border-amber-500/30",
+  info: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
 }
 
 const tierColors: Record<string, string> = {
@@ -125,13 +125,7 @@ const tierColors: Record<string, string> = {
 
 export default function AIAutoPilot() {
   const [alerts, setAlerts] = useState<AutoPilotAlert[]>([])
-  const [summary, setSummary] = useState<AlertSummary>({
-    total: 0,
-    urgent: 0,
-    warning: 0,
-    info: 0,
-    byType: {},
-  })
+  const [summary, setSummary] = useState<AlertSummary>({ total: 0, urgent: 0, warning: 0, info: 0, byType: {} })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedAlerts, setExpandedAlerts] = useState<Set<string>>(new Set())
@@ -141,12 +135,9 @@ export default function AIAutoPilot() {
   const [aiOverview, setAiOverview] = useState<string | null>(null)
   const [aiEnhanced, setAiEnhanced] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
-
   const { languageRef } = useLanguage()
 
-  useEffect(() => {
-    fetchAlerts()
-  }, [])
+  useEffect(() => { fetchAlerts() }, [])
 
   async function fetchAlerts() {
     setLoading(true)
@@ -154,9 +145,6 @@ export default function AIAutoPilot() {
     try {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 55000)
-
-      // Snapshot locale at FETCH time (not module-import time) so async
-      // completion never rehydrates state with stale-language AI content.
       const localeAtFetch = languageRef.current
       const response = await fetch(`/api/ai/auto-pilot?locale=${encodeURIComponent(localeAtFetch)}`, {
         signal: controller.signal,
@@ -170,26 +158,16 @@ export default function AIAutoPilot() {
         const text = await response.text().catch(() => "")
         throw new Error(
           response.status === 504
-            ? "Server timeout - AI service is slow. Please try again."
+            ? "Server timeout. Please try again."
             : `Unexpected ${response.status}: ${text.slice(0, 80)}`
         )
       }
 
       const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch alerts")
-      }
+      if (!response.ok) throw new Error(data.error || "Failed to fetch alerts")
 
       setAlerts(data.alerts || [])
-      setSummary(
-        data.summary || {
-          total: 0,
-          urgent: 0,
-          warning: 0,
-          info: 0,
-          byType: {},
-        }
-      )
+      setSummary(data.summary || { total: 0, urgent: 0, warning: 0, info: 0, byType: {} })
       setAiOverview(data.aiOverview || null)
       setAiEnhanced(!!data.aiEnhanced)
       setAiError(data.aiError || null)
@@ -210,72 +188,48 @@ export default function AIAutoPilot() {
       toast.error("This customer has no phone number on file")
       return
     }
-
     const connected = await checkWhatsAppConnected()
     if (!connected) {
-      toast.error(
-        "WhatsApp is not connected. Please connect first using the WhatsApp button."
-      )
+      toast.error("WhatsApp is not connected. Please connect first using the WhatsApp button.")
       return
     }
 
-    setSendingAlerts((prev) => new Set(prev).add(alert.id))
-
+    setSendingAlerts(prev => new Set(prev).add(alert.id))
     try {
-      // Send WhatsApp message
       const phone = formatPhone(alert.customer.phone)
       const msgResponse = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone,
-          message: alert.messageTemplate,
-        }),
+        body: JSON.stringify({ phone, message: alert.messageTemplate }),
       })
-
       if (!msgResponse.ok) {
         const msgData = await msgResponse.json()
         throw new Error(msgData.error || "Failed to send message")
       }
-
       toast.success(`Message sent to ${alert.customer.name}`)
-
-      // Remove alert from list after successful send
-      setAlerts((prev) => prev.filter((a) => a.id !== alert.id))
-      setSummary((prev) => ({
+      setAlerts(prev => prev.filter(a => a.id !== alert.id))
+      setSummary(prev => ({
         ...prev,
         total: prev.total - 1,
-        [alert.severity]:
-          (prev[alert.severity as keyof AlertSummary] as number) - 1,
-        byType: {
-          ...prev.byType,
-          [alert.type]: (prev.byType[alert.type] || 1) - 1,
-        },
+        [alert.severity]: (prev[alert.severity as keyof AlertSummary] as number) - 1,
+        byType: { ...prev.byType, [alert.type]: (prev.byType[alert.type] || 1) - 1 },
       }))
     } catch (err: any) {
       toast.error(err.message || "Failed to send message")
     } finally {
-      setSendingAlerts((prev) => {
-        const next = new Set(prev)
-        next.delete(alert.id)
-        return next
-      })
+      setSendingAlerts(prev => { const next = new Set(prev); next.delete(alert.id); return next })
     }
   }
 
   function toggleExpand(alertId: string) {
-    setExpandedAlerts((prev) => {
+    setExpandedAlerts(prev => {
       const next = new Set(prev)
-      if (next.has(alertId)) {
-        next.delete(alertId)
-      } else {
-        next.add(alertId)
-      }
+      next.has(alertId) ? next.delete(alertId) : next.add(alertId)
       return next
     })
   }
 
-  const filteredAlerts = alerts.filter((alert) => {
+  const filteredAlerts = alerts.filter(alert => {
     if (filterType === "all") return true
     if (filterType === "urgent") return alert.severity === "urgent"
     if (filterType === "warning") return alert.severity === "warning"
@@ -283,446 +237,335 @@ export default function AIAutoPilot() {
     return alert.type === filterType
   })
 
+  const typeFilterOptions = Object.entries(summary.byType)
+    .filter(([, count]) => count > 0)
+    .map(([type, count]) => ({ key: type, label: typeLabels[type] || type, count }))
+
   const filterOptions = [
     { key: "all", label: "All", count: summary.total },
     { key: "urgent", label: "Urgent", count: summary.urgent },
     { key: "warning", label: "Warning", count: summary.warning },
     { key: "info", label: "Info", count: summary.info },
+    ...typeFilterOptions,
   ]
 
-  const typeFilterOptions = Object.entries(summary.byType)
-    .filter(([, count]) => count > 0)
-    .map(([type, count]) => ({
-      key: type,
-      label: typeLabels[type] || type,
-      count,
-    }))
-
   return (
-    <div className="space-y-4">
-      {/* Summary Stats Bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="bg-card/50 backdrop-blur-sm border-amber-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/15 flex items-center justify-center">
-                <Brain className="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{summary.total}</p>
-                <p className="text-xs text-muted-foreground">Total Alerts</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-6">
 
-        <Card className="bg-card/50 backdrop-blur-sm border-red-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-red-500/15 flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{summary.urgent}</p>
-                <p className="text-xs text-muted-foreground">Urgent</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* ── KPI Cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Alerts */}
+        <div className="p-6 rounded-xl border flex flex-col gap-2"
+          style={{ background: "rgba(164,58,58,0.07)", borderColor: "rgba(164,58,58,0.18)" }}>
+          <div className="flex justify-between items-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#a43a3a" }}>Total Alerts</span>
+            <AlertTriangle className="w-4 h-4" style={{ color: "#a43a3a" }} />
+          </div>
+          <div className="text-4xl font-extrabold" style={{ color: "#a43a3a" }}>{summary.total}</div>
+          <p className="text-xs text-gray-400">Immediate action required</p>
+        </div>
 
-        <Card className="bg-card/50 backdrop-blur-sm border-orange-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-orange-500/15 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{summary.warning}</p>
-                <p className="text-xs text-muted-foreground">Warnings</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Urgent */}
+        <div className="p-6 rounded-xl border flex flex-col gap-2"
+          style={{ background: "rgba(133,83,0,0.07)", borderColor: "rgba(133,83,0,0.18)" }}>
+          <div className="flex justify-between items-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#855300" }}>Urgent</span>
+            <AlertTriangle className="w-4 h-4" style={{ color: "#855300" }} />
+          </div>
+          <div className="text-4xl font-extrabold" style={{ color: "#855300" }}>{summary.urgent}</div>
+          <p className="text-xs text-gray-400">Critical attention needed</p>
+        </div>
 
-        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/15 flex items-center justify-center">
-                <Zap className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{summary.info}</p>
-                <p className="text-xs text-muted-foreground">Opportunities</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Warnings */}
+        <div className="p-6 rounded-xl border flex flex-col gap-2"
+          style={{ background: "rgba(0,108,73,0.06)", borderColor: "rgba(0,108,73,0.18)" }}>
+          <div className="flex justify-between items-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#006c49" }}>Warnings</span>
+            <Clock className="w-4 h-4" style={{ color: "#006c49" }} />
+          </div>
+          <div className="text-4xl font-extrabold" style={{ color: "#006c49" }}>{summary.warning}</div>
+          <p className="text-xs text-gray-400">Monitor closely</p>
+        </div>
+
+        {/* Opportunities */}
+        <div className="p-6 rounded-xl border border-gray-200 flex flex-col gap-2"
+          style={{ background: "#e8f0e9" }}>
+          <div className="flex justify-between items-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Opportunities</span>
+            <Zap className="w-4 h-4 text-gray-400" />
+          </div>
+          <div className="text-4xl font-extrabold text-gray-700">{summary.info}</div>
+          <p className="text-xs text-gray-400">AI automation impact</p>
+        </div>
       </div>
 
-      {/* AI Strategic Overview */}
+      {/* ── Strategic Overview Banner ── */}
       {!loading && (aiOverview || aiError) && (
-        <Card className={`backdrop-blur-sm ${aiError ? "border-red-500/30 bg-red-500/5" : "border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/5"}`}>
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${aiError ? "bg-red-500/15" : "bg-amber-500/20"}`}>
-                <Brain className={`w-5 h-5 ${aiError ? "text-red-600" : "text-amber-600"}`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h3 className="font-semibold text-sm">
-                    {aiError ? "AI Analysis Unavailable" : "JP&Co AI Strategic Overview"}
-                  </h3>
-                  {aiEnhanced && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-700 border-green-500/30">
-                      AI ENHANCED
-                    </Badge>
-                  )}
-                </div>
-                {aiOverview && (
-                  <p className="text-sm text-muted-foreground leading-relaxed">{aiOverview}</p>
-                )}
-                {aiError && (
-                  <p className="text-xs text-red-600 leading-relaxed">
-                    AI enhancement failed: {aiError}. Rule-based alerts still work. Try refresh.
-                  </p>
+        <div className="relative rounded-xl overflow-hidden border px-8 py-6 flex items-center"
+          style={{
+            background: "linear-gradient(135deg, rgba(0,108,73,0.07) 0%, #eef6ee 55%, rgba(254,166,25,0.05) 100%)",
+            borderColor: "rgba(0,108,73,0.12)",
+          }}>
+          <div className="flex items-start gap-4 max-w-3xl">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: "rgba(0,108,73,0.1)" }}>
+              <Brain className="w-5 h-5" style={{ color: "#006c49" }} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                <h3 className="font-semibold text-sm" style={{ color: "#006c49" }}>
+                  JP&Co AI Strategic Overview
+                </h3>
+                {aiEnhanced && (
+                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full text-white"
+                    style={{ background: "#10b981" }}>
+                    AI ENHANCED
+                  </span>
                 )}
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Filter Bar */}
-      <Card className="bg-card/50 backdrop-blur-sm">
-        <CardContent className="p-3">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="flex flex-wrap gap-2 flex-1">
-              {filterOptions.map((opt) => (
-                <Button
-                  key={opt.key}
-                  variant={filterType === opt.key ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setFilterType(opt.key)}
-                  className={
-                    filterType === opt.key
-                      ? "bg-[#8b6f47] hover:bg-[#7a6140] text-white"
-                      : ""
-                  }
-                >
-                  {opt.label}
-                  {opt.count > 0 && (
-                    <Badge
-                      variant="secondary"
-                      className="ml-1.5 h-5 min-w-[20px] px-1.5 text-xs"
-                    >
-                      {opt.count}
-                    </Badge>
-                  )}
-                </Button>
-              ))}
-
-              {typeFilterOptions.length > 0 && (
-                <div className="w-px h-6 bg-border self-center hidden sm:block" />
+              {aiOverview && (
+                <p className="text-sm text-gray-600 leading-relaxed">{aiOverview}</p>
               )}
-
-              {typeFilterOptions.map((opt) => (
-                <Button
-                  key={opt.key}
-                  variant={filterType === opt.key ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setFilterType(opt.key)}
-                  className={
-                    filterType === opt.key
-                      ? "bg-[#8b6f47] hover:bg-[#7a6140] text-white"
-                      : "text-muted-foreground"
-                  }
-                >
-                  {opt.label}
-                  <Badge
-                    variant="secondary"
-                    className="ml-1.5 h-5 min-w-[20px] px-1.5 text-xs"
-                  >
-                    {opt.count}
-                  </Badge>
-                </Button>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {lastRefresh && (
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  Updated {lastRefresh.toLocaleTimeString()}
-                </span>
+              {aiError && (
+                <p className="text-xs text-red-500 leading-relaxed">
+                  AI enhancement failed: {aiError}. Rule-based alerts still work. Try refresh.
+                </p>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchAlerts}
-                disabled={loading}
-              >
-                <RefreshCw
-                  className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`}
-                />
-                Refresh
-              </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Loading State */}
-      {loading && (
-        <Card className="bg-card/50 backdrop-blur-sm min-h-[calc(100vh-380px)]">
-          <CardContent className="flex flex-col items-center justify-center h-full min-h-[400px]">
-            <Loader2 className="w-12 h-12 animate-spin text-[#8b6f47] mb-4" />
-            <p className="text-base text-muted-foreground">
-              Analyzing customer data...
-            </p>
-          </CardContent>
-        </Card>
+        </div>
       )}
 
-      {/* Error State */}
-      {error && !loading && (
-        <Card className="bg-card/50 backdrop-blur-sm border-red-500/20">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <AlertTriangle className="w-10 h-10 text-red-500 mb-4" />
-            <p className="text-red-600 font-medium mb-2">
-              Failed to load alerts
+      {/* ── Customer Intelligence Alerts ── */}
+      <div>
+        {/* Section header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">Customer Intelligence Alerts</h3>
+            <p className="text-sm text-gray-400 mt-0.5">
+              Critical behavioral triggers requiring manual review or personalized messaging.
             </p>
-            <p className="text-sm text-muted-foreground mb-4">{error}</p>
-            <Button variant="outline" size="sm" onClick={fetchAlerts}>
-              <RefreshCw className="w-4 h-4 mr-1.5" />
-              Try Again
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {lastRefresh && (
+              <span className="text-xs text-gray-400">Updated {lastRefresh.toLocaleTimeString()}</span>
+            )}
+            <Button variant="outline" size="sm" onClick={fetchAlerts} disabled={loading}
+              className="border-gray-200 text-gray-600">
+              <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+              Refresh
             </Button>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </div>
 
-      {/* Empty State */}
-      {!loading && !error && filteredAlerts.length === 0 && (
-        <Card className="bg-card/50 backdrop-blur-sm min-h-[calc(100vh-380px)]">
-          <CardContent className="flex flex-col items-center justify-center h-full min-h-[400px]">
-            <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mb-6">
-              <Shield className="w-10 h-10 text-green-500" />
+        {/* Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-2 mb-5">
+          {filterOptions.map(opt => (
+            <button key={opt.key}
+              onClick={() => setFilterType(opt.key)}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
+                filterType === opt.key
+                  ? "text-white border-transparent"
+                  : "text-gray-500 border-gray-200 bg-white hover:border-gray-300 hover:text-gray-700"
+              }`}
+              style={filterType === opt.key ? { background: "#006c49", borderColor: "#006c49" } : {}}>
+              {opt.label}
+              {opt.count > 0 && (
+                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
+                  filterType === opt.key ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+                }`}>{opt.count}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Loading */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl border border-gray-100">
+            <Loader2 className="w-10 h-10 animate-spin mb-3" style={{ color: "#006c49" }} />
+            <p className="text-sm text-gray-400">Analyzing customer data...</p>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && !loading && (
+          <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl border border-red-100">
+            <AlertTriangle className="w-10 h-10 text-red-400 mb-3" />
+            <p className="font-semibold text-red-600 mb-1">Failed to load alerts</p>
+            <p className="text-sm text-gray-400 mb-4">{error}</p>
+            <Button variant="outline" size="sm" onClick={fetchAlerts}>
+              <RefreshCw className="w-4 h-4 mr-1.5" />Try Again
+            </Button>
+          </div>
+        )}
+
+        {/* Empty */}
+        {!loading && !error && filteredAlerts.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl border border-gray-100">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+              style={{ background: "rgba(0,108,73,0.08)" }}>
+              <Shield className="w-8 h-8" style={{ color: "#006c49" }} />
             </div>
-            <p className="text-xl font-semibold mb-2">All clear!</p>
-            <p className="text-base text-muted-foreground text-center max-w-md">
+            <p className="text-lg font-bold text-gray-800 mb-1">All clear!</p>
+            <p className="text-sm text-gray-400 text-center max-w-sm">
               {filterType === "all"
                 ? "No alerts right now. Your customers are happy. Auto-Pilot will notify you when action is needed."
                 : `No ${filterType} alerts found. Try a different filter.`}
             </p>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
 
-      {/* Alert Cards List */}
-      {!loading && !error && filteredAlerts.length > 0 && (
-        <ScrollArea className="h-[calc(100vh-340px)] min-h-[450px]">
-          <div className="space-y-3 pr-4">
-            {filteredAlerts.map((alert) => {
+        {/* Alert Cards */}
+        {!loading && !error && filteredAlerts.length > 0 && (
+          <div className="space-y-3">
+            {filteredAlerts.map(alert => {
               const TypeIcon = typeIcons[alert.type] || AlertTriangle
               const isExpanded = expandedAlerts.has(alert.id)
               const isSending = sendingAlerts.has(alert.id)
+              const initial = alert.customer.name[0]?.toUpperCase() || "?"
+
+              const [avatarBg, avatarColor, avatarBorder] =
+                alert.severity === "urgent"
+                  ? ["rgba(164,58,58,0.12)", "#a43a3a", "rgba(164,58,58,0.35)"]
+                  : alert.severity === "warning"
+                  ? ["rgba(133,83,0,0.10)", "#855300", "rgba(133,83,0,0.35)"]
+                  : ["rgba(0,108,73,0.08)", "#006c49", "rgba(0,108,73,0.35)"]
 
               return (
-                <Card
-                  key={alert.id}
-                  className="bg-card/50 backdrop-blur-sm overflow-hidden"
-                >
-                  <div className="flex">
-                    {/* Left color bar */}
-                    <div
-                      className={`w-1.5 shrink-0 ${severityColors[alert.severity]}`}
-                    />
+                <div key={alert.id}
+                  className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                  {/* Main row */}
+                  <div className="flex items-center gap-5 p-5">
 
-                    <div className="flex-1 p-4">
-                      {/* Header row */}
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div
-                            className={`w-9 h-9 rounded-lg shrink-0 flex items-center justify-center ${
-                              alert.severity === "urgent"
-                                ? "bg-red-500/15"
-                                : alert.severity === "warning"
-                                  ? "bg-orange-500/15"
-                                  : "bg-blue-500/15"
-                            }`}
-                          >
-                            <TypeIcon
-                              className={`w-5 h-5 ${
-                                alert.severity === "urgent"
-                                  ? "text-red-600"
-                                  : alert.severity === "warning"
-                                    ? "text-orange-600"
-                                    : "text-blue-600"
-                              }`}
-                            />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-semibold text-sm leading-tight">
-                                {alert.title}
-                              </h4>
-                              <Badge
-                                variant="outline"
-                                className={`text-[10px] px-1.5 py-0 ${severityBadgeVariants[alert.severity]}`}
-                              >
-                                {alert.severity.toUpperCase()}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                              {alert.description}
-                            </p>
-                          </div>
+                    {/* Avatar + Identity */}
+                    <div className="flex items-center gap-3 shrink-0" style={{ minWidth: 200 }}>
+                      <div className="relative shrink-0">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2"
+                          style={{ background: avatarBg, color: avatarColor, borderColor: avatarBorder }}>
+                          {initial}
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white"
+                          style={{ background: avatarColor }}>
+                          <TypeIcon className="w-2.5 h-2.5 text-white" />
                         </div>
                       </div>
-
-                      {/* Customer info line */}
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground ml-12 mb-2">
-                        <span className="font-medium text-foreground">
-                          {alert.customer.name}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] px-1.5 py-0 ${tierColors[alert.customer.tier] || ""}`}
-                        >
-                          {alert.customer.tier}
-                        </Badge>
-                        <span>{alert.customer.points} pts</span>
-                        <span>
-                          RM{alert.customer.totalSpent.toFixed(0)} spent
-                        </span>
-                        <span>{alert.customer.visits} visits</span>
-                        {alert.customer.lastVisit && (
-                          <span>
-                            Last:{" "}
-                            {new Date(
-                              alert.customer.lastVisit
-                            ).toLocaleDateString()}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-sm text-gray-900">{alert.customer.name}</span>
+                          <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-full border uppercase tracking-wide ${tierColors[alert.customer.tier] || ""}`}>
+                            {alert.customer.tier}
                           </span>
-                        )}
-                      </div>
-
-                      {/* Expand/collapse toggle */}
-                      <button
-                        onClick={() => toggleExpand(alert.id)}
-                        className="flex items-center gap-1 text-xs text-[#8b6f47] hover:text-[#7a6140] ml-12 mb-2 transition-colors"
-                      >
-                        {isExpanded ? (
-                          <>
-                            <ChevronUp className="w-3.5 h-3.5" />
-                            Hide details
-                          </>
-                        ) : (
-                          <>
-                            <ChevronDown className="w-3.5 h-3.5" />
-                            Show details
-                          </>
-                        )}
-                      </button>
-
-                      {/* Expandable section */}
-                      {isExpanded && (
-                        <div className="ml-12 space-y-3 mb-3">
-                          {/* Suggested action */}
-                          <div className="p-3 rounded-lg bg-muted/50">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <Eye className="w-3.5 h-3.5 text-[#8b6f47]" />
-                              <span className="text-xs font-medium">
-                                Suggested Action
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              {alert.suggestedAction}
-                            </p>
-                          </div>
-
-                          {/* Message preview */}
-                          <div className="p-3 rounded-lg bg-muted/50">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <MessageSquare className="w-3.5 h-3.5 text-[#8b6f47]" />
-                              <span className="text-xs font-medium">
-                                Message Preview
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground whitespace-pre-wrap">
-                              {alert.messageTemplate}
-                            </p>
-                          </div>
-
-                          {/* Voucher suggestion */}
-                          {alert.voucherSuggestion && (
-                            <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <Gift className="w-3.5 h-3.5 text-amber-600" />
-                                <span className="text-xs font-medium text-amber-700">
-                                  Voucher Suggestion
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div>
-                                  <span className="text-muted-foreground">
-                                    Name:{" "}
-                                  </span>
-                                  <span className="font-medium">
-                                    {alert.voucherSuggestion.name}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">
-                                    Discount:{" "}
-                                  </span>
-                                  <span className="font-medium">
-                                    {alert.voucherSuggestion.discount_type ===
-                                    "percentage"
-                                      ? `${alert.voucherSuggestion.discount_value}%`
-                                      : `RM${alert.voucherSuggestion.discount_value}`}
-                                  </span>
-                                </div>
-                                <div className="col-span-2">
-                                  <span className="text-muted-foreground">
-                                    Reason:{" "}
-                                  </span>
-                                  <span>
-                                    {alert.voucherSuggestion.reason}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
                         </div>
-                      )}
-
-                      {/* Action buttons */}
-                      <div className="flex items-center gap-2 ml-12">
-                        <Button
-                          size="sm"
-                          onClick={() => handleAction(alert)}
-                          disabled={isSending || !alert.customer.phone}
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          {isSending ? (
-                            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                          ) : (
-                            <Send className="w-3.5 h-3.5 mr-1.5" />
-                          )}
-                          {isSending ? "Sending..." : "Send Message"}
-                        </Button>
-                        {!alert.customer.phone && (
-                          <span className="text-xs text-red-500">
-                            No phone number
-                          </span>
-                        )}
+                        <span className={`inline-block mt-0.5 px-2 py-0.5 text-[10px] font-bold rounded-full border ${severityBadgeVariants[alert.severity]}`}>
+                          {alert.severity.toUpperCase()}
+                        </span>
                       </div>
                     </div>
+
+                    {/* AI Description */}
+                    <div className="flex-1 pl-5 border-l border-gray-100 min-w-0">
+                      <p className="text-sm text-gray-500 italic leading-relaxed line-clamp-2">
+                        {alert.description}
+                      </p>
+                      <button onClick={() => toggleExpand(alert.id)}
+                        className="flex items-center gap-1 text-xs mt-1.5 font-semibold transition-colors"
+                        style={{ color: "#006c49" }}>
+                        {isExpanded
+                          ? <><ChevronUp className="w-3.5 h-3.5" />Hide details</>
+                          : <><ChevronDown className="w-3.5 h-3.5" />Show details</>}
+                      </button>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="w-px h-12 bg-gray-100 shrink-0" />
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-2 xl:grid-cols-4 gap-x-5 gap-y-1 shrink-0" style={{ minWidth: 240 }}>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Points</p>
+                        <p className="text-sm font-semibold text-gray-800">{alert.customer.points.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Spent</p>
+                        <p className="text-sm font-semibold text-gray-800">RM{alert.customer.totalSpent.toFixed(0)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Visits</p>
+                        <p className="text-sm font-semibold text-gray-800">{alert.customer.visits}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Last</p>
+                        <p className="text-sm font-semibold text-gray-800">
+                          {alert.customer.lastVisit ? formatRelativeDate(alert.customer.lastVisit) : "—"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Send Button */}
+                    <button
+                      onClick={() => handleAction(alert)}
+                      disabled={isSending || !alert.customer.phone}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-semibold whitespace-nowrap transition-all active:scale-[0.98] disabled:opacity-40 shrink-0"
+                      style={{ background: "#006c49" }}>
+                      {isSending
+                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                        : <Send className="w-4 h-4" />}
+                      Send Message
+                    </button>
                   </div>
-                </Card>
+
+                  {/* Expandable Details */}
+                  {isExpanded && (
+                    <div className="px-5 pb-5 pt-2 border-t border-gray-50 space-y-3"
+                      style={{ background: "#f9fbf9" }}>
+                      <div className="p-3 rounded-lg bg-white border border-gray-100">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Eye className="w-3.5 h-3.5" style={{ color: "#006c49" }} />
+                          <span className="text-xs font-semibold text-gray-700">Suggested Action</span>
+                        </div>
+                        <p className="text-xs text-gray-500">{alert.suggestedAction}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-white border border-gray-100">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <MessageSquare className="w-3.5 h-3.5" style={{ color: "#006c49" }} />
+                          <span className="text-xs font-semibold text-gray-700">Message Preview</span>
+                        </div>
+                        <p className="text-xs text-gray-500 whitespace-pre-wrap">{alert.messageTemplate}</p>
+                      </div>
+                      {alert.voucherSuggestion && (
+                        <div className="p-3 rounded-lg bg-amber-50 border border-amber-100">
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <Gift className="w-3.5 h-3.5 text-amber-600" />
+                            <span className="text-xs font-semibold text-amber-700">Voucher Suggestion</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-gray-400">Name: </span>
+                              <span className="font-medium">{alert.voucherSuggestion.name}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Discount: </span>
+                              <span className="font-medium">
+                                {alert.voucherSuggestion.discount_type === "percentage"
+                                  ? `${alert.voucherSuggestion.discount_value}%`
+                                  : `RM${alert.voucherSuggestion.discount_value}`}
+                              </span>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="text-gray-400">Reason: </span>
+                              <span>{alert.voucherSuggestion.reason}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )
             })}
           </div>
-        </ScrollArea>
-      )}
+        )}
+      </div>
     </div>
   )
 }
