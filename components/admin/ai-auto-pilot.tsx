@@ -112,8 +112,8 @@ const typeLabels: Record<string, string> = {
 
 const severityBadgeVariants: Record<string, string> = {
   urgent: "bg-red-500/15 text-red-600 border-red-500/30",
-  warning: "bg-amber-500/15 text-amber-700 border-amber-500/30",
-  info: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
+  warning: "bg-orange-500/15 text-orange-700 border-orange-500/30",
+  info: "bg-[#8b6f47]/10 text-[#8b6f47] border-[#8b6f47]/25",
 }
 
 const tierColors: Record<string, string> = {
@@ -278,12 +278,12 @@ export default function AIAutoPilot() {
 
         {/* Warnings */}
         <div className="p-6 rounded-xl border flex flex-col gap-2"
-          style={{ background: "rgba(0,108,73,0.06)", borderColor: "rgba(0,108,73,0.18)" }}>
+          style={{ background: "rgba(234,88,12,0.07)", borderColor: "rgba(234,88,12,0.18)" }}>
           <div className="flex justify-between items-center">
-            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#006c49" }}>Warnings</span>
-            <Clock className="w-4 h-4" style={{ color: "#006c49" }} />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-orange-600">Warnings</span>
+            <Clock className="w-4 h-4 text-orange-500" />
           </div>
-          <div className="text-4xl font-extrabold" style={{ color: "#006c49" }}>{summary.warning}</div>
+          <div className="text-4xl font-extrabold text-orange-600">{summary.warning}</div>
           <p className="text-xs text-gray-400">Monitor closely</p>
         </div>
 
@@ -303,22 +303,22 @@ export default function AIAutoPilot() {
       {!loading && (aiOverview || aiError) && (
         <div className="relative rounded-xl overflow-hidden border px-8 py-6 flex items-center"
           style={{
-            background: "linear-gradient(135deg, rgba(0,108,73,0.07) 0%, #eef6ee 55%, rgba(254,166,25,0.05) 100%)",
-            borderColor: "rgba(0,108,73,0.12)",
+            background: "linear-gradient(135deg, rgba(139,111,71,0.07) 0%, rgba(253,252,247,1) 55%, rgba(254,166,25,0.05) 100%)",
+            borderColor: "rgba(139,111,71,0.15)",
           }}>
           <div className="flex items-start gap-4 max-w-3xl">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-              style={{ background: "rgba(0,108,73,0.1)" }}>
-              <Brain className="w-5 h-5" style={{ color: "#006c49" }} />
+              style={{ background: "rgba(139,111,71,0.1)" }}>
+              <Brain className="w-5 h-5" style={{ color: "#8b6f47" }} />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                <h3 className="font-semibold text-sm" style={{ color: "#006c49" }}>
+                <h3 className="font-semibold text-sm" style={{ color: "#8b6f47" }}>
                   JP&Co AI Strategic Overview
                 </h3>
                 {aiEnhanced && (
                   <span className="px-2 py-0.5 text-[10px] font-bold rounded-full text-white"
-                    style={{ background: "#10b981" }}>
+                    style={{ background: "#8b6f47" }}>
                     AI ENHANCED
                   </span>
                 )}
@@ -368,7 +368,7 @@ export default function AIAutoPilot() {
                   ? "text-white border-transparent"
                   : "text-gray-500 border-gray-200 bg-white hover:border-gray-300 hover:text-gray-700"
               }`}
-              style={filterType === opt.key ? { background: "#006c49", borderColor: "#006c49" } : {}}>
+              style={filterType === opt.key ? { background: "#8b6f47", borderColor: "#8b6f47" } : {}}>
               {opt.label}
               {opt.count > 0 && (
                 <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
@@ -382,7 +382,7 @@ export default function AIAutoPilot() {
         {/* Loading */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl border border-gray-100">
-            <Loader2 className="w-10 h-10 animate-spin mb-3" style={{ color: "#006c49" }} />
+            <Loader2 className="w-10 h-10 animate-spin mb-3" style={{ color: "#8b6f47" }} />
             <p className="text-sm text-gray-400">Analyzing customer data...</p>
           </div>
         )}
@@ -403,8 +403,8 @@ export default function AIAutoPilot() {
         {!loading && !error && filteredAlerts.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl border border-gray-100">
             <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-              style={{ background: "rgba(0,108,73,0.08)" }}>
-              <Shield className="w-8 h-8" style={{ color: "#006c49" }} />
+              style={{ background: "rgba(139,111,71,0.08)" }}>
+              <Shield className="w-8 h-8" style={{ color: "#8b6f47" }} />
             </div>
             <p className="text-lg font-bold text-gray-800 mb-1">All clear!</p>
             <p className="text-sm text-gray-400 text-center max-w-sm">
@@ -429,7 +429,7 @@ export default function AIAutoPilot() {
                   ? ["rgba(164,58,58,0.12)", "#a43a3a", "rgba(164,58,58,0.35)"]
                   : alert.severity === "warning"
                   ? ["rgba(133,83,0,0.10)", "#855300", "rgba(133,83,0,0.35)"]
-                  : ["rgba(0,108,73,0.08)", "#006c49", "rgba(0,108,73,0.35)"]
+                  : ["rgba(139,111,71,0.08)", "#8b6f47", "rgba(139,111,71,0.35)"]
 
               return (
                 <div key={alert.id}
@@ -469,7 +469,7 @@ export default function AIAutoPilot() {
                       </p>
                       <button onClick={() => toggleExpand(alert.id)}
                         className="flex items-center gap-1 text-xs mt-1.5 font-semibold transition-colors"
-                        style={{ color: "#006c49" }}>
+                        style={{ color: "#8b6f47" }}>
                         {isExpanded
                           ? <><ChevronUp className="w-3.5 h-3.5" />Hide details</>
                           : <><ChevronDown className="w-3.5 h-3.5" />Show details</>}
@@ -506,7 +506,7 @@ export default function AIAutoPilot() {
                       onClick={() => handleAction(alert)}
                       disabled={isSending || !alert.customer.phone}
                       className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-semibold whitespace-nowrap transition-all active:scale-[0.98] disabled:opacity-40 shrink-0"
-                      style={{ background: "#006c49" }}>
+                      style={{ background: "#8b6f47" }}>
                       {isSending
                         ? <Loader2 className="w-4 h-4 animate-spin" />
                         : <Send className="w-4 h-4" />}
@@ -520,14 +520,14 @@ export default function AIAutoPilot() {
                       style={{ background: "#f9fbf9" }}>
                       <div className="p-3 rounded-lg bg-white border border-gray-100">
                         <div className="flex items-center gap-1.5 mb-1">
-                          <Eye className="w-3.5 h-3.5" style={{ color: "#006c49" }} />
+                          <Eye className="w-3.5 h-3.5" style={{ color: "#8b6f47" }} />
                           <span className="text-xs font-semibold text-gray-700">Suggested Action</span>
                         </div>
                         <p className="text-xs text-gray-500">{alert.suggestedAction}</p>
                       </div>
                       <div className="p-3 rounded-lg bg-white border border-gray-100">
                         <div className="flex items-center gap-1.5 mb-1">
-                          <MessageSquare className="w-3.5 h-3.5" style={{ color: "#006c49" }} />
+                          <MessageSquare className="w-3.5 h-3.5" style={{ color: "#8b6f47" }} />
                           <span className="text-xs font-semibold text-gray-700">Message Preview</span>
                         </div>
                         <p className="text-xs text-gray-500 whitespace-pre-wrap">{alert.messageTemplate}</p>

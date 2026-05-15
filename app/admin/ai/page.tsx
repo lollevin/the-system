@@ -36,7 +36,8 @@ import { FloatingWhatsApp, checkWhatsAppConnected } from "@/components/admin/flo
 import { KnowledgeBase } from "@/components/admin/knowledge-base"
 import { createClient } from "@/lib/supabase/client"
 import { useLanguage } from "@/lib/i18n"
-import { History as HistoryIcon, Radar, BarChart3, BookOpen, Activity, CheckCircle, AlertCircle } from "lucide-react"
+import { Radar, BarChart3, BookOpen, Activity, CheckCircle, AlertCircle, MessageCircle } from "lucide-react"
+import { WhatsAppConnection } from "@/components/admin/whatsapp-connection"
 
 interface CustomerAction {
   id: string
@@ -88,8 +89,6 @@ export default function AICopilotPage() {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [sendingCustomers, setSendingCustomers] = useState<Set<string>>(new Set())
-  const [messageStats, setMessageStats] = useState({ todaySent: 0, totalSent: 0 })
-  const [recentMessages, setRecentMessages] = useState<any[]>([])
   const [aiHealth, setAiHealth] = useState<{
     ok: boolean
     loading: boolean
@@ -127,30 +126,6 @@ export default function AICopilotPage() {
     testAIConnection()
   }, [])
 
-  // Load message stats
-  useEffect(() => {
-    const loadMessageStats = async () => {
-      const { count: totalSent } = await supabase
-        .from("sent_messages")
-        .select("*", { count: "exact", head: true })
-      
-      const { count: todaySent } = await supabase
-        .from("sent_messages")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", new Date().toISOString().split("T")[0])
-
-      setMessageStats({ todaySent: todaySent || 0, totalSent: totalSent || 0 })
-
-      const { data } = await supabase
-        .from("sent_messages")
-        .select("*, customer:customer_id(full_name, phone)")
-        .order("created_at", { ascending: false })
-        .limit(10)
-      
-      if (data) setRecentMessages(data)
-    }
-    loadMessageStats()
-  }, [])
   
   // Initialize: restore persisted chat from localStorage, or show welcome message
   useEffect(() => {
@@ -625,6 +600,7 @@ export default function AICopilotPage() {
     { id: "smart", label: t("ai", "smartRecommendations"), icon: Sparkles, desc: t("ai", "aiSuggestions") },
     { id: "chat", label: t("ai", "aiChatInsights"), icon: MessageSquare, desc: t("ai", "askAnything") },
     { id: "knowledge", label: t("admin", "knowledgeBase"), icon: BookOpen, desc: t("ai", "kbUploadDesc") },
+    { id: "wa", label: "WA Connect", icon: MessageCircle, desc: "WhatsApp 连接管理" },
   ]
 
   return (
@@ -633,14 +609,14 @@ export default function AICopilotPage() {
       <div className="lg:w-56 shrink-0">
         <div className="lg:sticky lg:top-4 space-y-3">
           {/* Sidebar Header */}
-          <div className="p-3 rounded-xl border" style={{ background: "rgba(0,108,73,0.06)", borderColor: "rgba(0,108,73,0.15)" }}>
+          <div className="p-3 rounded-xl bg-gradient-to-br from-[#8b6f47]/10 to-[#8b6f47]/5 border border-[#8b6f47]/20">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#006c49" }}>
+              <div className="w-9 h-9 rounded-lg bg-[#8b6f47] flex items-center justify-center shrink-0">
                 <Brain className="w-5 h-5 text-white" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-sm font-bold leading-tight truncate" style={{ color: "#006c49" }}>{t("ai", "marketingCenter")}</h1>
-                <p className="text-[11px] text-muted-foreground leading-tight">AI-Native Intelligence</p>
+                <h1 className="text-sm font-bold leading-tight truncate">{t("ai", "marketingCenter")}</h1>
+                <p className="text-[11px] text-muted-foreground leading-tight">JP&Co AI</p>
               </div>
             </div>
           </div>
@@ -652,18 +628,11 @@ export default function AICopilotPage() {
             title={aiHealth.ok ? `${t("ai", "ai_status_online")} · ${aiHealth.latencyMs ?? "—"}ms` : t("ai", "ai_status_subtitle_retry")}
             className={`w-full p-2.5 rounded-xl border transition-all text-left group ${
               aiHealth.loading
-                ? "border-amber-500/20"
+                ? "bg-amber-500/5 border-amber-500/20"
                 : aiHealth.ok
-                  ? "hover:opacity-80"
-                  : "border-orange-500/25 hover:opacity-80"
+                  ? "bg-green-500/5 border-green-500/25 hover:bg-green-500/10"
+                  : "bg-orange-500/5 border-orange-500/25 hover:bg-orange-500/10"
             }`}
-            style={
-              aiHealth.loading
-                ? { background: "rgba(251,191,36,0.05)" }
-                : aiHealth.ok
-                  ? { background: "rgba(0,108,73,0.05)", borderColor: "rgba(0,108,73,0.2)" }
-                  : { background: "rgba(249,115,22,0.05)" }
-            }
           >
             <div className="flex items-center gap-2">
               {aiHealth.loading ? (
@@ -675,7 +644,7 @@ export default function AICopilotPage() {
               )}
               <div className="flex-1 min-w-0">
                 <p className={`text-[11px] font-semibold ${
-                  aiHealth.loading ? "text-amber-700" : aiHealth.ok ? "text-emerald-700" : "text-orange-700"
+                  aiHealth.loading ? "text-amber-700" : aiHealth.ok ? "text-green-700" : "text-orange-700"
                 }`}>
                   {aiHealth.loading
                     ? t("ai", "ai_status_checking")
@@ -715,25 +684,21 @@ export default function AICopilotPage() {
                       : "bg-card/60 hover:bg-muted/60 border border-transparent hover:border-border/50"
                     }
                   `}
-                  style={isActive ? { background: "rgba(0,108,73,0.1)", borderColor: "rgba(0,108,73,0.2)" } : {}}
+                  style={isActive ? { background: "rgba(139,111,71,0.1)", borderColor: "rgba(139,111,71,0.25)" } : {}}
                 >
                   {/* Active indicator bar */}
                   {isActive && (
-                    <div className="hidden lg:block absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 rounded-r-full transition-all duration-300"
-                      style={{ background: "#006c49" }} />
+                    <div className="hidden lg:block absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 rounded-r-full bg-[#8b6f47] transition-all duration-300" />
                   )}
                   <div className={`
                     w-8 h-8 rounded-lg flex items-center justify-center shrink-0
                     transition-all duration-200
-                    ${isActive ? "" : "bg-muted/50"}
-                  `}
-                  style={isActive ? { background: "rgba(0,108,73,0.15)" } : {}}>
-                    <Icon className={`w-[18px] h-[18px] transition-colors duration-200 ${isActive ? "" : "text-muted-foreground"}`}
-                      style={isActive ? { color: "#006c49" } : {}} />
+                    ${isActive ? "bg-[#8b6f47]/20" : "bg-muted/50"}
+                  `}>
+                    <Icon className={`w-[18px] h-[18px] transition-colors duration-200 ${isActive ? "text-[#8b6f47]" : "text-muted-foreground"}`} />
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className={`text-[13px] font-medium truncate transition-colors duration-200 ${isActive ? "" : "text-foreground"}`}
-                      style={isActive ? { color: "#006c49" } : {}}>
+                    <span className={`text-[13px] font-medium truncate transition-colors duration-200 ${isActive ? "text-[#8b6f47]" : "text-foreground"}`}>
                       {item.label}
                     </span>
                     <span className="text-[10px] text-muted-foreground truncate hidden lg:block">
@@ -760,6 +725,25 @@ export default function AICopilotPage() {
 
         {/* Knowledge Base */}
         {activeTab === "knowledge" && <KnowledgeBase />}
+
+        {/* WA Connect */}
+        {activeTab === "wa" && (
+          <div className="space-y-4">
+            {/* Status header card */}
+            <div className="p-4 rounded-xl bg-gradient-to-r from-[#8b6f47]/8 to-[#8b6f47]/3 border border-[#8b6f47]/15">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-[#8b6f47] flex items-center justify-center shrink-0">
+                  <MessageCircle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-sm">WhatsApp 连接管理</h2>
+                  <p className="text-[11px] text-muted-foreground">扫码登录 • 实时状态监控 • 一键重连</p>
+                </div>
+              </div>
+            </div>
+            <WhatsAppConnection />
+          </div>
+        )}
 
         {/* AI Chat & Insights */}
         {activeTab === "chat" && (
@@ -900,7 +884,7 @@ export default function AICopilotPage() {
                     className="flex-1"
                     disabled={isLoading}
                   />
-                  <Button type="submit" disabled={!input.trim() || isLoading} style={{ background: "#006c49" }} className="hover:opacity-90 text-white">
+                  <Button type="submit" disabled={!input.trim() || isLoading} className="bg-[#8b6f47] hover:bg-[#7a5f3a] text-white">
                     {isLoading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
