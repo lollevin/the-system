@@ -1087,16 +1087,14 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
   return (
     <main className="min-h-screen bg-background animate-in fade-in duration-150">
       <PromoModal />
-      <div className="mx-auto max-w-md sm:max-w-lg">
+      <div className="mx-auto max-w-md sm:max-w-lg overflow-hidden">
         <Header
           profile={profile}
           notificationCount={notificationCount}
           onNotificationClick={handleNotificationClick}
           onAvatarClick={() => setActiveView("me")}
         />
-      </div>
-      <TopBanner />
-      <div className="mx-auto max-w-md sm:max-w-lg">
+        <TopBanner />
         {/* Greeting overlaps banner with negative margin */}
         <div className="px-6 -mt-10 relative z-10">
           <AnimatedGreeting profile={profile} vouchers={vouchers} t={t} />
