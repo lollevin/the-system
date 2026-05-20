@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Header } from "@/components/header"
 import { CustomerSkeleton } from "@/components/customer-skeleton"
@@ -60,6 +60,7 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
   const [transactions, setTransactions] = useState<any[]>([])
   const [receivedMessages, setReceivedMessages] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const initialLoadDone = useRef(false)
   const [lastNotificationRead, setLastNotificationRead] = useState<Date | null>(null)
   const [selectedVoucherQR, setSelectedVoucherQR] = useState<any | null>(null)
   const [supportCategory, setSupportCategory] = useState("")
@@ -222,7 +223,7 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
   }, [user.id])
 
   const fetchData = async () => {
-    setIsLoading(true)
+    if (!initialLoadDone.current) setIsLoading(true)
     
     // Refresh profile
     const { data: profileData } = await supabase
@@ -285,6 +286,7 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
 
     if (messagesData) setReceivedMessages(messagesData)
 
+    initialLoadDone.current = true
     setIsLoading(false)
   }
 
@@ -683,17 +685,17 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
   // Menu View
   if (activeView === "menu") {
     return (
-      <>
+      <div className="animate-in fade-in duration-150">
         <CustomerMenu onBack={() => setActiveView("home")} />
         <BottomTabBar activeTab="menu" onTabChange={(tab) => setActiveView(tab)} />
-      </>
+      </div>
     )
   }
 
   // Rewards Hub View (main tab)
   if (activeView === "rewards") {
     return (
-      <main className="min-h-screen bg-background">
+      <main className="min-h-screen bg-background animate-in fade-in duration-150">
         <div className="mx-auto max-w-md sm:max-w-lg">
           <Header
             profile={profile}
@@ -723,7 +725,7 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
   // Me Tab View (main tab)
   if (activeView === "me") {
     return (
-      <main className="min-h-screen bg-background">
+      <main className="min-h-screen bg-background animate-in fade-in duration-150">
         <div className="mx-auto max-w-md sm:max-w-lg">
           <Header
             profile={profile}
@@ -1083,16 +1085,18 @@ export function CustomerApp({ user, profile: initialProfile }: CustomerAppProps)
 
   // Home View
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background animate-in fade-in duration-150">
       <PromoModal />
       <div className="mx-auto max-w-md sm:max-w-lg">
-        <Header 
-          profile={profile} 
+        <Header
+          profile={profile}
           notificationCount={notificationCount}
           onNotificationClick={handleNotificationClick}
           onAvatarClick={() => setActiveView("me")}
         />
-        <TopBanner />
+      </div>
+      <TopBanner />
+      <div className="mx-auto max-w-md sm:max-w-lg">
         {/* Greeting overlaps banner with negative margin */}
         <div className="px-6 -mt-10 relative z-10">
           <AnimatedGreeting profile={profile} vouchers={vouchers} t={t} />
