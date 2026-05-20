@@ -80,11 +80,19 @@ export function MeTab({
         className="relative overflow-hidden rounded-3xl shadow-md"
         style={{ background: "linear-gradient(135deg, #fdf6ec 0%, #edd9b0 100%)" }}
       >
-        {/* Decorative right side */}
-        <div className="absolute right-0 top-0 bottom-0 w-36 flex flex-col items-end justify-end pb-3 pr-4 pointer-events-none select-none">
-          <span className="text-[56px] leading-none" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.12))" }}>☕</span>
-          <span className="text-[44px] leading-none -mt-1" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.12))" }}>🥐</span>
-          <span className="text-[11px] font-extrabold text-[#8b6f47]/60 tracking-widest mt-1">JP&amp;Co</span>
+        {/* Decorative right side — real food photo */}
+        <div className="absolute right-0 top-0 bottom-0 w-36 pointer-events-none select-none">
+          {/* gradient fade from left so text stays readable */}
+          <div className="absolute inset-y-0 left-0 w-10 z-10"
+            style={{ background: "linear-gradient(to right, #fdf6ec, transparent)" }} />
+          <img
+            src="/images/drink-1.jpg"
+            alt=""
+            className="h-full w-full object-cover object-center opacity-90"
+          />
+          <div className="absolute bottom-2 right-3 z-20">
+            <span className="text-[10px] font-extrabold text-white/80 tracking-widest drop-shadow">JP&Co</span>
+          </div>
         </div>
 
         <div className="relative p-5 pr-36">
