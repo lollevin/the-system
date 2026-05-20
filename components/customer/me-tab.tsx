@@ -80,20 +80,9 @@ export function MeTab({
         className="relative overflow-hidden rounded-3xl shadow-md"
         style={{ background: "linear-gradient(135deg, #fdf6ec 0%, #edd9b0 100%)" }}
       >
-        {/* Decorative right side — real food photo */}
-        <div className="absolute right-0 top-0 bottom-0 w-36 pointer-events-none select-none">
-          {/* gradient fade from left so text stays readable */}
-          <div className="absolute inset-y-0 left-0 w-10 z-10"
-            style={{ background: "linear-gradient(to right, #fdf6ec, transparent)" }} />
-          <img
-            src="/images/drink-1.jpg"
-            alt=""
-            className="h-full w-full object-cover object-center opacity-90"
-          />
-          <div className="absolute bottom-2 right-3 z-20">
-            <span className="text-[10px] font-extrabold text-white/80 tracking-widest drop-shadow">JP&Co</span>
-          </div>
-        </div>
+        {/* Decorative circles */}
+        <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-[#d4a96a]/20 pointer-events-none" />
+        <div className="absolute -right-4 -bottom-6 w-28 h-28 rounded-full bg-[#c49a5a]/15 pointer-events-none" />
 
         <div className="relative p-5 pr-36">
           {/* Avatar with camera */}
