@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import {
-  User,
   ChevronRight,
   Bell,
   Headphones,
@@ -11,6 +10,8 @@ import {
   Globe,
   Loader2,
   Check,
+  Camera,
+  Star,
 } from "lucide-react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 import type { Profile } from "@/lib/supabase/types"
@@ -45,6 +46,13 @@ export function MeTab({
   const initial = profile.full_name?.[0]?.toUpperCase() || "U"
   const phone = profile.phone || ""
 
+  const totalSpent = profile.total_spent || 0
+  const memberTier =
+    totalSpent >= 5000 ? "Diamond"
+    : totalSpent >= 3000 ? "Gold"
+    : totalSpent >= 1000 ? "Silver"
+    : "Bronze"
+
   const handleLogout = async () => {
     setIsLogoutLoading(true)
     try {
@@ -64,78 +72,63 @@ export function MeTab({
 
   const currentLangLabel = langOptions.find((l) => l.id === language)?.label || "English"
 
-  const menuGroups: Array<
-    Array<{
-      icon: typeof Bell
-      label: string
-      onClick?: () => void
-      iconColor: string
-      iconBg: string
-      badge?: number
-      danger?: boolean
-      rightText?: string
-    }>
-  > = [
-    [
-      {
-        icon: UserCog,
-        label: t("customer", "profileSettings"),
-        onClick: onEditProfile,
-        iconColor: "text-slate-600",
-        iconBg: "bg-slate-500/10",
-      },
-      {
-        icon: Bell,
-        label: t("customer", "notificationSettings"),
-        onClick: onShowNotifications,
-        iconColor: "text-amber-600",
-        iconBg: "bg-amber-500/10",
-        badge: notificationCount > 0 ? notificationCount : undefined,
-      },
-      {
-        icon: Headphones,
-        label: t("customer", "contactSupport"),
-        onClick: onShowSupport,
-        iconColor: "text-violet-600",
-        iconBg: "bg-violet-500/10",
-      },
-    ],
-    [
-      {
-        icon: Globe,
-        label: t("customer", "changeLanguage"),
-        onClick: () => setShowLangPicker((v) => !v),
-        iconColor: "text-teal-600",
-        iconBg: "bg-teal-500/10",
-        rightText: currentLangLabel,
-      },
-    ],
-  ]
-
   return (
     <div className="flex flex-col gap-4 px-4 py-3">
-      {/* Profile Header Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#8b6f47] via-[#a07d50] to-[#c8a775] p-5 text-white shadow-lg">
-        <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <div className="relative flex items-center gap-4">
-          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-white/20 text-2xl font-bold backdrop-blur-sm ring-2 ring-white/30">
-            {initial}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-xl font-bold">{profile.full_name || "Member"}</h2>
-            {phone && <p className="mt-0.5 text-sm text-white/85">{phone}</p>}
+
+      {/* ── Profile Banner Card ── */}
+      <div
+        className="relative overflow-hidden rounded-3xl shadow-md"
+        style={{ background: "linear-gradient(135deg, #fdf6ec 0%, #edd9b0 100%)" }}
+      >
+        {/* Decorative right side */}
+        <div className="absolute right-0 top-0 bottom-0 w-36 flex flex-col items-end justify-end pb-3 pr-4 pointer-events-none select-none">
+          <span className="text-[56px] leading-none" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.12))" }}>☕</span>
+          <span className="text-[44px] leading-none -mt-1" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.12))" }}>🥐</span>
+          <span className="text-[11px] font-extrabold text-[#8b6f47]/60 tracking-widest mt-1">JP&amp;Co</span>
+        </div>
+
+        <div className="relative p-5 pr-36">
+          {/* Avatar with camera */}
+          <div className="relative inline-block mb-3">
+            <div className="w-[72px] h-[72px] rounded-full bg-gray-200 flex items-center justify-center text-[28px] font-bold text-gray-500 ring-2 ring-white/60">
+              {initial}
+            </div>
             <button
               onClick={onEditProfile}
-              className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur-sm transition-all hover:bg-white/30 active:scale-95"
+              className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#8b6f47] flex items-center justify-center shadow-md hover:bg-[#7a5f3a] active:scale-95 transition-all"
             >
-              {t("customer", "editProfile")}
-              <ChevronRight className="h-3 w-3" />
+              <Camera className="w-3 h-3 text-white" />
             </button>
           </div>
+
+          {/* Name */}
+          <h2 className="text-[22px] font-extrabold text-gray-900 leading-tight tracking-tight">
+            {profile.full_name || "Member"}
+          </h2>
+
+          {/* Phone */}
+          {phone && (
+            <p className="text-sm text-gray-600 mt-0.5">{phone}</p>
+          )}
+
+          {/* Tier badge */}
+          <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-[#8b6f47] px-3.5 py-1.5">
+            <Star className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+            <span className="text-xs font-bold text-white">{memberTier} Member</span>
+          </div>
+
+          {/* Edit Profile button */}
+          <button
+            onClick={onEditProfile}
+            className="mt-2.5 flex items-center gap-1 rounded-full border border-gray-400/40 bg-white/80 px-4 py-1.5 text-xs font-semibold text-gray-800 backdrop-blur-sm hover:bg-white active:scale-95 transition-all"
+          >
+            {t("customer", "editProfile")}
+            <ChevronRight className="h-3 w-3" />
+          </button>
         </div>
       </div>
 
-      {/* Language Picker (expands under the button when clicked) */}
+      {/* Language Picker (expands inline) */}
       {showLangPicker && (
         <div className="rounded-2xl border border-[#8b6f47]/30 bg-card p-3 shadow-sm">
           <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -164,66 +157,103 @@ export function MeTab({
         </div>
       )}
 
-      {/* Menu Groups */}
-      {menuGroups.map((group, groupIdx) => (
-        <div
-          key={groupIdx}
-          className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
-        >
-          {group.map((item, idx) => {
-            const Icon = item.icon
-            return (
-              <button
-                key={idx}
-                onClick={item.onClick}
-                className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/40 active:bg-muted/60 ${
-                  idx !== group.length - 1 ? "border-b border-border/60" : ""
-                }`}
-              >
-                <div
-                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${item.iconBg}`}
-                >
-                  <Icon className={`h-4.5 w-4.5 ${item.iconColor}`} strokeWidth={2.2} />
-                </div>
-                <span className="flex-1 text-sm font-medium text-foreground">{item.label}</span>
-                {item.badge !== undefined && (
-                  <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
-                    {item.badge > 99 ? "99+" : item.badge}
-                  </span>
-                )}
-                {item.rightText && (
-                  <span className="text-xs text-muted-foreground">{item.rightText}</span>
-                )}
-                <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground/60" />
-              </button>
-            )
-          })}
-        </div>
-      ))}
+      {/* Main Menu Group */}
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        {[
+          {
+            icon: UserCog,
+            label: t("customer", "profileSettings"),
+            desc: "Manage your personal information",
+            onClick: onEditProfile,
+            iconColor: "text-blue-600",
+            iconBg: "bg-blue-500/10",
+            badge: undefined as number | undefined,
+          },
+          {
+            icon: Bell,
+            label: t("customer", "notificationSettings"),
+            desc: "Manage your notifications and preferences",
+            onClick: onShowNotifications,
+            iconColor: "text-amber-600",
+            iconBg: "bg-amber-500/10",
+            badge: notificationCount > 0 ? notificationCount : undefined,
+          },
+          {
+            icon: Headphones,
+            label: t("customer", "contactSupport"),
+            desc: "Get help and support from our team",
+            onClick: onShowSupport,
+            iconColor: "text-violet-600",
+            iconBg: "bg-violet-500/10",
+            badge: undefined as number | undefined,
+          },
+        ].map((item, idx, arr) => {
+          const Icon = item.icon
+          return (
+            <button
+              key={idx}
+              onClick={item.onClick}
+              className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/40 active:bg-muted/60 ${
+                idx !== arr.length - 1 ? "border-b border-border/60" : ""
+              }`}
+            >
+              <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${item.iconBg}`}>
+                <Icon className={`h-5 w-5 ${item.iconColor}`} strokeWidth={2} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">{item.label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+              </div>
+              {item.badge !== undefined && (
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                  {item.badge > 99 ? "99+" : item.badge}
+                </span>
+              )}
+              <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground/60" />
+            </button>
+          )
+        })}
+      </div>
 
-      {/* Logout (standalone danger item) */}
+      {/* Change Language */}
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <button
+          onClick={() => setShowLangPicker((v) => !v)}
+          className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/40 active:bg-muted/60"
+        >
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-teal-500/10">
+            <Globe className="h-5 w-5 text-teal-600" strokeWidth={2} />
+          </div>
+          <span className="flex-1 text-sm font-semibold text-foreground">{t("customer", "changeLanguage")}</span>
+          <span className="text-xs text-muted-foreground">{currentLangLabel}</span>
+          <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground/60" />
+        </button>
+      </div>
+
+      {/* Logout */}
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <button
           onClick={handleLogout}
           disabled={isLogoutLoading}
           className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-red-500/5 active:bg-red-500/10 disabled:opacity-60"
         >
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-red-500/10">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-500/10">
             {isLogoutLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-red-600" />
+              <Loader2 className="h-5 w-5 animate-spin text-red-600" />
             ) : (
-              <LogOut className="h-4 w-4 text-red-600" strokeWidth={2.2} />
+              <LogOut className="h-5 w-5 text-red-600" strokeWidth={2} />
             )}
           </div>
-          <span className="flex-1 text-sm font-semibold text-red-600">
-            {t("customer", "logout")}
-          </span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-red-600">{t("customer", "logout")}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Sign out from your account</p>
+          </div>
           <ChevronRight className="h-4 w-4 flex-shrink-0 text-red-600/60" />
         </button>
       </div>
 
       {/* Version footer */}
-      <p className="mt-2 mb-2 text-center text-[11px] text-muted-foreground/60">
+      <p className="mt-2 mb-4 text-center text-[11px] text-muted-foreground/60">
         JP&Co · v1.0
       </p>
     </div>
