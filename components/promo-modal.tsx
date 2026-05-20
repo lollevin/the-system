@@ -251,14 +251,14 @@ export function TopBanner() {
   }
 
   const content = (
-    <div className="relative w-full h-44 sm:h-56 md:h-64 overflow-hidden bg-gradient-to-r from-amber-50 to-orange-50 group">
+    <div className="relative w-full overflow-hidden bg-white group" style={{ aspectRatio: "2.5 / 1" }}>
       {/* Images */}
       {images.map((img, idx) => (
         <div
           key={idx}
           className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${idx === currentIndex ? "opacity-100" : "opacity-0"}`}
         >
-          <Image src={img} alt={`Promo ${idx + 1}`} fill className="object-cover group-hover:scale-105 transition-transform duration-700" priority={idx === 0} />
+          <Image src={img} alt={`Promo ${idx + 1}`} fill className="object-contain group-hover:scale-105 transition-transform duration-700" priority={idx === 0} />
         </div>
       ))}
 
