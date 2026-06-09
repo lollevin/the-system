@@ -92,11 +92,11 @@ export function AdminOverview() {
     }
   }
 
-  const fetchCompetitors = async (lat: number, lng: number, rKm: number) => {
+  const fetchCompetitors = async (lat: number, lng: number, rKm: number, force = false) => {
     setCompetitorLoading(true)
     setCompetitorError(null)
     try {
-      const r = await fetch(`/api/admin/competitors?lat=${lat}&lng=${lng}&radius=${rKm * 1000}`, {
+      const r = await fetch(`/api/admin/competitors?lat=${lat}&lng=${lng}&radius=${rKm * 1000}${force ? "&force=1" : ""}`, {
         cache: "no-store",
       })
       const data = await r.json().catch(() => ({}))
@@ -271,7 +271,7 @@ export function AdminOverview() {
               <AlertTriangle className="h-3.5 w-3.5 text-orange-500 shrink-0" />
               <span className="text-foreground">{competitorError}</span>
               <button
-                onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
+                onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km, true)}
                 className="ml-1 flex items-center gap-1 text-[#8b6f47] hover:text-[#8b6f47]/80 font-medium"
               >
                 <RefreshCw className="h-3 w-3" />
@@ -291,8 +291,9 @@ export function AdminOverview() {
                 <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-600 inline-block shadow-sm" /><span className="font-medium">{threatStats.green}</span> {t("admin", "popular")}</span>
                 {threatLoading && <Loader2 className="h-3 w-3 animate-spin text-[#8b6f47] ml-1" />}
                 <button
-                  onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km)}
+                  onClick={() => fetchCompetitors(shopLocation.lat, shopLocation.lng, shopLocation.radius_km, true)}
                   disabled={competitorLoading}
+                  title="Force refresh from Overpass"
                   className="ml-1 flex items-center justify-center h-6 w-6 rounded-lg bg-black/5 hover:bg-black/10 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <RefreshCw className={`h-3 w-3 ${competitorLoading ? "animate-spin" : ""}`} />
