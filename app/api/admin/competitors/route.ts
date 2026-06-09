@@ -59,7 +59,6 @@ export async function GET(request: Request) {
       "https://overpass-api.de/api/interpreter",
       "https://overpass.kumi.systems/api/interpreter",
       "https://overpass.openstreetmap.ru/api/interpreter",
-      "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
     ]
 
     let data: any = null
@@ -69,17 +68,16 @@ export async function GET(request: Request) {
     for (const endpoint of overpassEndpoints) {
       try {
         const controller = new AbortController()
-        // Give every mirror 20s — Malaysian VPS → EU servers needs more time
-        const timeoutMs = 20000
+        // 3 endpoints × 13s = 39s, well within maxDuration:60
+        const timeoutMs = 13000
         const timeout = setTimeout(() => controller.abort(), timeoutMs)
 
-        // Overpass-api.de blocks generic bot UAs with 406 — masquerade as curl (recommended by their guidelines)
         const res = await fetch(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
-            "Accept": "*/*",
-            "User-Agent": "curl/8.4.0",
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (compatible; JPCo-System/1.0)",
           },
           body: `data=${encodeURIComponent(query)}`,
           signal: controller.signal,
