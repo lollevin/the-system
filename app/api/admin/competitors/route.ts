@@ -5,6 +5,10 @@ import { NextResponse } from "next/server"
 export const maxDuration = 60
 export const dynamic = "force-dynamic"
 
+// Module-level cache: key = "lat,lng,radius" → { data, expiry }
+const cache = new Map<string, { data: any[]; expiry: number }>()
+const CACHE_TTL_MS = 60 * 60 * 1000 // 1 hour
+
 function haversineDistance(
   lat1: number, lng1: number,
   lat2: number, lng2: number
@@ -39,14 +43,23 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "lat and lng are required" }, { status: 400 })
   }
 
+  // Check cache first
+  const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)},${radius}`
+  const cached = cache.get(cacheKey)
+  if (cached && cached.expiry > Date.now()) {
+    console.log(`[Competitors] Cache hit for ${cacheKey}`)
+    return NextResponse.json(cached.data)
+  }
+
   // Also search for more amenities to catch all F&B places
   const query = `[out:json][timeout:25];(node["amenity"~"restaurant|cafe|fast_food|food_court|bar|pub|ice_cream|bakery"](around:${radius},${lat},${lng});node["shop"~"bakery|confectionery|coffee"](around:${radius},${lat},${lng}););out body;`
 
   try {
     const overpassEndpoints = [
       "https://overpass-api.de/api/interpreter",
-      "https://overpass.openstreetmap.ru/api/interpreter",
       "https://overpass.kumi.systems/api/interpreter",
+      "https://overpass.openstreetmap.ru/api/interpreter",
+      "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
     ]
 
     let data: any = null
@@ -56,8 +69,8 @@ export async function GET(request: Request) {
     for (const endpoint of overpassEndpoints) {
       try {
         const controller = new AbortController()
-        // Fail fast on secondary mirrors so we move on quickly
-        const timeoutMs = endpoint.includes("overpass-api.de") ? 25000 : 8000
+        // Give every mirror 20s — Malaysian VPS → EU servers needs more time
+        const timeoutMs = 20000
         const timeout = setTimeout(() => controller.abort(), timeoutMs)
 
         // Overpass-api.de blocks generic bot UAs with 406 — masquerade as curl (recommended by their guidelines)
@@ -136,6 +149,8 @@ export async function GET(request: Request) {
       .slice(0, 80)
 
     console.log(`[Competitors] Found ${competitors.length} places within ${radius}m of ${lat},${lng}`)
+    // Store in cache
+    cache.set(cacheKey, { data: competitors, expiry: Date.now() + CACHE_TTL_MS })
     return NextResponse.json(competitors)
   } catch (err: any) {
     console.error(`[Competitors] Unexpected error:`, err)
